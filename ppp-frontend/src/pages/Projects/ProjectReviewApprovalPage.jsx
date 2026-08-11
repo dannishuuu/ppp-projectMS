@@ -267,7 +267,33 @@ export const ProjectReviewApprovalPage = () => {
               }}
             >
               <GridItem label="Organization" value={proposal?.organization_name || '-'} />
-              <GridItem label="Category" value={proposal?.project_category_name || '-'} />
+              <Box>
+                <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem', display: 'block' }}>
+                  Categories
+                </Typography>
+                {proposal?.categories && Array.isArray(proposal.categories) && proposal.categories.length > 0 ? (
+                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
+                    {proposal.categories.map((cat) => (
+                      <Chip
+                        key={cat.id}
+                        label={cat.category_name}
+                        size="small"
+                        sx={{
+                          height: 20,
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          backgroundColor: '#f1f5f9',
+                          color: '#475569',
+                        }}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#94a3b8', mt: 0.5, fontStyle: 'italic' }}>
+                    -
+                  </Typography>
+                )}
+              </Box>
               <GridItem label="Capital Amount" value={`${proposal?.proposed_capital_amount ? Number(proposal.proposed_capital_amount).toLocaleString() : '-'} ${proposal?.currency_code || ''}`} highlight />
               <GridItem label="Land Requested" value={proposal?.land_requested || '-'} />
               <GridItem label="Current Status" value={proposal?.status_name || '-'} />
