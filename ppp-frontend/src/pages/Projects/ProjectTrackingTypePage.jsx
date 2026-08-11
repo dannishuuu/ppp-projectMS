@@ -75,8 +75,6 @@ export const ProjectTrackingTypePage = () => {
     description: '',
     isWbs: false,
     isLeaf: false,
-    sortOrder: 0,
-    defaultWeight: 1.00,
     isActive: true,
   });
   const [formLoading, setFormLoading] = useState(false);
@@ -139,8 +137,6 @@ export const ProjectTrackingTypePage = () => {
       description: '',
       isWbs: false,
       isLeaf: false,
-      sortOrder: 0,
-      defaultWeight: 1.00,
       isActive: true,
     });
     setCreateOpen(true);
@@ -169,8 +165,6 @@ export const ProjectTrackingTypePage = () => {
       description: type.description || '',
       isWbs: type.is_wbs,
       isLeaf: type.is_leaf,
-      sortOrder: type.sort_order,
-      defaultWeight: type.default_weight,
       isActive: type.is_active,
     });
     setEditOpen(true);
@@ -351,12 +345,11 @@ export const ProjectTrackingTypePage = () => {
       {/* Types Table */}
       <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
         <TableContainer>
-          <Table size="small" sx={{ minWidth: 800 }}>
+          <Table size="small" sx={{ minWidth: 700 }}>
             <TableHead sx={{ backgroundColor: '#f8fafc' }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Type Details</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Structure</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Config</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Status</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }} align="right">Actions</TableCell>
               </TableRow>
@@ -364,13 +357,13 @@ export const ProjectTrackingTypePage = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={4} align="center" sx={{ py: 8 }}>
                     <CircularProgress size={36} sx={{ color: '#4f46e5' }} />
                   </TableCell>
                 </TableRow>
               ) : types.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#94a3b8' }}>
+                  <TableCell colSpan={4} align="center" sx={{ py: 6, color: '#94a3b8' }}>
                     No tracking types found matching criteria.
                   </TableCell>
                 </TableRow>
@@ -449,14 +442,6 @@ export const ProjectTrackingTypePage = () => {
                           </Typography>
                         )}
                       </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.82rem' }}>
-                        Order: {type.sort_order}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>
-                        Weight: {type.default_weight}
-                      </Typography>
                     </TableCell>
                     <TableCell>
                       {type.is_active ? (
@@ -618,24 +603,6 @@ export const ProjectTrackingTypePage = () => {
                 
                 <Grid item xs={6}>
                   <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem', display: 'block' }}>
-                    Sort Order
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>
-                    {selectedType.sort_order}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem', display: 'block' }}>
-                    Default Weight
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>
-                    {selectedType.default_weight}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem', display: 'block' }}>
                     Status
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5, color: selectedType.is_active ? '#10b981' : '#ef4444' }}>
@@ -736,34 +703,6 @@ export const ProjectTrackingTypePage = () => {
                   : "If true, items of this type cannot have children"}
               </Typography>
             </Box>
-            
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Sort Order"
-                  value={formData.sortOrder}
-                  onChange={handleFormChange('sortOrder')}
-                  margin="normal"
-                  size="small"
-                  inputProps={{ min: 0 }}
-                />
-              </Grid>
-              
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Default Weight"
-                  value={formData.defaultWeight}
-                  onChange={handleFormChange('defaultWeight')}
-                  margin="normal"
-                  size="small"
-                  inputProps={{ step: 0.01, min: 0 }}
-                />
-              </Grid>
-            </Grid>
           </Box>
         </DialogContent>
         <DialogActions>
@@ -851,62 +790,6 @@ export const ProjectTrackingTypePage = () => {
                   : "If true, items of this type cannot have children"}
               </Typography>
             </Box>
-            
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Sort Order"
-                  value={formData.sortOrder}
-                  onChange={handleFormChange('sortOrder')}
-                  margin="normal"
-                  size="small"
-                  inputProps={{ min: 0 }}
-                />
-              </Grid>
-              
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Default Weight"
-                  value={formData.defaultWeight}
-                  onChange={handleFormChange('defaultWeight')}
-                  margin="normal"
-                  size="small"
-                  inputProps={{ step: 0.01, min: 0 }}
-                />
-              </Grid>
-            </Grid>
-            
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Sort Order"
-                  value={formData.sortOrder}
-                  onChange={handleFormChange('sortOrder')}
-                  margin="normal"
-                  size="small"
-                  inputProps={{ min: 0 }}
-                />
-              </Grid>
-              
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Default Weight"
-                  value={formData.defaultWeight}
-                  onChange={handleFormChange('defaultWeight')}
-                  margin="normal"
-                  size="small"
-                  inputProps={{ step: 0.01, min: 0 }}
-                />
-              </Grid>
-            </Grid>
             
             <Box sx={{ mt: 2 }}>
               <FormControlLabel

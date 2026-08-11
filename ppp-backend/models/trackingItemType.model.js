@@ -15,7 +15,7 @@ class TrackingItemTypeModel {
       isActive = true,
       isWbs = null,
       isLeaf = null,
-      sortBy = 'sort_order',
+      sortBy = 'created_at',
     } = options;
 
     let where = 'WHERE is_deleted = false';
@@ -50,8 +50,8 @@ class TrackingItemTypeModel {
     const total = parseInt(countResult[0]?.total || 0, 10);
 
     // Validate sortBy column name to prevent SQL injection
-    const allowedSortColumns = ['sort_order', 'code', 'name', 'created_at', 'updated_at'];
-    const validSortBy = allowedSortColumns.includes(sortBy) ? sortBy : 'sort_order';
+    const allowedSortColumns = ['code', 'name', 'created_at', 'updated_at'];
+    const validSortBy = allowedSortColumns.includes(sortBy) ? sortBy : 'created_at';
 
     // Sort and paginate
     const query = `SELECT * FROM tracking_item_types ${where} ORDER BY ${validSortBy} ASC LIMIT :limit OFFSET :offset`;
@@ -112,14 +112,12 @@ class TrackingItemTypeModel {
       description,
       isWbs,
       isLeaf,
-      sortOrder,
-      defaultWeight,
       createdBy,
     } = data;
 
     const query = `
-      INSERT INTO tracking_item_types (code, name, description, is_wbs, is_leaf, sort_order, default_weight, created_by)
-      VALUES (:code, :name, :description, :isWbs, :isLeaf, :sortOrder, :defaultWeight, :createdBy)
+      INSERT INTO tracking_item_types (code, name, description, is_wbs, is_leaf, created_by)
+      VALUES (:code, :name, :description, :isWbs, :isLeaf, :createdBy)
       RETURNING *
     `;
 
@@ -130,8 +128,6 @@ class TrackingItemTypeModel {
         description: description || null,
         isWbs: !!isWbs,
         isLeaf: !!isLeaf,
-        sortOrder: parseInt(sortOrder) || 0,
-        defaultWeight: parseFloat(defaultWeight) || 1.00,
         createdBy: createdBy || null,
       },
       type: QueryTypes.SELECT,
@@ -150,8 +146,6 @@ class TrackingItemTypeModel {
       description,
       isWbs,
       isLeaf,
-      sortOrder,
-      defaultWeight,
       isActive,
       updatedBy,
     } = data;
@@ -178,14 +172,6 @@ class TrackingItemTypeModel {
     if (isLeaf !== undefined) {
       setClauses.push('is_leaf = :isLeaf');
       replacements.isLeaf = isLeaf;
-    }
-    if (sortOrder !== undefined) {
-      setClauses.push('sort_order = :sortOrder');
-      replacements.sortOrder = sortOrder;
-    }
-    if (defaultWeight !== undefined) {
-      setClauses.push('default_weight = :defaultWeight');
-      replacements.defaultWeight = defaultWeight;
     }
     if (isActive !== undefined) {
       setClauses.push('is_active = :isActive');
@@ -256,10 +242,10 @@ class TrackingItemTypeModel {
    */
   static async getActive() {
     const query = `
-      SELECT id, code, name, description, is_wbs, is_leaf, sort_order, default_weight 
+      SELECT id, code, name, description, is_wbs, is_leaf 
       FROM tracking_item_types 
       WHERE is_active = true AND is_deleted = false
-      ORDER BY sort_order ASC
+      ORDER BY created_at ASC
     `;
     const rows = await db.query(query, {
       type: QueryTypes.SELECT,
@@ -273,10 +259,10 @@ class TrackingItemTypeModel {
    */
   static async getWbsCapable() {
     const query = `
-      SELECT id, code, name, description, sort_order 
+      SELECT id, code, name, description 
       FROM tracking_item_types 
       WHERE is_wbs = true AND is_active = true AND is_deleted = false
-      ORDER BY sort_order ASC
+      ORDER BY created_at ASC
     `;
     const rows = await db.query(query, {
       type: QueryTypes.SELECT,
@@ -290,10 +276,10 @@ class TrackingItemTypeModel {
    */
   static async getLeafTypes() {
     const query = `
-      SELECT id, code, name, description, sort_order 
+      SELECT id, code, name, description 
       FROM tracking_item_types 
       WHERE is_leaf = true AND is_active = true AND is_deleted = false
-      ORDER BY sort_order ASC
+      ORDER BY created_at ASC
     `;
     const rows = await db.query(query, {
       type: QueryTypes.SELECT,

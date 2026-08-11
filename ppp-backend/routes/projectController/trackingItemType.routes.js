@@ -30,9 +30,6 @@ router.get('/:id/can-have-children', TrackingItemTypeController.canHaveChildren)
 // Check if a type is a leaf node
 router.get('/:id/is-leaf', TrackingItemTypeController.isLeafNode);
 
-// Get default weight for a type
-router.get('/:id/default-weight', TrackingItemTypeController.getDefaultWeight);
-
 /**
  * Protected routes (authentication required)
  */

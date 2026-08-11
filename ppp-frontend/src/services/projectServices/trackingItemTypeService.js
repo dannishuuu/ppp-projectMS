@@ -98,18 +98,8 @@ export const trackingItemTypeService = {
   },
 
   /**
-   * Get default weight for a tracking item type.
-   * @param {string} id
-   * @returns {Promise<{ id: string, defaultWeight: number }>}
-   */
-  async getDefaultWeight(id) {
-    const response = await apiClient.get(`${BASE}/${id}/default-weight`);
-    return response.data;
-  },
-
-  /**
    * Create a new tracking item type.
-   * @param {object} payload - { code, name, description?, isWbs, isLeaf, sortOrder?, defaultWeight? }
+   * @param {object} payload - { code, name, description?, isWbs, isLeaf }
    * @returns {Promise<object>}
    */
   async createTrackingItemType(payload) {
@@ -120,7 +110,7 @@ export const trackingItemTypeService = {
   /**
    * Update an existing tracking item type.
    * @param {string} id
-   * @param {object} payload - { code?, name?, description?, isWbs?, isLeaf?, sortOrder?, defaultWeight?, isActive? }
+   * @param {object} payload - { code?, name?, description?, isWbs?, isLeaf?, isActive? }
    * @returns {Promise<object>}
    */
   async updateTrackingItemType(id, payload) {

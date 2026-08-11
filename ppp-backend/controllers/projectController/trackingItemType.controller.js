@@ -156,8 +156,6 @@ class TrackingItemTypeController {
         description,
         isWbs,
         isLeaf,
-        sortOrder,
-        defaultWeight,
       } = req.body;
 
       const userId = req.user?.id || null;
@@ -169,8 +167,6 @@ class TrackingItemTypeController {
           description,
           isWbs,
           isLeaf,
-          sortOrder,
-          defaultWeight,
         },
         userId
       );
@@ -202,8 +198,6 @@ class TrackingItemTypeController {
         description,
         isWbs,
         isLeaf,
-        sortOrder,
-        defaultWeight,
         isActive,
       } = req.body;
 
@@ -224,8 +218,6 @@ class TrackingItemTypeController {
           description,
           isWbs,
           isLeaf,
-          sortOrder,
-          defaultWeight,
           isActive,
         },
         userId
@@ -367,37 +359,6 @@ class TrackingItemTypeController {
       res.status(statusCode).json({
         success: false,
         error: error.message || 'Failed to check if type is leaf',
-      });
-    }
-  }
-
-  /**
-   * GET /tracking-item-types/:id/default-weight
-   * Get default weight for a type
-   */
-  static async getDefaultWeight(req, res) {
-    try {
-      const { id } = req.params;
-
-      if (!id) {
-        return res.status(400).json({
-          success: false,
-          error: 'ID is required',
-        });
-      }
-
-      const weight = await TrackingItemTypeService.getDefaultWeight(id);
-
-      res.json({
-        success: true,
-        data: { id, defaultWeight: weight },
-        message: 'Default weight retrieved successfully',
-      });
-    } catch (error) {
-      const statusCode = error.status || 500;
-      res.status(statusCode).json({
-        success: false,
-        error: error.message || 'Failed to retrieve default weight',
       });
     }
   }

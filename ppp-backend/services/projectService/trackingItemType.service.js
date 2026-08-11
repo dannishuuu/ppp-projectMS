@@ -78,8 +78,6 @@ class TrackingItemTypeService {
       description,
       isWbs = false,
       isLeaf = false,
-      sortOrder = 0,
-      defaultWeight = 1.00,
     } = payload;
 
     // Validation
@@ -124,8 +122,6 @@ class TrackingItemTypeService {
       description: description?.trim() || null,
       isWbs,
       isLeaf,
-      sortOrder: parseInt(sortOrder) || 0,
-      defaultWeight: parseFloat(defaultWeight) || 1.00,
       createdBy: actorId,
     });
 
@@ -144,8 +140,6 @@ class TrackingItemTypeService {
       description,
       isWbs,
       isLeaf,
-      sortOrder,
-      defaultWeight,
       isActive,
     } = payload;
 
@@ -182,8 +176,6 @@ class TrackingItemTypeService {
       description: description ? description.trim() : undefined,
       isWbs,
       isLeaf,
-      sortOrder: sortOrder !== undefined ? parseInt(sortOrder) : undefined,
-      defaultWeight: defaultWeight !== undefined ? parseFloat(defaultWeight) : undefined,
       isActive,
       updatedBy: actorId,
     });
@@ -258,14 +250,6 @@ class TrackingItemTypeService {
   static async isLeafNode(typeId) {
     const itemType = await this.getTrackingItemTypeById(typeId);
     return itemType.is_leaf;
-  }
-
-  /**
-   * Get default weight for a tracking item type
-   */
-  static async getDefaultWeight(typeId) {
-    const itemType = await this.getTrackingItemTypeById(typeId);
-    return itemType.default_weight;
   }
 }
 
