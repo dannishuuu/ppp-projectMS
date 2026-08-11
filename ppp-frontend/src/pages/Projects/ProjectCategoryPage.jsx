@@ -1,0 +1,678 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  Chip,
+  IconButton,
+  Tooltip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
+  Avatar,
+  Grid,
+  Divider,
+  MenuItem,
+  Alert,
+  Breadcrumbs,
+  Link,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
+import {
+  Search as SearchIcon,
+  Add as AddIcon,
+  Visibility as ViewIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Block as DeactivateIcon,
+  CheckCircle as ActivateIcon,
+  Category as CategoryIcon,
+  FilterList as FilterIcon,
+} from '@mui/icons-material';
+import { Link as RouterLink } from 'react-router-dom';
+import { useSnackbar } from 'notistack';
+import { projectCategoryService } from '../../services/projectServices';
+import { formatDate } from '../../utils/formatters';
+import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
+
+export const ProjectCategoryPage = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { enqueueSnackbar } = useSnackbar();
+
+  // State
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  // Dialog State (Create, Edit, View)
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState('add'); // 'add' | 'edit' | 'view'
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [formData, setFormData] = useState({ name: '', description: '' });
+  const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState('');
+
+  // Confirmation Modals
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [toggleLoading, setToggleLoading] = useState(false);
+
+  // Fetch Categories List
+  const fetchCategories = async () => {
+    setLoading(true);
+    try {
+      const result = await projectCategoryService.getProjectCategories({
+        page: page + 1,
+        limit: rowsPerPage,
+        search: searchTerm,
+        status: statusFilter,
+      });
+      setCategories(result.projectCategories || result.rows || []);
+      setTotalCount(result.pagination?.total || result.total || 0);
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Failed to load project categories', { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, [page, rowsPerPage, statusFilter]);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (page === 0) {
+        fetchCategories();
+      } else {
+        setPage(0);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handleChangePage = (event, newPage) => setPage(newPage);
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // Open Create/Edit/View Dialog
+  const handleDialogOpen = (mode, category = null) => {
+    setDialogMode(mode);
+    setSelectedCategory(category);
+    if ((mode === 'edit' || mode === 'view') && category) {
+      setFormData({ name: category.name || '', description: category.description || '' });
+    } else {
+      setFormData({ name: '', description: '' });
+    }
+    setFormError('');
+    setDialogOpen(true);
+  };
+
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+    setSelectedCategory(null);
+    setFormData({ name: '', description: '' });
+    setFormError('');
+  };
+
+  const handleChange = (field) => (event) => {
+    setFormData((prev) => ({ ...prev, [field]: event.target.value }));
+    if (formError) setFormError('');
+  };
+
+  // Submit Create / Edit Form
+  const handleSubmit = async (e) => {
+    e?.preventDefault();
+    setFormError('');
+    if (!formData.name.trim()) {
+      setFormError('Category name is required.');
+      return;
+    }
+
+    setFormLoading(true);
+    try {
+      if (dialogMode === 'add') {
+        await projectCategoryService.createProjectCategory(formData);
+        enqueueSnackbar('Project category created successfully', { variant: 'success' });
+      } else if (dialogMode === 'edit' && selectedCategory) {
+        await projectCategoryService.updateProjectCategory(selectedCategory.id, formData);
+        enqueueSnackbar('Project category updated successfully', { variant: 'success' });
+      }
+      handleDialogClose();
+      fetchCategories();
+    } catch (error) {
+      setFormError(error.message || `Failed to ${dialogMode === 'add' ? 'create' : 'update'} category.`);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  // Toggle Status
+  const handleToggleDialogOpen = (category) => {
+    setSelectedCategory(category);
+    setToggleDialogOpen(true);
+  };
+
+  const handleToggleConfirm = async () => {
+    if (!selectedCategory) return;
+    setToggleLoading(true);
+    try {
+      const result = await projectCategoryService.toggleProjectCategoryStatus(selectedCategory.id);
+      enqueueSnackbar(result.message || 'Status updated successfully', { variant: 'success' });
+      setToggleDialogOpen(false);
+      fetchCategories();
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Failed to update category status', { variant: 'error' });
+    } finally {
+      setToggleLoading(false);
+    }
+  };
+
+  // Delete Category
+  const handleDeleteDialogOpen = (category) => {
+    setSelectedCategory(category);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedCategory) return;
+    setDeleteLoading(true);
+    try {
+      const result = await projectCategoryService.deleteProjectCategory(selectedCategory.id);
+      enqueueSnackbar(result.message || 'Category deleted successfully', { variant: 'success' });
+      setDeleteDialogOpen(false);
+      fetchCategories();
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Failed to delete category', { variant: 'error' });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const getDialogTitle = () => {
+    switch (dialogMode) {
+      case 'add': return 'Add Project Category';
+      case 'edit': return 'Edit Project Category';
+      case 'view': return 'Project Category Details';
+      default: return '';
+    }
+  };
+
+  return (
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, width: '100%' }}>
+      {/* Compact Header Bar */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5, flexWrap: 'wrap' }}>
+        <Breadcrumbs aria-label="breadcrumb" sx={{ fontSize: '0.78rem' }}>
+          <Link underline="hover" color="inherit" component={RouterLink} to="/dashboard" sx={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
+            Dashboard
+          </Link>
+          <Link underline="hover" color="inherit" component={RouterLink} to="/projects" sx={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
+            Projects
+          </Link>
+          <Typography sx={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
+            Project Categories
+          </Typography>
+        </Breadcrumbs>
+
+        <Box sx={{ width: '1px', height: 16, backgroundColor: '#cbd5e1', flexShrink: 0 }} />
+
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', lineHeight: 1 }}>
+          Project Categories Management
+        </Typography>
+      </Box>
+
+      {/* Filter Toolbar */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 2.5,
+          border: '1px solid #e2e8f0',
+          backgroundColor: '#ffffff',
+          px: 2,
+          py: 1.5,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          flexWrap: 'wrap',
+          mb: 3,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
+          <FilterIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
+          <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+            Filters
+          </Typography>
+        </Box>
+
+        <Box sx={{ width: '1px', height: 24, backgroundColor: '#e2e8f0', flexShrink: 0 }} />
+
+        {/* Search Input */}
+        <TextField
+          size="small"
+          placeholder="Search category by name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <Box component="span" sx={{ mr: 0.5, display: 'flex', alignItems: 'center' }}>
+                <SearchIcon sx={{ fontSize: 16, color: '#94a3b8' }} />
+              </Box>
+            ),
+          }}
+          sx={{
+            flex: '1 1 280px',
+            maxWidth: 360,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2,
+              fontSize: '0.8rem',
+              backgroundColor: '#f8fafc',
+              '& fieldset': { borderColor: '#e2e8f0' },
+              '&:hover fieldset': { borderColor: '#cbd5e1' },
+              '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+            },
+          }}
+        />
+
+        {/* Status Filter Dropdown */}
+        <TextField
+          select
+          size="small"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          sx={{
+            flex: '0 0 140px',
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2,
+              fontSize: '0.8rem',
+              backgroundColor: '#f8fafc',
+              '& fieldset': { borderColor: '#e2e8f0' },
+              '&:hover fieldset': { borderColor: '#cbd5e1' },
+              '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+            },
+          }}
+        >
+          <MenuItem value="all">All Status</MenuItem>
+          <MenuItem value="active">Active</MenuItem>
+          <MenuItem value="inactive">Inactive</MenuItem>
+        </TextField>
+
+        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+          <Chip
+            label={`${totalCount} categories`}
+            size="small"
+            sx={{
+              height: 22,
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              backgroundColor: '#eef2ff',
+              color: '#3730a3',
+              border: '1px solid #c7d2fe',
+            }}
+          />
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleDialogOpen('add')}
+            sx={{
+              fontWeight: 600,
+              borderRadius: 2,
+              backgroundColor: '#4f46e5',
+              '&:hover': { backgroundColor: '#4338ca' },
+              fontSize: '0.82rem',
+            }}
+          >
+            Add Category
+          </Button>
+        </Box>
+      </Paper>
+
+      {/* Categories Table */}
+      <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
+        <TableContainer>
+          <Table size="small" sx={{ minWidth: 650 }}>
+            <TableHead sx={{ backgroundColor: '#f8fafc' }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Category Name</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Description</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Created At</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }} align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
+                    <CircularProgress size={36} sx={{ color: '#4f46e5' }} />
+                  </TableCell>
+                </TableRow>
+              ) : categories.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#94a3b8' }}>
+                    No project categories found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                categories.map((cat) => (
+                  <TableRow key={cat.id} hover sx={{ '& td': { py: 0.75 } }}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar sx={{ width: 28, height: 28, backgroundColor: '#4f46e5', fontSize: '0.72rem', fontWeight: 700 }}>
+                          <CategoryIcon sx={{ fontSize: 16 }} />
+                        </Avatar>
+                        <Typography
+                          variant="body2"
+                          onClick={() => handleDialogOpen('view', cat)}
+                          sx={{
+                            fontWeight: 600,
+                            color: '#0f172a',
+                            fontSize: '0.82rem',
+                            cursor: 'pointer',
+                            '&:hover': { color: '#4f46e5', textDecoration: 'underline' },
+                          }}
+                        >
+                          {cat.name}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.82rem', maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {cat.description || '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={cat.is_active ? 'Active' : 'Inactive'}
+                        size="small"
+                        sx={{
+                          height: 20,
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          backgroundColor: cat.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                          color: cat.is_active ? '#059669' : '#dc2626',
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.82rem' }}>
+                        {formatDate(cat.created_at)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right" sx={{ pr: 1 }}>
+                      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                        <Tooltip title={cat.is_active ? 'Deactivate' : 'Activate'} arrow placement="top">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleToggleDialogOpen(cat)}
+                            sx={{ p: 0.5, color: cat.is_active ? '#f59e0b' : '#10b981' }}
+                          >
+                            {cat.is_active ? <DeactivateIcon sx={{ fontSize: 17 }} /> : <ActivateIcon sx={{ fontSize: 17 }} />}
+                          </IconButton>
+                        </Tooltip>
+
+                        <Tooltip title="View Details" arrow placement="top">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDialogOpen('view', cat)}
+                            sx={{ p: 0.5, color: '#6366f1' }}
+                          >
+                            <ViewIcon sx={{ fontSize: 17 }} />
+                          </IconButton>
+                        </Tooltip>
+
+                        <Tooltip title="Edit Category" arrow placement="top">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDialogOpen('edit', cat)}
+                            sx={{ p: 0.5, color: '#64748b' }}
+                          >
+                            <EditIcon sx={{ fontSize: 17 }} />
+                          </IconButton>
+                        </Tooltip>
+
+                        <Tooltip title="Delete Category" arrow placement="top">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteDialogOpen(cat)}
+                            sx={{ p: 0.5, color: '#dc2626' }}
+                          >
+                            <DeleteIcon sx={{ fontSize: 17 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25]}
+          component="div"
+          count={totalCount}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={{
+            borderTop: '1px solid #e2e8f0',
+            '& .MuiTablePagination-selectLabel': { fontSize: '0.8rem', color: '#64748b' },
+            '& .MuiTablePagination-displayedRows': { fontSize: '0.8rem', color: '#475569' },
+            '& .MuiTablePagination-actions button': { fontSize: '0.8rem' },
+          }}
+        />
+      </Paper>
+
+      {/* POPUP MODAL DIALOG (Create, Edit, View) */}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleDialogClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, p: 0.5 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', pb: 1 }}>
+          {getDialogTitle()}
+        </DialogTitle>
+        <Divider />
+
+        <DialogContent sx={{ pt: 2.5 }}>
+          {formError && (
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+              {formError}
+            </Alert>
+          )}
+
+          {dialogMode === 'view' && selectedCategory ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ width: 44, height: 44, backgroundColor: '#4f46e5' }}>
+                  <CategoryIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                    {selectedCategory.name}
+                  </Typography>
+                  <Chip
+                    label={selectedCategory.is_active ? 'Active' : 'Inactive'}
+                    size="small"
+                    sx={{
+                      height: 20,
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      backgroundColor: selectedCategory.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                      color: selectedCategory.is_active ? '#059669' : '#dc2626',
+                      mt: 0.5,
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              <Divider light />
+
+              <Box>
+                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
+                  Description
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                  {selectedCategory.description || 'No description provided.'}
+                </Typography>
+              </Box>
+
+              <Divider light />
+
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>Created By</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                    {selectedCategory.created_by_name || 'System Admin'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>Created At</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                    {formatDate(selectedCategory.created_at)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>Last Updated By</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                    {selectedCategory.updated_by_name || 'System Admin'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>Last Updated At</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                    {formatDate(selectedCategory.updated_at)}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          ) : (
+            <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 0.5 }}>
+              <TextField
+                required
+                fullWidth
+                label="Category Name"
+                placeholder="e.g. A. Housing Projects"
+                value={formData.name}
+                onChange={handleChange('name')}
+                size="small"
+                disabled={formLoading}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Description"
+                placeholder="Describe the scope or parameters of this project category..."
+                value={formData.description}
+                onChange={handleChange('description')}
+                size="small"
+                disabled={formLoading}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1.5 }}>
+          <Button
+            onClick={handleDialogClose}
+            disabled={formLoading}
+            sx={{ borderRadius: 2, color: '#64748b', fontWeight: 600 }}
+          >
+            {dialogMode === 'view' ? 'Close' : 'Cancel'}
+          </Button>
+
+          {dialogMode !== 'view' && (
+            <Button
+              onClick={handleSubmit}
+              variant="contained"
+              disabled={formLoading}
+              startIcon={formLoading ? <CircularProgress size={18} color="inherit" /> : null}
+              sx={{
+                borderRadius: 2,
+                px: 3,
+                fontWeight: 700,
+                backgroundColor: '#4f46e5',
+                '&:hover': { backgroundColor: '#4338ca' },
+              }}
+            >
+              {formLoading ? 'Saving...' : dialogMode === 'add' ? 'Create Category' : 'Save Changes'}
+            </Button>
+          )}
+
+          {dialogMode === 'view' && (
+            <Button
+              variant="contained"
+              onClick={() => handleDialogOpen('edit', selectedCategory)}
+              startIcon={<EditIcon />}
+              sx={{
+                borderRadius: 2,
+                px: 3,
+                fontWeight: 700,
+                backgroundColor: '#4f46e5',
+                '&:hover': { backgroundColor: '#4338ca' },
+              }}
+            >
+              Edit Category
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirmation Modals for Delete & Toggle */}
+      <ConfirmationModal
+        open={deleteDialogOpen}
+        title="Delete Project Category"
+        message={`Are you sure you want to delete category "${selectedCategory?.name}"? This action cannot be undone.`}
+        onConfirm={handleDeleteConfirm}
+        onClose={() => setDeleteDialogOpen(false)}
+        loading={deleteLoading}
+        confirmText="Delete Category"
+        confirmColor="error"
+      />
+
+      <ConfirmationModal
+        open={toggleDialogOpen}
+        title={selectedCategory?.is_active ? 'Deactivate Category' : 'Activate Category'}
+        message={`Are you sure you want to ${selectedCategory?.is_active ? 'deactivate' : 'activate'} "${selectedCategory?.name}"?`}
+        onConfirm={handleToggleConfirm}
+        onClose={() => setToggleDialogOpen(false)}
+        loading={toggleLoading}
+        confirmText={selectedCategory?.is_active ? 'Deactivate' : 'Activate'}
+        confirmColor={selectedCategory?.is_active ? 'warning' : 'success'}
+      />
+    </Box>
+  );
+};
+
+export default ProjectCategoryPage;
