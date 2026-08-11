@@ -239,13 +239,13 @@ const SequenceFormDialog = ({ open, mode, initial, onClose, onSubmit, loading })
           {/* Prefix */}
           <Box>
             <Typography variant="caption" sx={labelStyle}>Prefix *</Typography>
-            <TextField fullWidth size="small" value={form.prefix} onChange={set('prefix')} placeholder="e.g. PROP-" sx={fieldSx} />
+            <TextField fullWidth size="small" value={form.prefix} onChange={set('prefix')} placeholder="e.g. PROP-" disabled={mode === 'edit'} sx={fieldSx} />
           </Box>
 
           {/* Suffix */}
           <Box>
             <Typography variant="caption" sx={labelStyle}>Suffix (optional)</Typography>
-            <TextField fullWidth size="small" value={form.suffix} onChange={set('suffix')} placeholder="e.g. -DRAFT" sx={fieldSx} />
+            <TextField fullWidth size="small" value={form.suffix} onChange={set('suffix')} placeholder="e.g. -DRAFT" disabled={mode === 'edit'} sx={fieldSx} />
           </Box>
 
           {/* Padding Length */}
@@ -253,7 +253,7 @@ const SequenceFormDialog = ({ open, mode, initial, onClose, onSubmit, loading })
             <Typography variant="caption" sx={labelStyle}>Padding Length</Typography>
             <TextField fullWidth size="small" type="number" value={form.paddingLength}
               onChange={(e) => setForm((f) => ({ ...f, paddingLength: Number(e.target.value) }))}
-              inputProps={{ min: 1, max: 10 }} sx={fieldSx} />
+              inputProps={{ min: 1, max: 10 }} disabled={mode === 'edit'} sx={fieldSx} />
           </Box>
 
           {/* Next Sequence */}
@@ -261,7 +261,7 @@ const SequenceFormDialog = ({ open, mode, initial, onClose, onSubmit, loading })
             <Typography variant="caption" sx={labelStyle}>Next Sequence #</Typography>
             <TextField fullWidth size="small" type="number" value={form.nextSequence}
               onChange={(e) => setForm((f) => ({ ...f, nextSequence: Number(e.target.value) }))}
-              inputProps={{ min: 1 }} sx={fieldSx} />
+              inputProps={{ min: 1 }} disabled={mode === 'edit'} sx={fieldSx} />
           </Box>
 
           {/* Current Year */}
@@ -606,11 +606,6 @@ export const DocumentSequencePage = () => {
                           <Tooltip title="Edit" arrow>
                             <IconButton size="small" onClick={() => openEdit(seq)} sx={{ p: 0.5, color: '#64748b' }}>
                               <EditIcon sx={{ fontSize: 17 }} />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete" arrow>
-                            <IconButton size="small" onClick={() => { setSelectedSeq(seq); setDeleteOpen(true); }} sx={{ p: 0.5, color: '#dc2626' }}>
-                              <DeleteIcon sx={{ fontSize: 17 }} />
                             </IconButton>
                           </Tooltip>
                         </Box>

@@ -148,7 +148,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
 
   const docMgmtSubItems = [
     {
-      text: 'Document Sequences',
+      text: 'Document Seq',
       icon: <SequenceIcon />,
       path: '/document-sequences',
     },
@@ -543,7 +543,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
                 <SequenceIcon sx={{ fontSize: 20 }} />
               </ListItemIcon>
               <ListItemText
-                primary="Document Management"
+                primary="Document Mngt"
                 primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isDocMgmtGroupActive ? 600 : 500 }}
               />
               {isMenuOpen('docmgmt') ? (
