@@ -379,12 +379,12 @@ export const ProjectProposalList = () => {
           <Table size="small" sx={{ minWidth: 800 }}>
             <TableHead sx={{ backgroundColor: '#f8fafc' }}>
               <TableRow>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Doc. Number</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Proposal Details</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Developer</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Category</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Capital Requirement</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Status</TableCell>
-                {/* <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Submission</TableCell> */}
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -405,31 +405,60 @@ export const ProjectProposalList = () => {
                 proposals.map((prop) => (
                   <TableRow key={prop.id} hover sx={{ '& td': { py: 0.8 } }}>
                     <TableCell>
+                      {prop.prop_number ? (
+                        <Typography
+                          component={RouterLink}
+                          to={`/projects/proposals/${prop.id}`}
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            px: 1.2,
+                            py: 0.4,
+                            borderRadius: 1.5,
+                            backgroundColor: '#eef2ff',
+                            color: '#4f46e5',
+                            fontWeight: 700,
+                            fontSize: '0.78rem',
+                            letterSpacing: '0.04em',
+                            border: '1px solid #c7d2fe',
+                            textDecoration: 'none',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: '#4f46e5',
+                              color: '#ffffff',
+                              borderColor: '#4f46e5',
+                            },
+                          }}
+                        >
+                          {prop.prop_number}
+                        </Typography>
+                      ) : (
+                        <Typography
+                          sx={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            px: 1.2,
+                            py: 0.4,
+                            borderRadius: 1.5,
+                            backgroundColor: '#f1f5f9',
+                            color: '#94a3b8',
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            fontStyle: 'italic',
+                          }}
+                        >
+                          Pending
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
                         <Avatar sx={{ width: 32, height: 32, backgroundColor: '#c7d2fe', color: '#4338ca' }}>
                           <ProposalIcon sx={{ fontSize: 18 }} />
                         </Avatar>
                         <Box>
-                          {prop.prop_number && (
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                display: 'inline-block',
-                                mb: 0.3,
-                                px: 0.8,
-                                py: 0.1,
-                                borderRadius: 1,
-                                backgroundColor: '#eef2ff',
-                                color: '#4f46e5',
-                                fontWeight: 700,
-                                fontSize: '0.68rem',
-                                letterSpacing: '0.04em',
-                                border: '1px solid #c7d2fe',
-                              }}
-                            >
-                              {prop.prop_number}
-                            </Typography>
-                          )}
                           <Typography
                             variant="body2"
                             onClick={() => navigate(`/projects/proposals/${prop.id}`)}
