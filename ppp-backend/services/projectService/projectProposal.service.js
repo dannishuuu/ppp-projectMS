@@ -3,6 +3,7 @@ const ProjectProposalModel = require('../../models/projectProposal.model');
 const ProposalCategoryModel = require('../../models/proposalCategory.model');
 const ProposalReviewerModel = require('../../models/proposalReviewer.model');
 const ProposalStatusModel   = require('../../models/proposalStatus.model');
+const DocumentSequenceService = require('./documentSequence.service');
 const db = require('../../config/database');
 
 class ProjectProposalService {
@@ -80,6 +81,9 @@ class ProjectProposalService {
       throw err;
     }
 
+    // Auto-generate proposal number (e.g. PROP-2026-0001)
+    const propNumber = await DocumentSequenceService.generateNextNumber('project_proposal', actorId);
+
     const created = await ProjectProposalModel.create({
       organizationId,
       statusId,
@@ -91,6 +95,7 @@ class ProjectProposalService {
       remarks:               payload.remarks               || null,
       attachedDocuments:     payload.attachedDocuments     || null,
       submittedAt:           payload.submittedAt           || null,
+      propNumber,
       createdBy: actorId,
     });
 

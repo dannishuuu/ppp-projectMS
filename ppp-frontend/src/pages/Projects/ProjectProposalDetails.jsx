@@ -292,6 +292,26 @@ export const ProjectProposalDetails = () => {
             </Box>
 
             {/* Basic Info */}
+            {proposal.prop_number && (
+              <Typography
+                sx={{
+                  display: 'inline-block',
+                  mb: 1,
+                  px: 1,
+                  py: 0.3,
+                  borderRadius: 1.5,
+                  backgroundColor: '#eef2ff',
+                  color: '#4f46e5',
+                  fontWeight: 800,
+                  fontSize: '0.75rem',
+                  letterSpacing: '0.06em',
+                  border: '1px solid #c7d2fe',
+                  fontFamily: 'monospace',
+                }}
+              >
+                {proposal.prop_number}
+              </Typography>
+            )}
             <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', mb: 2, fontSize: '1.1rem' }}>
               {proposal.proposed_project_name || 'Untitled Proposal'}
             </Typography>

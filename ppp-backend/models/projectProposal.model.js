@@ -4,6 +4,7 @@ const { QueryTypes } = require('sequelize');
 
 const PUBLIC_PROPOSAL_FIELDS = `
   pp.id,
+  pp.prop_number,
   pp.organization_id,
   pp.status_id,
   pp.proposed_project_name,
@@ -76,7 +77,7 @@ class ProjectProposalModel {
     const replacements = {};
 
     if (search) {
-      where += ` AND pp.proposed_project_name ILIKE :search`;
+      where += ` AND (pp.proposed_project_name ILIKE :search OR pp.prop_number ILIKE :search)`;
       replacements.search = `%${search}%`;
     }
     if (statusId) {
@@ -152,6 +153,7 @@ class ProjectProposalModel {
       remarks,
       attachedDocuments,
       submittedAt,
+      propNumber,
       createdBy,
     } = data;
 
@@ -161,6 +163,7 @@ class ProjectProposalModel {
         proposed_project_name, description,
         land_requested, proposed_capital_amount, currency_id,
         remarks, attached_documents, submitted_at,
+        prop_number,
         created_by, updated_by
       )
       VALUES (
@@ -168,6 +171,7 @@ class ProjectProposalModel {
         :proposedProjectName, :description,
         :landRequested, :proposedCapitalAmount, :currencyId,
         :remarks, :attachedDocuments::jsonb, :submittedAt,
+        :propNumber,
         :createdBy, :createdBy
       )
       RETURNING id
@@ -184,6 +188,7 @@ class ProjectProposalModel {
         remarks: remarks || null,
         attachedDocuments: attachedDocuments ? JSON.stringify(attachedDocuments) : null,
         submittedAt: submittedAt || null,
+        propNumber: propNumber || null,
         createdBy,
       },
       type: QueryTypes.SELECT,
@@ -207,6 +212,7 @@ class ProjectProposalModel {
       attachedDocuments:     'attached_documents',
       submittedAt:           'submitted_at',
       convertedProjectId:    'converted_project_id',
+      propNumber:            'prop_number',
     };
 
     const setClauses = [];

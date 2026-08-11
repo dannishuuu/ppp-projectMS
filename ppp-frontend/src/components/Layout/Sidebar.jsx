@@ -31,6 +31,7 @@ import {
   AssignmentTurnedIn as StatusIcon,
   Architecture as FoundationIcon,
   Description as ProposalIcon,
+  Tag as SequenceIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProjects } from '../../context/ProjectContext';
@@ -52,6 +53,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     location.pathname.startsWith('/users') ? 'users' :
     location.pathname.startsWith('/organization') || location.pathname.startsWith('/organizations') ? 'organizations' :
     location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') ? 'foundation' :
+    location.pathname.startsWith('/document-sequences') ? 'docmgmt' :
     null
   );
 
@@ -144,6 +146,14 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     },
   ];
 
+  const docMgmtSubItems = [
+    {
+      text: 'Document Sequences',
+      icon: <SequenceIcon />,
+      path: '/document-sequences',
+    },
+  ];
+
   const isDashboardActive = location.pathname === '/';
   const isProjectsGroupActive = location.pathname.startsWith('/projects');
   const isUsersGroupActive = location.pathname.startsWith('/users');
@@ -151,6 +161,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const isOrgTypesTabActive = location.pathname.startsWith('/organization-types');
   const isOrgTypesMenuGroupActive = isOrgTypesGroupActive || isOrgTypesTabActive;
   const isFoundationGroupActive = location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses');
+  const isDocMgmtGroupActive = location.pathname.startsWith('/document-sequences');
 
   const getUserDisplayName = () => {
     if (!user) return 'System Admin';
@@ -458,6 +469,93 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
             <Collapse in={isMenuOpen('foundation')} timeout="auto" unmountOnExit>
               <List disablePadding sx={{ pl: 2, pt: 0.5, display: 'flex', flexDirection: 'column', gap: 0.3 }}>
                 {foundationSubItems.map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <ListItem key={item.text} disablePadding>
+                      <ListItemButton
+                        onClick={() => handleNavigate(item.path)}
+                        sx={{
+                          borderRadius: 2,
+                          py: 0.9,
+                          px: 1.5,
+                          backgroundColor: isActive ? 'rgba(99, 102, 241, 0.16)' : 'transparent',
+                          color: isActive ? '#818cf8' : '#94a3b8',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.22)' : 'rgba(255, 255, 255, 0.04)',
+                            color: '#ffffff',
+                          },
+                        }}
+                      >
+                        <ListItemIcon sx={{ color: isActive ? '#818cf8' : '#64748b', minWidth: 32 }}>
+                          {React.cloneElement(item.icon, { sx: { fontSize: 17 } })}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.text}
+                          primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 600 : 400 }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </Collapse>
+          </ListItem>
+        </List>
+
+        {/* Document Management Section Label */}
+        <Typography
+          variant="caption"
+          sx={{
+            px: 1.5,
+            mt: 3,
+            mb: 1,
+            display: 'block',
+            color: '#64748b',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            fontSize: '0.68rem',
+          }}
+        >
+          Document Management
+        </Typography>
+
+        <List disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          {/* Document Management Group */}
+          <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+            <ListItemButton
+              onClick={() => handleMenuToggle('docmgmt')}
+              sx={{
+                borderRadius: 2.25,
+                py: 1.1,
+                px: 1.75,
+                backgroundColor: isDocMgmtGroupActive && !isMenuOpen('docmgmt') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                color: isDocMgmtGroupActive ? '#ffffff' : '#cbd5e1',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: '#ffffff',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: isDocMgmtGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
+                <SequenceIcon sx={{ fontSize: 20 }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Document Management"
+                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isDocMgmtGroupActive ? 600 : 500 }}
+              />
+              {isMenuOpen('docmgmt') ? (
+                <ExpandLess sx={{ color: '#64748b', fontSize: 18 }} />
+              ) : (
+                <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
+              )}
+            </ListItemButton>
+
+            <Collapse in={isMenuOpen('docmgmt')} timeout="auto" unmountOnExit>
+              <List disablePadding sx={{ pl: 2, pt: 0.5, display: 'flex', flexDirection: 'column', gap: 0.3 }}>
+                {docMgmtSubItems.map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
                     <ListItem key={item.text} disablePadding>

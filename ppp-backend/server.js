@@ -20,6 +20,7 @@ const proposalStatusRoutes    = require('./routes/foundationService/proposalStat
 const fileRoutes              = require('./routes/file.routes');
 const reviewDecisionRoutes    = require('./routes/reviewDecision.routes');
 const proposalReviewRoutes    = require('./routes/proposalReview.routes');
+const documentSequenceRoutes  = require('./routes/projectController/documentSequence.routes');
 
 
 // Middleware
@@ -68,6 +69,9 @@ app.use('/api/v1/review-decisions', reviewDecisionRoutes);
 
 // Proposal review routes
 app.use('/api/v1/proposal-reviews', proposalReviewRoutes);
+
+// Document sequence routes
+app.use('/api/v1/document-sequences', documentSequenceRoutes);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static('uploads'));

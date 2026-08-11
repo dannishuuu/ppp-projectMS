@@ -288,7 +288,7 @@ export const ProjectProposalList = () => {
         {/* Search */}
         <TextField
           size="small"
-          placeholder="Search proposal name..."
+          placeholder="Search name or number..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
@@ -410,6 +410,26 @@ export const ProjectProposalList = () => {
                           <ProposalIcon sx={{ fontSize: 18 }} />
                         </Avatar>
                         <Box>
+                          {prop.prop_number && (
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                display: 'inline-block',
+                                mb: 0.3,
+                                px: 0.8,
+                                py: 0.1,
+                                borderRadius: 1,
+                                backgroundColor: '#eef2ff',
+                                color: '#4f46e5',
+                                fontWeight: 700,
+                                fontSize: '0.68rem',
+                                letterSpacing: '0.04em',
+                                border: '1px solid #c7d2fe',
+                              }}
+                            >
+                              {prop.prop_number}
+                            </Typography>
+                          )}
                           <Typography
                             variant="body2"
                             onClick={() => navigate(`/projects/proposals/${prop.id}`)}
