@@ -5,7 +5,6 @@ const { QueryTypes } = require('sequelize');
 const PUBLIC_PROPOSAL_FIELDS = `
   pp.id,
   pp.organization_id,
-  pp.project_category_id,
   pp.status_id,
   pp.proposed_project_name,
   pp.description,
@@ -24,11 +23,26 @@ const PUBLIC_PROPOSAL_FIELDS = `
 
   -- Related entity names
   o.name                          AS organization_name,
-  pc.name                         AS project_category_name,
   ps.name                         AS status_name,
   ps.step                         AS status_step,
   c.code                          AS currency_code,
   c.symbol                        AS currency_symbol,
+
+  -- Multiple categories (JSON array)
+  COALESCE(
+    (SELECT JSON_AGG(
+      JSON_BUILD_OBJECT(
+        'id', pcat.id,
+        'category_id', pcat.category_id,
+        'category_name', cat.name,
+        'category_description', cat.description
+      ) ORDER BY cat.name
+    )
+    FROM proposal_categories pcat
+    JOIN project_categories cat ON cat.id = pcat.category_id
+    WHERE pcat.proposal_id = pp.id),
+    '[]'::json
+  ) AS categories,
 
   -- Audit user names
   creator.first_name || ' ' || creator.last_name  AS created_by_name,
@@ -38,7 +52,6 @@ const PUBLIC_PROPOSAL_FIELDS = `
 const BASE_JOINS = `
   FROM project_proposals pp
   LEFT JOIN organizations        o   ON o.id   = pp.organization_id
-  LEFT JOIN project_categories   pc  ON pc.id  = pp.project_category_id
   LEFT JOIN proposal_statuses    ps  ON ps.id  = pp.status_id
   LEFT JOIN currencies           c   ON c.id   = pp.currency_id
   LEFT JOIN users                creator ON creator.id = pp.created_by
@@ -130,7 +143,6 @@ class ProjectProposalModel {
   static async create(data) {
     const {
       organizationId,
-      projectCategoryId,
       statusId,
       proposedProjectName,
       description,
@@ -145,14 +157,14 @@ class ProjectProposalModel {
 
     const query = `
       INSERT INTO project_proposals (
-        organization_id, project_category_id, status_id,
+        organization_id, status_id,
         proposed_project_name, description,
         land_requested, proposed_capital_amount, currency_id,
         remarks, attached_documents, submitted_at,
         created_by, updated_by
       )
       VALUES (
-        :organizationId, :projectCategoryId, :statusId,
+        :organizationId, :statusId,
         :proposedProjectName, :description,
         :landRequested, :proposedCapitalAmount, :currencyId,
         :remarks, :attachedDocuments::jsonb, :submittedAt,
@@ -163,7 +175,6 @@ class ProjectProposalModel {
     const rows = await db.query(query, {
       replacements: {
         organizationId,
-        projectCategoryId: projectCategoryId || null,
         statusId,
         proposedProjectName,
         description: description || null,
@@ -186,7 +197,6 @@ class ProjectProposalModel {
   static async update(id, data) {
     const fieldMap = {
       organizationId:        'organization_id',
-      projectCategoryId:     'project_category_id',
       statusId:              'status_id',
       proposedProjectName:   'proposed_project_name',
       description:           'description',

@@ -312,7 +312,34 @@ export const ProjectProposalDetails = () => {
               }}
             >
               <GridItem label="Organization" value={proposal.organization_name || '-'} icon={OrgIcon} />
-              <GridItem label="Category" value={proposal.project_category_name || '-'} icon={CatIcon} />
+              <Box>
+                <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem', display: 'block' }}>
+                  Categories
+                </Typography>
+                {proposal.categories && Array.isArray(proposal.categories) && proposal.categories.length > 0 ? (
+                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>
+                    {proposal.categories.map((cat) => (
+                      <Chip
+                        key={cat.id}
+                        label={cat.category_name}
+                        size="small"
+                        icon={<CatIcon sx={{ fontSize: 14 }} />}
+                        sx={{
+                          height: 22,
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          backgroundColor: '#f1f5f9',
+                          color: '#475569',
+                        }}
+                      />
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#94a3b8', mt: 0.5, fontStyle: 'italic' }}>
+                    No categories
+                  </Typography>
+                )}
+              </Box>
               <GridItem label="Capital Amount" value={`${proposal.proposed_capital_amount ? Number(proposal.proposed_capital_amount).toLocaleString() : '-'} ${proposal.currency_code || ''}`} highlight icon={MoneyIcon} />
               <GridItem label="Land Requested" value={proposal.land_requested || '-'} icon={LandIcon} />
               <GridItem label="Current Status" value={proposal.status_name || '-'} />

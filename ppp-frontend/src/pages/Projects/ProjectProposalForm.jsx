@@ -19,6 +19,7 @@ import {
   ListItemIcon,
   ListItemText,
   Chip,
+  Autocomplete,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -66,7 +67,7 @@ export const ProjectProposalForm = () => {
   const [formData, setFormData] = useState({
     proposedProjectName: '',
     organizationId: '',
-    projectCategoryId: '',
+    categoryIds: [],
     statusId: '',
     description: '',
     landRequested: '',
@@ -171,7 +172,7 @@ export const ProjectProposalForm = () => {
       const payload = {
         ...formData,
         proposedCapitalAmount: formData.proposedCapitalAmount !== '' ? parseFloat(formData.proposedCapitalAmount) : null,
-        projectCategoryId: formData.projectCategoryId || null,
+        categoryIds: formData.categoryIds && formData.categoryIds.length > 0 ? formData.categoryIds : [],
         currencyId: formData.currencyId || null,
         attachedDocuments: uploadedFiles.length > 0 ? uploadedFiles : null,
       };
@@ -286,20 +287,45 @@ export const ProjectProposalForm = () => {
                 ))}
               </TextField>
 
-              <TextField
-                select
+              <Autocomplete
+                multiple
                 fullWidth
-                label="Project Category"
-                value={formData.projectCategoryId}
-                onChange={handleChange('projectCategoryId')}
+                options={categories}
+                getOptionLabel={(option) => option.name || ''}
+                value={categories.filter((cat) => formData.categoryIds.includes(cat.id))}
+                onChange={(e, newValue) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    categoryIds: newValue.map((cat) => cat.id),
+                  }));
+                  if (errorMsg) setErrorMsg('');
+                }}
                 size="small"
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Project Categories"
+                    placeholder="Select one or more categories"
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option.id}
+                      label={option.name}
+                      size="small"
+                      sx={{
+                        backgroundColor: '#e0e7ff',
+                        color: '#4f46e5',
+                        fontWeight: 500,
+                        '& .MuiChip-deleteIcon': { color: '#4f46e5' },
+                      }}
+                    />
+                  ))
+                }
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              >
-                <MenuItem value="">None / Select Category</MenuItem>
-                {categories.map((cat) => (
-                  <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                ))}
-              </TextField>
+              />
 
               <TextField
                 required

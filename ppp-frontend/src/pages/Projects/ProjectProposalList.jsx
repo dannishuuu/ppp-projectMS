@@ -384,7 +384,7 @@ export const ProjectProposalList = () => {
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Category</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Capital Requirement</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Submission</TableCell>
+                {/* <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Submission</TableCell> */}
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -438,9 +438,28 @@ export const ProjectProposalList = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" sx={{ color: '#64748b', fontSize: '0.8rem' }}>
-                        {prop.project_category_name || '-'}
-                      </Typography>
+                      {prop.categories && Array.isArray(prop.categories) && prop.categories.length > 0 ? (
+                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                          {prop.categories.map((cat) => (
+                            <Chip
+                              key={cat.id}
+                              label={cat.category_name}
+                              size="small"
+                              sx={{
+                                height: 20,
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                backgroundColor: '#f1f5f9',
+                                color: '#475569',
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#94a3b8', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                          No categories
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -469,7 +488,7 @@ export const ProjectProposalList = () => {
                         }}
                       />
                     </TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                       {prop.submitted_at ? (
                         <Chip
                           label={`Submitted ${formatDate(prop.submitted_at)}`}
@@ -487,7 +506,7 @@ export const ProjectProposalList = () => {
                           sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
                         />
                       )}
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell align="right" sx={{ pr: 1 }}>
                       <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
                         {canCheckAndProceed(prop) && (

@@ -18,6 +18,8 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  Chip,
+  Autocomplete,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -65,7 +67,7 @@ export const ProjectProposalEdit = () => {
   const [formData, setFormData] = useState({
     proposedProjectName: '',
     organizationId: '',
-    projectCategoryId: '',
+    categoryIds: [],
     statusId: '',
     description: '',
     landRequested: '',
@@ -94,10 +96,15 @@ export const ProjectProposalEdit = () => {
         const existingDocs = proposal.attached_documents || [];
         setUploadedFiles(existingDocs);
 
+        // Extract category IDs from proposal categories
+        const categoryIds = (proposal.categories && proposal.categories.length > 0)
+          ? proposal.categories.map((cat) => cat.id)
+          : [];
+
         setFormData({
           proposedProjectName: proposal.proposed_project_name || '',
           organizationId: proposal.organization_id || '',
-          projectCategoryId: proposal.project_category_id || '',
+          categoryIds: categoryIds,
           statusId: proposal.status_id || '',
           description: proposal.description || '',
           landRequested: proposal.land_requested || '',
@@ -176,7 +183,7 @@ export const ProjectProposalEdit = () => {
       const payload = {
         ...formData,
         proposedCapitalAmount: formData.proposedCapitalAmount !== '' ? parseFloat(formData.proposedCapitalAmount) : null,
-        projectCategoryId: formData.projectCategoryId || null,
+        categoryIds: formData.categoryIds && formData.categoryIds.length > 0 ? formData.categoryIds : [],
         currencyId: formData.currencyId || null,
         attachedDocuments: uploadedFiles.length > 0 ? uploadedFiles : null,
       };
@@ -291,20 +298,45 @@ export const ProjectProposalEdit = () => {
                 ))}
               </TextField>
 
-              <TextField
-                select
+              <Autocomplete
+                multiple
                 fullWidth
-                label="Project Category"
-                value={formData.projectCategoryId}
-                onChange={handleChange('projectCategoryId')}
+                options={categories}
+                getOptionLabel={(option) => option.name || ''}
+                value={categories.filter((cat) => formData.categoryIds.includes(cat.id))}
+                onChange={(e, newValue) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    categoryIds: newValue.map((cat) => cat.id),
+                  }));
+                  if (errorMsg) setErrorMsg('');
+                }}
                 size="small"
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Project Categories"
+                    placeholder="Select one or more categories"
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option.id}
+                      label={option.name}
+                      size="small"
+                      sx={{
+                        backgroundColor: '#e0e7ff',
+                        color: '#4f46e5',
+                        fontWeight: 500,
+                        '& .MuiChip-deleteIcon': { color: '#4f46e5' },
+                      }}
+                    />
+                  ))
+                }
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              >
-                <MenuItem value="">None / Select Category</MenuItem>
-                {categories.map((cat) => (
-                  <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                ))}
-              </TextField>
+              />
 
               <TextField
                 required

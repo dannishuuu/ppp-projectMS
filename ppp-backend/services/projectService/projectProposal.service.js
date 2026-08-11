@@ -1,5 +1,6 @@
 // services/projectService/projectProposal.service.js
 const ProjectProposalModel = require('../../models/projectProposal.model');
+const ProposalCategoryModel = require('../../models/proposalCategory.model');
 const ProposalReviewerModel = require('../../models/proposalReviewer.model');
 const ProposalStatusModel   = require('../../models/proposalStatus.model');
 const db = require('../../config/database');
@@ -61,7 +62,7 @@ class ProjectProposalService {
    * @param {string} actorId
    */
   static async createProposal(payload, actorId) {
-    const { organizationId, statusId, proposedProjectName } = payload;
+    const { organizationId, statusId, proposedProjectName, categoryIds } = payload;
 
     if (!proposedProjectName || !proposedProjectName.trim()) {
       const err = new Error('Proposed project name is required.');
@@ -81,7 +82,6 @@ class ProjectProposalService {
 
     const created = await ProjectProposalModel.create({
       organizationId,
-      projectCategoryId:     payload.projectCategoryId     || null,
       statusId,
       proposedProjectName:   proposedProjectName.trim(),
       description:           payload.description           || null,
@@ -93,6 +93,11 @@ class ProjectProposalService {
       submittedAt:           payload.submittedAt           || null,
       createdBy: actorId,
     });
+
+    // Assign categories if provided
+    if (categoryIds && Array.isArray(categoryIds) && categoryIds.length > 0) {
+      await ProposalCategoryModel.bulkAssign(created.id, categoryIds);
+    }
 
     return this.getProposalById(created.id);
   }
@@ -114,7 +119,6 @@ class ProjectProposalService {
 
     const updated = await ProjectProposalModel.update(id, {
       organizationId:        payload.organizationId,
-      projectCategoryId:     payload.projectCategoryId,
       statusId:              payload.statusId,
       proposedProjectName:   payload.proposedProjectName?.trim(),
       description:           payload.description,
@@ -132,6 +136,16 @@ class ProjectProposalService {
       const err = new Error('No changes were applied.');
       err.status = 400;
       throw err;
+    }
+
+    // Update categories if provided
+    if (payload.categoryIds !== undefined) {
+      if (Array.isArray(payload.categoryIds) && payload.categoryIds.length > 0) {
+        await ProposalCategoryModel.bulkAssign(id, payload.categoryIds);
+      } else {
+        // If empty array provided, delete all categories
+        await ProposalCategoryModel.deleteByProposalId(id);
+      }
     }
 
     return this.getProposalById(id);
