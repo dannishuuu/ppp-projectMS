@@ -35,6 +35,7 @@ import {
   Publish as SubmitIcon,
   MonetizationOn as MoneyIcon,
   Business as OrgIcon,
+  CheckCircle as CheckIcon,
 } from '@mui/icons-material';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -42,9 +43,11 @@ import { projectProposalService } from '../../services/projectServices/projectPr
 import { projectCategoryService } from '../../services/projectServices/projectCategoryService';
 import { proposalStatusService, currencyService } from '../../services/foundationService';
 import { organizationService } from '../../services/organizationService';
+import { proposalReviewService } from '../../services/projectServices/proposalReviewService';
 import { formatDate } from '../../utils/formatters';
 import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 import { SubmitProposalDialog } from '../../components/Projects/SubmitProposalDialog';
+import { ReviewStatisticsDialog } from '../../components/Projects/ReviewStatisticsDialog';
 
 export const ProjectProposalList = () => {
   const navigate = useNavigate();
@@ -76,6 +79,8 @@ export const ProjectProposalList = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [statisticsOpen, setStatisticsOpen] = useState(false);
+  const [statisticsLoading, setStatisticsLoading] = useState(false);
 
   // Load Filter Lookups
   useEffect(() => {
@@ -147,6 +152,19 @@ export const ProjectProposalList = () => {
     return Number(status?.step) === 0;
   };
 
+  // Check if proposal is in step 2 and all reviewers completed
+  const canCheckAndProceed = (prop) => {
+    if (prop.status_step == null) return false;
+    const step = Number(prop.status_step);
+    if (step !== 2) return false;
+    
+    // Check if all reviewers have completed
+    const totalReviewers = prop.total_revieweers ?? prop.totalRevieweers ?? 0;
+    const completedReviewers = prop.total_approvers ?? prop.totalApprovers ?? 0;
+    
+    return totalReviewers > 0 && completedReviewers === totalReviewers;
+  };
+
   // Submit Proposal action
   const handleSubmitConfirm = async (reviewerIds, dueDate) => {
     if (!selectedProposal) return;
@@ -176,6 +194,35 @@ export const ProjectProposalList = () => {
       enqueueSnackbar(error.message || 'Failed to delete proposal', { variant: 'error' });
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  // Handle Check & Proceed
+  const handleCheckAndProceed = (prop) => {
+    setSelectedProposal(prop);
+    setStatisticsOpen(true);
+  };
+
+  // Handle Statistics Submit
+  const handleStatisticsSubmit = async (manualStatusId = null) => {
+    if (!selectedProposal) return;
+    setStatisticsLoading(true);
+    try {
+      const result = await proposalReviewService.proceedProposal(selectedProposal.id, manualStatusId);
+      const data = result.data || result;
+      
+      if (data.wasManual) {
+        enqueueSnackbar('Proposal status updated with your selection', { variant: 'success' });
+      } else {
+        enqueueSnackbar(`Proposal status automatically updated to: ${data.statusName}`, { variant: 'success' });
+      }
+      
+      setStatisticsOpen(false);
+      fetchProposals();
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Failed to proceed', { variant: 'error' });
+    } finally {
+      setStatisticsLoading(false);
     }
   };
 
@@ -443,6 +490,28 @@ export const ProjectProposalList = () => {
                     </TableCell>
                     <TableCell align="right" sx={{ pr: 1 }}>
                       <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                        {canCheckAndProceed(prop) && (
+                          <Tooltip title="Check & Proceed" arrow>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<CheckIcon />}
+                              onClick={() => handleCheckAndProceed(prop)}
+                              sx={{
+                                fontSize: '0.72rem',
+                                fontWeight: 600,
+                                borderRadius: 1.5,
+                                py: 0.4,
+                                px: 1.5,
+                                textTransform: 'none',
+                                backgroundColor: '#10b981',
+                                '&:hover': { backgroundColor: '#059669' },
+                              }}
+                            >
+                              Check & Proceed
+                            </Button>
+                          </Tooltip>
+                        )}
                         {!prop.submitted_at && (
                           <Tooltip title="Submit Proposal" arrow>
                             <IconButton
@@ -523,6 +592,15 @@ export const ProjectProposalList = () => {
         onClose={() => setSubmitOpen(false)}
         onConfirm={handleSubmitConfirm}
         loading={submitLoading}
+      />
+
+      <ReviewStatisticsDialog
+        open={statisticsOpen}
+        proposalId={selectedProposal?.id}
+        proposalName={selectedProposal?.proposed_project_name}
+        onClose={() => setStatisticsOpen(false)}
+        onSubmit={handleStatisticsSubmit}
+        loading={statisticsLoading}
       />
     </Box>
   );

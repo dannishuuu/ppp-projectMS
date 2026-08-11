@@ -34,4 +34,27 @@ export const proposalReviewService = {
     const response = await apiClient.get(`${BASE}/${assignmentId}`);
     return response.data;
   },
+
+  /**
+   * Get review decision statistics for a proposal.
+   * @param {string} proposalId
+   * @returns {Promise<object>} - { statistics: Array, total: number }
+   */
+  async getReviewStatistics(proposalId) {
+    const response = await apiClient.get(`${BASE}/proposal/${proposalId}/statistics`);
+    return response.data;
+  },
+
+  /**
+   * Proceed with proposal based on review results.
+   * @param {string} proposalId
+   * @param {string|null} manualStatusId - Optional manual status selection for ties
+   * @returns {Promise<object>}
+   */
+  async proceedProposal(proposalId, manualStatusId = null) {
+    const response = await apiClient.post(`${BASE}/proposal/${proposalId}/proceed`, {
+      manualStatusId,
+    });
+    return response.data;
+  },
 };

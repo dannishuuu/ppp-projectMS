@@ -39,3 +39,36 @@ exports.getReviewByAssignmentId = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getReviewStatistics = async (req, res, next) => {
+  try {
+    const { proposalId } = req.params;
+    const statistics = await ProposalReviewService.getReviewStatistics(proposalId);
+    return res.status(200).json({ success: true, data: statistics });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.proceedProposal = async (req, res, next) => {
+  try {
+    const { proposalId } = req.params;
+    const { manualStatusId } = req.body;
+    const userId = req.user?.id;
+    
+    const result = await ProposalReviewService.proceedProposal(proposalId, manualStatusId, userId);
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    // Handle tie situation specially
+    if (error.requiresManualSelection) {
+      return res.status(409).json({
+        success: false,
+        requiresManualSelection: true,
+        message: error.message,
+        tiedGroups: error.tiedGroups,
+        weightGroups: error.weightGroups,
+      });
+    }
+    next(error);
+  }
+};

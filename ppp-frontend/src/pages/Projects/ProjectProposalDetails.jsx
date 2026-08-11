@@ -27,14 +27,17 @@ import {
   CloudDownload as DownloadIcon,
   Person as PersonIcon,
   Group as GroupIcon,
+  CheckCircle as CheckIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { projectProposalService } from '../../services/projectServices/projectProposalService';
 import { projectReviewersService } from '../../services/projectServices/projectReviewersService';
+import { proposalReviewService } from '../../services/projectServices/proposalReviewService';
 import { formatDate, formatDateTime } from '../../utils/formatters';
 import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 import { SubmitProposalDialog } from '../../components/Projects/SubmitProposalDialog';
+import { ReviewStatisticsDialog } from '../../components/Projects/ReviewStatisticsDialog';
 
 const STATUS_COLORS = {
   Draft: { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' },
@@ -101,6 +104,8 @@ export const ProjectProposalDetails = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [statisticsOpen, setStatisticsOpen] = useState(false);
+  const [statisticsLoading, setStatisticsLoading] = useState(false);
 
   const fetchDetails = async () => {
     setLoading(true);
@@ -157,6 +162,33 @@ export const ProjectProposalDetails = () => {
     }
   };
 
+  // Handle Check & Proceed
+  const handleCheckAndProceed = () => {
+    setStatisticsOpen(true);
+  };
+
+  // Handle Statistics Submit
+  const handleStatisticsSubmit = async (manualStatusId = null) => {
+    setStatisticsLoading(true);
+    try {
+      const result = await proposalReviewService.proceedProposal(id, manualStatusId);
+      const data = result.data || result;
+      
+      if (data.wasManual) {
+        enqueueSnackbar('Proposal status updated with your selection', { variant: 'success' });
+      } else {
+        enqueueSnackbar(`Proposal status automatically updated to: ${data.statusName}`, { variant: 'success' });
+      }
+      
+      setStatisticsOpen(false);
+      fetchDetails();
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Failed to proceed', { variant: 'error' });
+    } finally {
+      setStatisticsLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
@@ -169,6 +201,17 @@ export const ProjectProposalDetails = () => {
 
   const isDraft = !proposal.submitted_at;
   const canEdit = Number(proposal.status_step) === 0;
+
+  // Check if proposal is in step 2 and all reviewers completed
+  const canCheckAndProceed = () => {
+    if (proposal.status_step == null) return false;
+    const step = Number(proposal.status_step);
+    if (step !== 2) return false;
+    
+    // Check if all reviewers have completed
+    const allCompleted = reviewers.length > 0 && reviewers.every(r => r.status === 'Completed');
+    return allCompleted;
+  };
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, width: '100%' }}>
@@ -391,6 +434,34 @@ export const ProjectProposalDetails = () => {
               </Box>
             )}
 
+            {/* Check & Proceed Button */}
+            {canCheckAndProceed() && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', mb: 2 }}>
+                  Next Step
+                </Typography>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  startIcon={<CheckIcon />}
+                  onClick={handleCheckAndProceed}
+                  sx={{
+                    py: 1.2,
+                    borderRadius: 2,
+                    fontWeight: 700,
+                    backgroundColor: '#10b981',
+                    '&:hover': { backgroundColor: '#059669' },
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                  }}
+                >
+                  Check & Proceed
+                </Button>
+                <Typography variant="caption" sx={{ display: 'block', mt: 1, color: '#64748b', textAlign: 'center' }}>
+                  All reviewers have completed their reviews
+                </Typography>
+              </Box>
+            )}
+
             {/* Already Submitted Message */}
             {!isDraft && (
               <Box>
@@ -481,6 +552,15 @@ export const ProjectProposalDetails = () => {
         onClose={() => setSubmitOpen(false)}
         onConfirm={handleSubmitConfirm}
         loading={submitLoading}
+      />
+
+      <ReviewStatisticsDialog
+        open={statisticsOpen}
+        proposalId={proposal?.id}
+        proposalName={proposal?.proposed_project_name}
+        onClose={() => setStatisticsOpen(false)}
+        onSubmit={handleStatisticsSubmit}
+        loading={statisticsLoading}
       />
     </Box>
   );

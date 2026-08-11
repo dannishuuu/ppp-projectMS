@@ -86,7 +86,16 @@ class ProjectProposalModel {
     });
 
     const query = `
-      SELECT ${PUBLIC_PROPOSAL_FIELDS}
+      SELECT ${PUBLIC_PROPOSAL_FIELDS},
+        -- Total completed reviewers count for this proposal
+        (SELECT COUNT(*) FROM proposal_reviewers pr2 
+         WHERE pr2.proposal_id = pp.id 
+         AND pr2.status = 'Completed' 
+         AND pr2.is_deleted = FALSE) AS total_approvers,
+        -- Total reviewers count for this proposal
+        (SELECT COUNT(*) FROM proposal_reviewers pr2 
+         WHERE pr2.proposal_id = pp.id 
+         AND pr2.is_deleted = FALSE) AS total_revieweers
       ${BASE_JOINS}
       ${where}
       ORDER BY pp.created_at DESC
