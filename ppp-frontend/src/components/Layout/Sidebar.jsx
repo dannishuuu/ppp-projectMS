@@ -93,6 +93,11 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
       icon: <CategoryIcon />,
       path: '/project-categories',
     },
+    {
+      text: 'Tracking Types',
+      icon: <CategoryIcon />,
+      path: '/projects/tracking-types',
+    },
   ];
 
   const userSubItems = [

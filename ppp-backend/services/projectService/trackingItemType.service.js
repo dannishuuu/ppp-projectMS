@@ -11,7 +11,7 @@ class TrackingItemTypeService {
       page = 1,
       limit = 50,
       search = '',
-      isActive = true,
+      isActive = null,
       isWbs = null,
       isLeaf = null,
     } = options;

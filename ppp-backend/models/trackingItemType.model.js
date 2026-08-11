@@ -1,5 +1,6 @@
 // models/trackingItemType.model.js
 const db = require('../config/database');
+const { QueryTypes } = require('sequelize');
 
 class TrackingItemTypeModel {
   /**
@@ -17,84 +18,88 @@ class TrackingItemTypeModel {
       sortBy = 'sort_order',
     } = options;
 
-    let query = 'SELECT * FROM tracking_item_types WHERE is_deleted = false';
-    const params = [];
-    let paramCount = 1;
+    let where = 'WHERE is_deleted = false';
+    const replacements = {};
 
-    if (isActive !== null) {
-      query += ` AND is_active = $${paramCount}`;
-      params.push(isActive);
-      paramCount++;
+    if (isActive !== null && isActive !== undefined) {
+      where += ` AND is_active = :isActive`;
+      replacements.isActive = isActive;
     }
 
-    if (isWbs !== null) {
-      query += ` AND is_wbs = $${paramCount}`;
-      params.push(isWbs);
-      paramCount++;
+    if (isWbs !== null && isWbs !== undefined) {
+      where += ` AND is_wbs = :isWbs`;
+      replacements.isWbs = isWbs;
     }
 
-    if (isLeaf !== null) {
-      query += ` AND is_leaf = $${paramCount}`;
-      params.push(isLeaf);
-      paramCount++;
+    if (isLeaf !== null && isLeaf !== undefined) {
+      where += ` AND is_leaf = :isLeaf`;
+      replacements.isLeaf = isLeaf;
     }
 
     if (search && search.trim()) {
-      query += ` AND (code ILIKE $${paramCount} OR name ILIKE $${paramCount} OR description ILIKE $${paramCount})`;
-      params.push(`%${search}%`);
-      paramCount++;
+      where += ` AND (code ILIKE :search OR name ILIKE :search OR description ILIKE :search)`;
+      replacements.search = `%${search.trim()}%`;
     }
 
     // Get total count
-    const countResult = await db.query(
-      `SELECT COUNT(*) as total FROM tracking_item_types WHERE is_deleted = false ${
-        isActive !== null ? `AND is_active = ${isActive}` : ''
-      } ${isWbs !== null ? `AND is_wbs = ${isWbs}` : ''} ${
-        isLeaf !== null ? `AND is_leaf = ${isLeaf}` : ''
-      } ${search ? `AND (code ILIKE '%${search}%' OR name ILIKE '%${search}%' OR description ILIKE '%${search}%')` : ''}`,
-      []
-    );
-    const total = parseInt(countResult.rows[0]?.total || 0);
+    const countQuery = `SELECT COUNT(*) as total FROM tracking_item_types ${where}`;
+    const countResult = await db.query(countQuery, {
+      replacements,
+      type: QueryTypes.SELECT,
+    });
+    const total = parseInt(countResult[0]?.total || 0, 10);
+
+    // Validate sortBy column name to prevent SQL injection
+    const allowedSortColumns = ['sort_order', 'code', 'name', 'created_at', 'updated_at'];
+    const validSortBy = allowedSortColumns.includes(sortBy) ? sortBy : 'sort_order';
 
     // Sort and paginate
-    query += ` ORDER BY ${sortBy} ASC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
-    params.push(limit, offset);
+    const query = `SELECT * FROM tracking_item_types ${where} ORDER BY ${validSortBy} ASC LIMIT :limit OFFSET :offset`;
+    replacements.limit = limit;
+    replacements.offset = offset;
 
-    const result = await db.query(query, params);
-    return { rows: result.rows, total };
+    const rows = await db.query(query, {
+      replacements,
+      type: QueryTypes.SELECT,
+    });
+
+    return { rows, total };
   }
 
   /**
    * Find a tracking item type by ID
    */
   static async findById(id) {
-    const result = await db.query(
-      'SELECT * FROM tracking_item_types WHERE id = $1 AND is_deleted = false',
-      [id]
-    );
-    return result.rows[0] || null;
+    const query = 'SELECT * FROM tracking_item_types WHERE id = :id AND is_deleted = false';
+    const rows = await db.query(query, {
+      replacements: { id },
+      type: QueryTypes.SELECT,
+    });
+    return rows[0] || null;
   }
 
   /**
    * Find a tracking item type by code
    */
   static async findByCode(code) {
-    const result = await db.query(
-      'SELECT * FROM tracking_item_types WHERE code = $1 AND is_deleted = false',
-      [code]
-    );
-    return result.rows[0] || null;
+    const query = 'SELECT * FROM tracking_item_types WHERE code = :code AND is_deleted = false';
+    const rows = await db.query(query, {
+      replacements: { code },
+      type: QueryTypes.SELECT,
+    });
+    return rows[0] || null;
   }
 
   /**
    * Find a tracking item type by name
    */
   static async findByName(name) {
-    const result = await db.query(
-      'SELECT * FROM tracking_item_types WHERE name = $1 AND is_deleted = false',
-      [name]
-    );
-    return result.rows[0] || null;
+    const query = 'SELECT * FROM tracking_item_types WHERE name = :name AND is_deleted = false';
+    const rows = await db.query(query, {
+      replacements: { name },
+      type: QueryTypes.SELECT,
+    });
+    return rows[0] || null;
   }
 
   /**
@@ -112,14 +117,27 @@ class TrackingItemTypeModel {
       createdBy,
     } = data;
 
-    const result = await db.query(
-      `INSERT INTO tracking_item_types (code, name, description, is_wbs, is_leaf, sort_order, default_weight, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [code, name, description, isWbs, isLeaf, sortOrder, defaultWeight, createdBy]
-    );
+    const query = `
+      INSERT INTO tracking_item_types (code, name, description, is_wbs, is_leaf, sort_order, default_weight, created_by)
+      VALUES (:code, :name, :description, :isWbs, :isLeaf, :sortOrder, :defaultWeight, :createdBy)
+      RETURNING *
+    `;
 
-    return result.rows[0];
+    const rows = await db.query(query, {
+      replacements: {
+        code,
+        name,
+        description: description || null,
+        isWbs: !!isWbs,
+        isLeaf: !!isLeaf,
+        sortOrder: parseInt(sortOrder) || 0,
+        defaultWeight: parseFloat(defaultWeight) || 1.00,
+        createdBy: createdBy || null,
+      },
+      type: QueryTypes.SELECT,
+    });
+
+    return rows[0];
   }
 
   /**
@@ -138,172 +156,188 @@ class TrackingItemTypeModel {
       updatedBy,
     } = data;
 
-    let query = 'UPDATE tracking_item_types SET ';
-    const params = [];
-    let paramCount = 1;
-    const updates = [];
+    const setClauses = [];
+    const replacements = { id };
 
     if (code !== undefined) {
-      updates.push(`code = $${paramCount}`);
-      params.push(code);
-      paramCount++;
+      setClauses.push('code = :code');
+      replacements.code = code;
     }
     if (name !== undefined) {
-      updates.push(`name = $${paramCount}`);
-      params.push(name);
-      paramCount++;
+      setClauses.push('name = :name');
+      replacements.name = name;
     }
     if (description !== undefined) {
-      updates.push(`description = $${paramCount}`);
-      params.push(description);
-      paramCount++;
+      setClauses.push('description = :description');
+      replacements.description = description;
     }
     if (isWbs !== undefined) {
-      updates.push(`is_wbs = $${paramCount}`);
-      params.push(isWbs);
-      paramCount++;
+      setClauses.push('is_wbs = :isWbs');
+      replacements.isWbs = isWbs;
     }
     if (isLeaf !== undefined) {
-      updates.push(`is_leaf = $${paramCount}`);
-      params.push(isLeaf);
-      paramCount++;
+      setClauses.push('is_leaf = :isLeaf');
+      replacements.isLeaf = isLeaf;
     }
     if (sortOrder !== undefined) {
-      updates.push(`sort_order = $${paramCount}`);
-      params.push(sortOrder);
-      paramCount++;
+      setClauses.push('sort_order = :sortOrder');
+      replacements.sortOrder = sortOrder;
     }
     if (defaultWeight !== undefined) {
-      updates.push(`default_weight = $${paramCount}`);
-      params.push(defaultWeight);
-      paramCount++;
+      setClauses.push('default_weight = :defaultWeight');
+      replacements.defaultWeight = defaultWeight;
     }
     if (isActive !== undefined) {
-      updates.push(`is_active = $${paramCount}`);
-      params.push(isActive);
-      paramCount++;
+      setClauses.push('is_active = :isActive');
+      replacements.isActive = isActive;
     }
-
     if (updatedBy !== undefined) {
-      updates.push(`updated_by = $${paramCount}`);
-      params.push(updatedBy);
-      paramCount++;
+      setClauses.push('updated_by = :updatedBy');
+      replacements.updatedBy = updatedBy;
     }
 
-    updates.push(`updated_at = now()`);
+    setClauses.push('updated_at = NOW()');
 
-    if (updates.length === 0) return null;
+    if (setClauses.length === 1) return null;
 
-    query += updates.join(', ');
-    query += ` WHERE id = $${paramCount} AND is_deleted = false RETURNING *`;
-    params.push(id);
+    const query = `
+      UPDATE tracking_item_types
+      SET ${setClauses.join(', ')}
+      WHERE id = :id AND is_deleted = false
+      RETURNING *
+    `;
 
-    const result = await db.query(query, params);
-    return result.rows[0] || null;
+    const rows = await db.query(query, {
+      replacements,
+      type: QueryTypes.SELECT,
+    });
+
+    return rows[0] || null;
   }
 
   /**
    * Soft delete a tracking item type
    */
   static async softDelete(id, deletedBy) {
-    const result = await db.query(
-      `UPDATE tracking_item_types 
-       SET is_deleted = true, deleted_at = now(), deleted_by = $1, is_active = false
-       WHERE id = $2 AND is_deleted = false
-       RETURNING *`,
-      [deletedBy, id]
-    );
+    const query = `
+      UPDATE tracking_item_types 
+      SET is_deleted = true, deleted_at = NOW(), deleted_by = :deletedBy, is_active = false
+      WHERE id = :id AND is_deleted = false
+      RETURNING *
+    `;
+    const rows = await db.query(query, {
+      replacements: { id, deletedBy: deletedBy || null },
+      type: QueryTypes.SELECT,
+    });
 
-    return result.rows[0] || null;
+    return rows[0] || null;
   }
 
   /**
    * Restore a soft-deleted tracking item type
    */
   static async restore(id) {
-    const result = await db.query(
-      `UPDATE tracking_item_types 
-       SET is_deleted = false, deleted_at = null, deleted_by = null
-       WHERE id = $1 AND is_deleted = true
-       RETURNING *`,
-      [id]
-    );
+    const query = `
+      UPDATE tracking_item_types 
+      SET is_deleted = false, deleted_at = null, deleted_by = null
+      WHERE id = :id AND is_deleted = true
+      RETURNING *
+    `;
+    const rows = await db.query(query, {
+      replacements: { id },
+      type: QueryTypes.SELECT,
+    });
 
-    return result.rows[0] || null;
+    return rows[0] || null;
   }
 
   /**
    * Get all active tracking item types (typically for dropdowns)
    */
   static async getActive() {
-    const result = await db.query(
-      `SELECT id, code, name, description, is_wbs, is_leaf, sort_order, default_weight 
-       FROM tracking_item_types 
-       WHERE is_active = true AND is_deleted = false
-       ORDER BY sort_order ASC`
-    );
+    const query = `
+      SELECT id, code, name, description, is_wbs, is_leaf, sort_order, default_weight 
+      FROM tracking_item_types 
+      WHERE is_active = true AND is_deleted = false
+      ORDER BY sort_order ASC
+    `;
+    const rows = await db.query(query, {
+      type: QueryTypes.SELECT,
+    });
 
-    return result.rows;
+    return rows;
   }
 
   /**
    * Get WBS-capable tracking item types (can have children)
    */
   static async getWbsCapable() {
-    const result = await db.query(
-      `SELECT id, code, name, description, sort_order 
-       FROM tracking_item_types 
-       WHERE is_wbs = true AND is_active = true AND is_deleted = false
-       ORDER BY sort_order ASC`
-    );
+    const query = `
+      SELECT id, code, name, description, sort_order 
+      FROM tracking_item_types 
+      WHERE is_wbs = true AND is_active = true AND is_deleted = false
+      ORDER BY sort_order ASC
+    `;
+    const rows = await db.query(query, {
+      type: QueryTypes.SELECT,
+    });
 
-    return result.rows;
+    return rows;
   }
 
   /**
    * Get leaf tracking item types (cannot have children)
    */
   static async getLeafTypes() {
-    const result = await db.query(
-      `SELECT id, code, name, description, sort_order 
-       FROM tracking_item_types 
-       WHERE is_leaf = true AND is_active = true AND is_deleted = false
-       ORDER BY sort_order ASC`
-    );
+    const query = `
+      SELECT id, code, name, description, sort_order 
+      FROM tracking_item_types 
+      WHERE is_leaf = true AND is_active = true AND is_deleted = false
+      ORDER BY sort_order ASC
+    `;
+    const rows = await db.query(query, {
+      type: QueryTypes.SELECT,
+    });
 
-    return result.rows;
+    return rows;
   }
 
   /**
    * Check if a type code exists
    */
   static async codeExists(code, excludeId = null) {
-    let query = 'SELECT COUNT(*) as count FROM tracking_item_types WHERE code = $1 AND is_deleted = false';
-    const params = [code];
+    let query = 'SELECT COUNT(*) as count FROM tracking_item_types WHERE code = :code AND is_deleted = false';
+    const replacements = { code };
 
     if (excludeId) {
-      query += ' AND id != $2';
-      params.push(excludeId);
+      query += ' AND id != :excludeId';
+      replacements.excludeId = excludeId;
     }
 
-    const result = await db.query(query, params);
-    return parseInt(result.rows[0]?.count || 0) > 0;
+    const rows = await db.query(query, {
+      replacements,
+      type: QueryTypes.SELECT,
+    });
+    return parseInt(rows[0]?.count || 0, 10) > 0;
   }
 
   /**
    * Check if a type name exists
    */
   static async nameExists(name, excludeId = null) {
-    let query = 'SELECT COUNT(*) as count FROM tracking_item_types WHERE name = $1 AND is_deleted = false';
-    const params = [name];
+    let query = 'SELECT COUNT(*) as count FROM tracking_item_types WHERE name = :name AND is_deleted = false';
+    const replacements = { name };
 
     if (excludeId) {
-      query += ' AND id != $2';
-      params.push(excludeId);
+      query += ' AND id != :excludeId';
+      replacements.excludeId = excludeId;
     }
 
-    const result = await db.query(query, params);
-    return parseInt(result.rows[0]?.count || 0) > 0;
+    const rows = await db.query(query, {
+      replacements,
+      type: QueryTypes.SELECT,
+    });
+    return parseInt(rows[0]?.count || 0, 10) > 0;
   }
 }
 

@@ -23,8 +23,11 @@ export const trackingItemTypeService = {
       page: page.toString(),
       limit: limit.toString(),
       search,
-      isActive: isActive.toString(),
     });
+
+    if (isActive !== null && isActive !== undefined) {
+      params.append('isActive', isActive.toString());
+    }
 
     if (isWbs !== null) {
       params.append('isWbs', isWbs.toString());

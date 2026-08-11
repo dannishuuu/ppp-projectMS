@@ -12,16 +12,23 @@ class TrackingItemTypeController {
         page = 1,
         limit = 50,
         search = '',
-        isActive = true,
+        isActive,
         isWbs = null,
         isLeaf = null,
       } = req.query;
+
+      let isActiveValue = null;
+      if (isActive === 'true') {
+        isActiveValue = true;
+      } else if (isActive === 'false') {
+        isActiveValue = false;
+      }
 
       const result = await TrackingItemTypeService.getTrackingItemTypes({
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 50,
         search: search || '',
-        isActive: isActive === 'false' ? false : (isActive === 'true' ? true : true),
+        isActive: isActiveValue,
         isWbs: isWbs === 'true' ? true : (isWbs === 'false' ? false : null),
         isLeaf: isLeaf === 'true' ? true : (isLeaf === 'false' ? false : null),
       });

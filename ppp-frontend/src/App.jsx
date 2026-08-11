@@ -28,6 +28,7 @@ import { ProjectProposalEdit } from './pages/Projects/ProjectProposalEdit';
 import { ProjectProposalDetails } from './pages/Projects/ProjectProposalDetails';
 import { ProjectReviewPage } from './pages/Projects/ProjectReviewPage';
 import { ProjectReviewApprovalPage } from './pages/Projects/ProjectReviewApprovalPage';
+import { ProjectTrackingTypePage } from './pages/Projects/ProjectTrackingTypePage';
 
 
 
@@ -93,6 +94,7 @@ function App() {
                   <Route path="projects/proposals/:id/edit" element={<ProjectProposalEdit />} />
                   <Route path="projects/reviews" element={<ProjectReviewPage />} />
                   <Route path="projects/reviews/:id" element={<ProjectReviewApprovalPage />} />
+                  <Route path="projects/tracking-types" element={<ProjectTrackingTypePage />} />
 
 
                   {/* User managment pages */}
