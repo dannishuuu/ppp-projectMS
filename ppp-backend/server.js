@@ -14,6 +14,7 @@ const orgRoutes          = require('./routes/organizationRoles/organization.rout
 const projectCatRoutes        = require('./routes/projectController/projectCategory.routes');
 const projectProposalRoutes     = require('./routes/projectController/projectProposal.routes');
 const projectReviewersRoutes    = require('./routes/projectController/projectReviewers.routes');
+const trackingItemTypeRoutes    = require('./routes/projectController/trackingItemType.routes');
 const currencyRoutes            = require('./routes/foundationService/currency.routes');
 const proposalStatusRoutes    = require('./routes/foundationService/proposalStatus.routes');
 const fileRoutes              = require('./routes/file.routes');
@@ -49,6 +50,9 @@ app.use('/api/v1/project-proposals', projectProposalRoutes);
 
 // Project proposal reviewers routes
 app.use('/api/v1/project-proposal-reviewers', projectReviewersRoutes);
+
+// Tracking item type routes
+app.use('/api/v1/tracking-item-types', trackingItemTypeRoutes);
 
 // Currency routes
 app.use('/api/v1/currencies', currencyRoutes);
