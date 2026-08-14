@@ -152,6 +152,10 @@ export const ProjectCategoryPage = () => {
       setFormError('Category name is required.');
       return;
     }
+    if (formData.isOnland === null) {
+      setFormError('On Land field is required.');
+      return;
+    }
 
     setFormLoading(true);
     try {
@@ -726,6 +730,7 @@ export const ProjectCategoryPage = () => {
 
               <TextField
                 select
+                required
                 fullWidth
                 label="On Land"
                 value={formData.isOnland === null ? '' : formData.isOnland ? 'true' : 'false'}
@@ -735,7 +740,7 @@ export const ProjectCategoryPage = () => {
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 helperText="Indicates if the project category is on land"
               >
-                <MenuItem value="">Not specified</MenuItem>
+                <MenuItem value="">Select location type</MenuItem>
                 <MenuItem value="true">Yes</MenuItem>
                 <MenuItem value="false">No</MenuItem>
               </TextField>

@@ -50,11 +50,11 @@ class ProjectCategoryService {
 
   /**
    * Create a new project category.
-   * @param {object} payload - { name, description }
+   * @param {object} payload - { name, description, isOnland }
    * @param {string} actorId - Authenticated user ID
    */
   static async createProjectCategory(payload, actorId) {
-    const { name, description } = payload;
+    const { name, description, isOnland } = payload;
 
     if (!name || !name.trim()) {
       const err = new Error('Project category name is required.');
@@ -73,6 +73,7 @@ class ProjectCategoryService {
     const category = await ProjectCategoryModel.create({
       name: name.trim(),
       description: description?.trim() || null,
+      isOnland: isOnland !== undefined ? isOnland : null,
       createdBy: actorId,
     });
 
@@ -84,14 +85,14 @@ class ProjectCategoryService {
   /**
    * Update an existing project category.
    * @param {string} id
-   * @param {object} payload - { name?, description? }
+   * @param {object} payload - { name?, description?, isOnland? }
    * @param {string} actorId - Authenticated user ID
    */
   static async updateProjectCategory(id, payload, actorId) {
     // Confirm existence
     await this.getProjectCategoryById(id);
 
-    const { name, description } = payload;
+    const { name, description, isOnland } = payload;
 
     if (name && name.trim()) {
       const existing = await ProjectCategoryModel.findByName(name.trim());
@@ -105,6 +106,7 @@ class ProjectCategoryService {
     const updated = await ProjectCategoryModel.update(id, {
       name: name ? name.trim() : undefined,
       description: description !== undefined ? description?.trim() || null : undefined,
+      isOnland: isOnland !== undefined ? isOnland : undefined,
       updatedBy: actorId,
     });
 

@@ -6,6 +6,7 @@ const PUBLIC_CATEGORY_FIELDS = `
   pc.id,
   pc.name,
   pc.description,
+  pc.is_onland,
   pc.is_active,
   pc.created_at,
   pc.updated_at,
@@ -94,14 +95,14 @@ class ProjectCategoryModel {
 
   // ─── CREATE ──────────────────────────────────────────────────────────────
 
-  static async create({ name, description, createdBy }) {
+  static async create({ name, description, isOnland, createdBy }) {
     const query = `
-      INSERT INTO project_categories (name, description, created_by, updated_by)
-      VALUES (:name, :description, :createdBy, :createdBy)
-      RETURNING id, name, description, is_active, created_at, updated_at
+      INSERT INTO project_categories (name, description, is_onland, created_by, updated_by)
+      VALUES (:name, :description, :isOnland, :createdBy, :createdBy)
+      RETURNING id, name, description, is_onland, is_active, created_at, updated_at
     `;
     const rows = await db.query(query, {
-      replacements: { name, description: description || null, createdBy },
+      replacements: { name, description: description || null, isOnland: isOnland !== undefined ? isOnland : null, createdBy },
       type: QueryTypes.SELECT,
     });
     return rows[0];
@@ -109,7 +110,7 @@ class ProjectCategoryModel {
 
   // ─── UPDATE ──────────────────────────────────────────────────────────────
 
-  static async update(id, { name, description, updatedBy }) {
+  static async update(id, { name, description, isOnland, updatedBy }) {
     const setClauses = [];
     const replacements = { id, updatedBy };
 
@@ -120,6 +121,10 @@ class ProjectCategoryModel {
     if (description !== undefined) {
       setClauses.push('description = :description');
       replacements.description = description;
+    }
+    if (isOnland !== undefined) {
+      setClauses.push('is_onland = :isOnland');
+      replacements.isOnland = isOnland;
     }
 
     if (setClauses.length === 0) return null;
