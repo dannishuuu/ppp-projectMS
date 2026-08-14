@@ -180,9 +180,14 @@ export const ProjectProposalEdit = () => {
 
     setSaving(true);
     try {
+      const hasOnLand = categories
+        .filter((cat) => formData.categoryIds.includes(cat.id))
+        .some((cat) => cat.is_onland === true);
+
       const payload = {
         ...formData,
         proposedCapitalAmount: formData.proposedCapitalAmount !== '' ? parseFloat(formData.proposedCapitalAmount) : null,
+        landRequested: hasOnLand ? (formData.landRequested || null) : null,
         categoryIds: formData.categoryIds && formData.categoryIds.length > 0 ? formData.categoryIds : [],
         currencyId: formData.currencyId || null,
         attachedDocuments: uploadedFiles.length > 0 ? uploadedFiles : null,
@@ -205,6 +210,10 @@ export const ProjectProposalEdit = () => {
       </Box>
     );
   }
+
+  const isAnyCategoryOnLand = categories
+    .filter((cat) => formData.categoryIds.includes(cat.id))
+    .some((cat) => cat.is_onland === true);
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, width: '100%' }}>
@@ -305,9 +314,11 @@ export const ProjectProposalEdit = () => {
                 getOptionLabel={(option) => option.name || ''}
                 value={categories.filter((cat) => formData.categoryIds.includes(cat.id))}
                 onChange={(e, newValue) => {
+                  const hasOnLand = newValue.some((cat) => cat.is_onland === true);
                   setFormData((prev) => ({
                     ...prev,
                     categoryIds: newValue.map((cat) => cat.id),
+                    landRequested: hasOnLand ? prev.landRequested : '',
                   }));
                   if (errorMsg) setErrorMsg('');
                 }}
@@ -390,15 +401,17 @@ export const ProjectProposalEdit = () => {
                 ))}
               </TextField>
 
-              <TextField
-                fullWidth
-                label="Land Requested (m²)"
-                placeholder="e.g. 2000-3000m²"
-                value={formData.landRequested}
-                onChange={handleChange('landRequested')}
-                size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
+              {isAnyCategoryOnLand && (
+                <TextField
+                  fullWidth
+                  label="Land Requested (m²)"
+                  placeholder="e.g. 2000-3000m²"
+                  value={formData.landRequested}
+                  onChange={handleChange('landRequested')}
+                  size="small"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              )}
             </Box>
 
             {/* Column 3: Description & Remarks */}
