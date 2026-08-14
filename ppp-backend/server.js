@@ -15,6 +15,8 @@ const projectCatRoutes        = require('./routes/projectController/projectCateg
 const projectProposalRoutes     = require('./routes/projectController/projectProposal.routes');
 const projectReviewersRoutes    = require('./routes/projectController/projectReviewers.routes');
 const trackingItemTypeRoutes    = require('./routes/projectController/trackingItemType.routes');
+const trackingAreaRoutes        = require('./routes/projectController/trackingArea.routes');
+const checklistRoutes           = require('./routes/projectController/checklist.routes');
 const currencyRoutes            = require('./routes/foundationService/currency.routes');
 const proposalStatusRoutes    = require('./routes/foundationService/proposalStatus.routes');
 const fileRoutes              = require('./routes/file.routes');
@@ -54,6 +56,12 @@ app.use('/api/v1/project-proposal-reviewers', projectReviewersRoutes);
 
 // Tracking item type routes
 app.use('/api/v1/tracking-item-types', trackingItemTypeRoutes);
+
+// Tracking area routes
+app.use('/api/v1/tracking-areas', trackingAreaRoutes);
+
+// Checklist routes
+app.use('/api/v1/checklists', checklistRoutes);
 
 // Currency routes
 app.use('/api/v1/currencies', currencyRoutes);
