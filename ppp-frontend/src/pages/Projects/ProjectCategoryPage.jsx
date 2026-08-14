@@ -67,7 +67,7 @@ export const ProjectCategoryPage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState('add'); // 'add' | 'edit' | 'view'
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [formData, setFormData] = useState({ name: '', description: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', isOnland: null });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -124,9 +124,9 @@ export const ProjectCategoryPage = () => {
     setDialogMode(mode);
     setSelectedCategory(category);
     if ((mode === 'edit' || mode === 'view') && category) {
-      setFormData({ name: category.name || '', description: category.description || '' });
+      setFormData({ name: category.name || '', description: category.description || '', isOnland: category.is_onland !== undefined ? category.is_onland : null });
     } else {
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', isOnland: null });
     }
     setFormError('');
     setDialogOpen(true);
@@ -135,7 +135,7 @@ export const ProjectCategoryPage = () => {
   const handleDialogClose = () => {
     setDialogOpen(false);
     setSelectedCategory(null);
-    setFormData({ name: '', description: '' });
+    setFormData({ name: '', description: '', isOnland: null });
     setFormError('');
   };
 
@@ -358,8 +358,8 @@ export const ProjectCategoryPage = () => {
               <TableRow>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Category Name</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Description</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>On Land</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Created At</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -405,6 +405,37 @@ export const ProjectCategoryPage = () => {
                       </Typography>
                     </TableCell>
                     <TableCell>
+                      {cat.is_onland === true ? (
+                        <Chip
+                          label="Yes"
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            backgroundColor: '#d1fae5',
+                            color: '#065f46',
+                          }}
+                        />
+                      ) : cat.is_onland === false ? (
+                        <Chip
+                          label="No"
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            backgroundColor: '#dbeafe',
+                            color: '#1e40af',
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="body2" sx={{ color: '#94a3b8', fontSize: '0.82rem', fontStyle: 'italic' }}>
+                          -
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <Chip
                         label={cat.is_active ? 'Active' : 'Inactive'}
                         size="small"
@@ -416,11 +447,6 @@ export const ProjectCategoryPage = () => {
                           color: cat.is_active ? '#059669' : '#dc2626',
                         }}
                       />
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.82rem' }}>
-                        {formatDate(cat.created_at)}
-                      </Typography>
                     </TableCell>
                     <TableCell align="right" sx={{ pr: 1 }}>
                       <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
@@ -509,69 +535,167 @@ export const ProjectCategoryPage = () => {
           )}
 
           {dialogMode === 'view' && selectedCategory ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ width: 44, height: 44, backgroundColor: '#4f46e5' }}>
-                  <CategoryIcon />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* Header Section with Icon and Name */}
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 2.5,
+                  p: 2.5,
+                  borderRadius: 2.5,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                }}
+              >
+                <Avatar sx={{ width: 56, height: 56, backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
+                  <CategoryIcon sx={{ fontSize: 32, color: 'white' }} />
                 </Avatar>
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: 'white', mb: 0.5 }}>
                     {selectedCategory.name}
                   </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <Chip
+                      label={selectedCategory.is_active ? 'Active' : 'Inactive'}
+                      size="small"
+                      sx={{
+                        height: 22,
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        backgroundColor: selectedCategory.is_active ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)',
+                        color: 'white',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                      }}
+                    />
+                    {selectedCategory.is_onland !== null && selectedCategory.is_onland !== undefined && (
+                      <Chip
+                        label={selectedCategory.is_onland ? 'On Land' : 'Not On Land'}
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          backgroundColor: 'rgba(255,255,255,0.2)',
+                          color: 'white',
+                          border: '1px solid rgba(255,255,255,0.3)',
+                        }}
+                      />
+                    )}
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Description Section */}
+              <Box sx={{ px: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                  <Box sx={{ width: 4, height: 20, backgroundColor: '#4f46e5', borderRadius: 1 }} />
+                  <Typography variant="subtitle2" sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Description
+                  </Typography>
+                </Box>
+                <Box 
+                  sx={{ 
+                    p: 2.5, 
+                    borderRadius: 2, 
+                    backgroundColor: '#f8fafc', 
+                    border: '1px solid #e2e8f0',
+                    minHeight: 80,
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: '#334155', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
+                    {selectedCategory.description || 'No description provided for this category.'}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* On Land Information */}
+              <Box sx={{ px: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                  <Box sx={{ width: 4, height: 20, backgroundColor: '#10b981', borderRadius: 1 }} />
+                  <Typography variant="subtitle2" sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Location Type
+                  </Typography>
+                </Box>
+                <Box 
+                  sx={{ 
+                    p: 2.5, 
+                    borderRadius: 2, 
+                    backgroundColor: selectedCategory.is_onland === true ? '#d1fae5' : selectedCategory.is_onland === false ? '#dbeafe' : '#f1f5f9',
+                    border: selectedCategory.is_onland === true ? '1px solid #6ee7b7' : selectedCategory.is_onland === false ? '1px solid #93c5fd' : '1px solid #e2e8f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a', mb: 0.5 }}>
+                      Project Location
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#64748b', fontSize: '0.85rem' }}>
+                      {selectedCategory.is_onland === true ? 'This category is for land-based projects' : 
+                       selectedCategory.is_onland === false ? 'This category is for non-land projects' : 
+                       'Location type not specified'}
+                    </Typography>
+                  </Box>
                   <Chip
-                    label={selectedCategory.is_active ? 'Active' : 'Inactive'}
-                    size="small"
+                    label={selectedCategory.is_onland === true ? 'On Land' : selectedCategory.is_onland === false ? 'Not On Land' : 'N/A'}
                     sx={{
-                      height: 20,
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      backgroundColor: selectedCategory.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                      color: selectedCategory.is_active ? '#059669' : '#dc2626',
-                      mt: 0.5,
+                      height: 28,
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      backgroundColor: selectedCategory.is_onland === true ? '#065f46' : selectedCategory.is_onland === false ? '#1e40af' : '#64748b',
+                      color: 'white',
                     }}
                   />
                 </Box>
               </Box>
 
-              <Divider light />
+              <Divider sx={{ my: 1 }} />
 
-              <Box>
-                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
-                  Description
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
-                  {selectedCategory.description || 'No description provided.'}
-                </Typography>
+              {/* Metadata Section */}
+              <Box sx={{ px: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                  <Box sx={{ width: 4, height: 20, backgroundColor: '#94a3b8', borderRadius: 1 }} />
+                  <Typography variant="subtitle2" sx={{ color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Metadata
+                  </Typography>
+                </Box>
+                <Grid container spacing={2.5}>
+                  <Grid item xs={6}>
+                    <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5, fontWeight: 600 }}>Created By</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                        {selectedCategory.created_by_name || 'System Admin'}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5, fontWeight: 600 }}>Created At</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                        {formatDate(selectedCategory.created_at)}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5, fontWeight: 600 }}>Last Updated By</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                        {selectedCategory.updated_by_name || 'System Admin'}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5, fontWeight: 600 }}>Last Updated At</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                        {formatDate(selectedCategory.updated_at)}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
               </Box>
-
-              <Divider light />
-
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>Created By</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                    {selectedCategory.created_by_name || 'System Admin'}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>Created At</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                    {formatDate(selectedCategory.created_at)}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>Last Updated By</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                    {selectedCategory.updated_by_name || 'System Admin'}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>Last Updated At</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                    {formatDate(selectedCategory.updated_at)}
-                  </Typography>
-                </Grid>
-              </Grid>
             </Box>
           ) : (
             <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 0.5 }}>
@@ -599,6 +723,22 @@ export const ProjectCategoryPage = () => {
                 disabled={formLoading}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
+
+              <TextField
+                select
+                fullWidth
+                label="On Land"
+                value={formData.isOnland === null ? '' : formData.isOnland ? 'true' : 'false'}
+                onChange={(e) => setFormData(prev => ({ ...prev, isOnland: e.target.value === '' ? null : e.target.value === 'true' }))}
+                size="small"
+                disabled={formLoading}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                helperText="Indicates if the project category is on land"
+              >
+                <MenuItem value="">Not specified</MenuItem>
+                <MenuItem value="true">Yes</MenuItem>
+                <MenuItem value="false">No</MenuItem>
+              </TextField>
             </Box>
           )}
         </DialogContent>
