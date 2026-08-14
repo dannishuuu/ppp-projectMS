@@ -374,18 +374,38 @@ export const OrganizationList = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={org.organization_type_name || 'Unspecified'}
-                        size="small"
-                        sx={{
-                          height: 20,
-                          fontSize: '0.7rem',
-                          fontWeight: 600,
-                          backgroundColor: '#f1f5f9',
-                          color: '#334155',
-                          border: '1px solid #cbd5e1',
-                        }}
-                      />
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 220 }}>
+                        {Array.isArray(org.organization_types) && org.organization_types.length > 0 ? (
+                          org.organization_types.map((type) => (
+                            <Chip
+                              key={type.id || type.name}
+                              label={type.name}
+                              size="small"
+                              sx={{
+                                height: 20,
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                backgroundColor: '#e0e7ff',
+                                color: '#3730a3',
+                                border: '1px solid #c7d2fe',
+                              }}
+                            />
+                          ))
+                        ) : (
+                          <Chip
+                            label={org.organization_type_name || 'Unspecified'}
+                            size="small"
+                            sx={{
+                              height: 20,
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              backgroundColor: '#f1f5f9',
+                              color: '#334155',
+                              border: '1px solid #cbd5e1',
+                            }}
+                          />
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.82rem' }}>

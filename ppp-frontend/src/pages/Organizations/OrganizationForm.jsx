@@ -13,6 +13,13 @@ import {
   Alert,
   useMediaQuery,
   useTheme,
+  FormControl,
+  InputLabel,
+  Select,
+  OutlinedInput,
+  Chip,
+  Checkbox,
+  ListItemText,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -41,7 +48,7 @@ export const OrganizationForm = () => {
   const [formData, setFormData] = useState({
     // Core Organization
     name: '',
-    organizationTypeId: '',
+    organizationTypeIds: [],
     phone: '',
     email: '',
     address: '',
@@ -76,9 +83,19 @@ export const OrganizationForm = () => {
       setLoading(true);
       try {
         const org = await organizationService.getOrganizationById(id);
+        
+        let typeIds = [];
+        if (Array.isArray(org.organization_type_ids)) {
+          typeIds = org.organization_type_ids;
+        } else if (org.organization_types && Array.isArray(org.organization_types)) {
+          typeIds = org.organization_types.map((t) => t.id);
+        } else if (org.organization_type_id) {
+          typeIds = [org.organization_type_id];
+        }
+
         setFormData({
           name: org.name || '',
-          organizationTypeId: org.organization_type_id || '',
+          organizationTypeIds: typeIds,
           phone: org.phone || '',
           email: org.email || '',
           address: org.address || '',
@@ -113,8 +130,8 @@ export const OrganizationForm = () => {
       setErrorMsg('Organization name is required.');
       return;
     }
-    if (!formData.organizationTypeId) {
-      setErrorMsg('Please select an Organization Type.');
+    if (!formData.organizationTypeIds || formData.organizationTypeIds.length === 0) {
+      setErrorMsg('Please select at least one Organization Type.');
       return;
     }
 
@@ -227,21 +244,52 @@ export const OrganizationForm = () => {
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
 
-              <TextField
-                required
-                select
-                fullWidth
-                label="Organization Type"
-                value={formData.organizationTypeId}
-                onChange={handleChange('organizationTypeId')}
-                size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              >
-                <MenuItem value="" disabled>Select Type</MenuItem>
-                {orgTypes.map((type) => (
-                  <MenuItem key={type.id} value={type.id}>{type.name}</MenuItem>
-                ))}
-              </TextField>
+              <FormControl required fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}>
+                <InputLabel id="org-types-label">Organization Types</InputLabel>
+                <Select
+                  labelId="org-types-label"
+                  id="organizationTypeIds"
+                  multiple
+                  value={formData.organizationTypeIds}
+                  onChange={(e) => {
+                    const { target: { value } } = e;
+                    setFormData((prev) => ({
+                      ...prev,
+                      organizationTypeIds: typeof value === 'string' ? value.split(',') : value,
+                    }));
+                    if (errorMsg) setErrorMsg('');
+                  }}
+                  input={<OutlinedInput label="Organization Types" />}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((value) => {
+                        const typeObj = orgTypes.find((t) => t.id === value);
+                        return (
+                          <Chip
+                            key={value}
+                            label={typeObj ? typeObj.name : value}
+                            size="small"
+                            sx={{
+                              borderRadius: 1.5,
+                              backgroundColor: '#e0e7ff',
+                              color: '#3730a3',
+                              fontWeight: 600,
+                              fontSize: '0.75rem',
+                            }}
+                          />
+                        );
+                      })}
+                    </Box>
+                  )}
+                >
+                  {orgTypes.map((type) => (
+                    <MenuItem key={type.id} value={type.id}>
+                      <Checkbox checked={formData.organizationTypeIds.indexOf(type.id) > -1} size="small" />
+                      <ListItemText primary={type.name} />
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               <TextField
                 fullWidth

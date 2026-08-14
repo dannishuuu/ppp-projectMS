@@ -5,7 +5,7 @@ const BASE = '/organizations';
 
 export const organizationService = {
   /**
-   * Get a paginated, filtered list of organizations (with profile details).
+   * Get a paginated, filtered list of organizations (with profile details and organization types).
    * @param {object} options - { page, limit, search, status, typeId }
    * @returns {Promise<{ organizations: Array, pagination: object }>}
    */
@@ -25,7 +25,7 @@ export const organizationService = {
   },
 
   /**
-   * Get a single organization by UUID (including its 1-to-1 profile).
+   * Get a single organization by UUID (including its profile and organization types).
    * @param {string} id
    * @returns {Promise<object>}
    */
@@ -35,8 +35,8 @@ export const organizationService = {
   },
 
   /**
-   * Create a new organization and its profile.
-   * @param {object} payload - { name, organizationTypeId, phone, email, address, profileExperience, businessSector, yearsOfExperience, registrationDate, licenseNumber, bio, pastProjectsSummary }
+   * Create a new organization with its profile and organization types.
+   * @param {object} payload - { name, organizationTypeIds, phone, email, address, profileExperience, businessSector, yearsOfExperience, registrationDate, licenseNumber, bio, pastProjectsSummary }
    * @returns {Promise<object>}
    */
   async createOrganization(payload) {
@@ -45,7 +45,7 @@ export const organizationService = {
   },
 
   /**
-   * Update an existing organization and its profile.
+   * Update an existing organization, its profile, and organization types.
    * @param {string} id
    * @param {object} payload
    * @returns {Promise<object>}

@@ -183,17 +183,34 @@ export const OrganizationDetails = () => {
               <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.4rem' }}>
                 {org.name}
               </Typography>
-              <Chip
-                label={org.organization_type_name || 'Organization'}
-                size="small"
-                sx={{
-                  fontWeight: 700,
-                  fontSize: '0.72rem',
-                  backgroundColor: '#eef2ff',
-                  color: '#4f46e5',
-                  border: '1px solid #c7d2fe',
-                }}
-              />
+              {Array.isArray(org.organization_types) && org.organization_types.length > 0 ? (
+                org.organization_types.map((type) => (
+                  <Chip
+                    key={type.id || type.name}
+                    label={type.name}
+                    size="small"
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: '0.72rem',
+                      backgroundColor: '#eef2ff',
+                      color: '#4f46e5',
+                      border: '1px solid #c7d2fe',
+                    }}
+                  />
+                ))
+              ) : (
+                <Chip
+                  label={org.organization_type_name || 'Organization'}
+                  size="small"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: '0.72rem',
+                    backgroundColor: '#eef2ff',
+                    color: '#4f46e5',
+                    border: '1px solid #c7d2fe',
+                  }}
+                />
+              )}
               <Chip
                 label={org.is_active ? 'Active' : 'Inactive'}
                 size="small"
@@ -287,12 +304,31 @@ export const OrganizationDetails = () => {
               <Divider light />
 
               <Box>
-                <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
-                  Entity Type
+                <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mb: 0.5 }}>
+                  Entity Types
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 700, fontSize: '0.85rem' }}>
-                  {org.organization_type_name || 'Unspecified'}
-                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {Array.isArray(org.organization_types) && org.organization_types.length > 0 ? (
+                    org.organization_types.map((type) => (
+                      <Chip
+                        key={type.id || type.name}
+                        label={type.name}
+                        size="small"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                          backgroundColor: '#eef2ff',
+                          color: '#3730a3',
+                          border: '1px solid #c7d2fe',
+                        }}
+                      />
+                    ))
+                  ) : (
+                    <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 700, fontSize: '0.85rem' }}>
+                      {org.organization_type_name || 'Unspecified'}
+                    </Typography>
+                  )}
+                </Box>
               </Box>
               <Divider light />
 

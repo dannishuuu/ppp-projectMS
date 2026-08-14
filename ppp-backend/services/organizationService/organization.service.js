@@ -6,7 +6,7 @@ class OrganizationService {
   // ─── LIST ─────────────────────────────────────────────────────────────────
 
   /**
-   * Paginated, filtered list of organizations (includes profile data).
+   * Paginated, filtered list of organizations (includes profile data and organization types).
    * @param {object} options - { page, limit, search, status, typeId }
    */
   static async getOrganizations(options = {}) {
@@ -29,7 +29,7 @@ class OrganizationService {
   // ─── GET ONE ──────────────────────────────────────────────────────────────
 
   /**
-   * Get a single organization + its profile by UUID.
+   * Get a single organization + its profile and organization types by UUID.
    * @param {string} id
    */
   static async getOrganizationById(id) {
@@ -45,12 +45,12 @@ class OrganizationService {
   // ─── CREATE ───────────────────────────────────────────────────────────────
 
   /**
-   * Create an organization AND its profile in a single atomic transaction.
+   * Create an organization AND its profile and type mappings in a single atomic transaction.
    *
    * Expected payload shape:
    * {
    *   // organizations table fields
-   *   name, organizationTypeId, phone?, email?, address?, profileExperience?,
+   *   name, organizationTypeIds?, organizationTypeId?, phone?, email?, address?, profileExperience?,
    *
    *   // organization_profiles table fields
    *   businessSector?, yearsOfExperience?, registrationDate?,
@@ -63,6 +63,7 @@ class OrganizationService {
   static async createOrganization(payload, actorId) {
     const {
       name,
+      organizationTypeIds,
       organizationTypeId,
       phone,
       email,
@@ -77,14 +78,24 @@ class OrganizationService {
       pastProjectsSummary,
     } = payload;
 
+    // Normalize type IDs into an array
+    let typeIds = [];
+    if (Array.isArray(organizationTypeIds)) {
+      typeIds = organizationTypeIds.filter(Boolean);
+    } else if (organizationTypeIds) {
+      typeIds = [organizationTypeIds];
+    } else if (organizationTypeId) {
+      typeIds = [organizationTypeId];
+    }
+
     // ── Validation ────────────────────────────────────────────────────────
     if (!name || !name.trim()) {
       const err = new Error('Organization name is required.');
       err.status = 400;
       throw err;
     }
-    if (!organizationTypeId) {
-      const err = new Error('Organization type is required.');
+    if (typeIds.length === 0) {
+      const err = new Error('At least one Organization Type is required.');
       err.status = 400;
       throw err;
     }
@@ -102,11 +113,16 @@ class OrganizationService {
     try {
       const orgId = await OrganizationModel.insertOrganization(t, {
         name: name.trim(),
-        organizationTypeId,
         phone,
         email,
         address,
         profileExperience,
+        createdBy: actorId,
+      });
+
+      await OrganizationModel.insertOrganizationTypes(t, {
+        organizationId: orgId,
+        organizationTypeIds: typeIds,
         createdBy: actorId,
       });
 
@@ -132,7 +148,7 @@ class OrganizationService {
   // ─── UPDATE ───────────────────────────────────────────────────────────────
 
   /**
-   * Update organization + profile fields in a single atomic transaction.
+   * Update organization + profile fields + types in a single atomic transaction.
    * Only fields present in the payload are updated (partial update supported).
    *
    * @param {string} id
@@ -146,6 +162,7 @@ class OrganizationService {
     const {
       // org fields
       name,
+      organizationTypeIds,
       organizationTypeId,
       phone,
       email,
@@ -170,17 +187,30 @@ class OrganizationService {
       }
     }
 
+    // Normalize type IDs if present in payload
+    let typeIds = undefined;
+    if (Array.isArray(organizationTypeIds)) {
+      typeIds = organizationTypeIds.filter(Boolean);
+    } else if (organizationTypeIds !== undefined) {
+      typeIds = organizationTypeIds ? [organizationTypeIds] : [];
+    } else if (organizationTypeId !== undefined) {
+      typeIds = organizationTypeId ? [organizationTypeId] : [];
+    }
+
     const t = await db.transaction();
     try {
       // Map camelCase payload → snake_case column names
       await OrganizationModel.updateOrganization(t, id, {
         name: name ? name.trim() : undefined,
-        organization_type_id: organizationTypeId,
         phone,
         email,
         address,
         profile_experience: profileExperience,
       }, actorId);
+
+      if (typeIds !== undefined) {
+        await OrganizationModel.updateOrganizationTypes(t, id, typeIds, actorId);
+      }
 
       await OrganizationModel.updateProfile(t, id, {
         business_sector: businessSector,
@@ -223,7 +253,7 @@ class OrganizationService {
   // ─── SOFT DELETE ──────────────────────────────────────────────────────────
 
   /**
-   * Soft-delete both the organization and its profile atomically.
+   * Soft-delete the organization, its profiles, and type mappings atomically.
    * @param {string} id
    * @param {string} actorId
    */
