@@ -294,16 +294,6 @@ export const OrganizationDetails = () => {
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.75 }}>
               <Box>
-                <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
-                  Organization ID
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 600, fontFamily: 'monospace', fontSize: '0.78rem' }}>
-                  {org.id}
-                </Typography>
-              </Box>
-              <Divider light />
-
-              <Box>
                 <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mb: 0.5 }}>
                   Entity Types
                 </Typography>
