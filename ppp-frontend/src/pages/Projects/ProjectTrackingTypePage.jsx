@@ -477,12 +477,8 @@ export const ProjectTrackingTypePage = () => {
                       <TableCell align="right" sx={{ pr: 1 }}>
                         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
                           <Tooltip title="View Details" arrow><IconButton size="small" onClick={() => handleViewDetails(type)} sx={{ p: 0.5, color: '#6366f1' }}><ViewIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
-                          {type.is_active ? (
-                            <>
-                              <Tooltip title="Edit Type" arrow><IconButton size="small" onClick={() => handleOpenEdit(type)} sx={{ p: 0.5, color: '#64748b' }}><EditIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
-                              <Tooltip title="Delete Type" arrow><IconButton size="small" onClick={() => handleOpenDelete(type)} sx={{ p: 0.5, color: '#dc2626' }}><DeleteIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
-                            </>
-                          ) : <Tooltip title="Restore Type" arrow><IconButton size="small" onClick={() => handleOpenRestore(type)} sx={{ p: 0.5, color: '#059669' }}><RestoreIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>}
+                          <Tooltip title="Edit Type" arrow><IconButton size="small" onClick={() => handleOpenEdit(type)} sx={{ p: 0.5, color: '#64748b' }}><EditIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
+                          <Tooltip title="Delete Type" arrow><IconButton size="small" onClick={() => handleOpenDelete(type)} sx={{ p: 0.5, color: '#dc2626' }}><DeleteIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -560,12 +556,8 @@ export const ProjectTrackingTypePage = () => {
                       <TableCell align="right" sx={{ pr: 1 }}>
                         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
                           <Tooltip title="View Details" arrow><IconButton size="small" onClick={() => handleViewAreaDetails(area)} sx={{ p: 0.5, color: '#6366f1' }}><ViewIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
-                          {area.is_active ? (
-                            <>
-                              <Tooltip title="Edit Area" arrow><IconButton size="small" onClick={() => handleOpenAreaEdit(area)} sx={{ p: 0.5, color: '#64748b' }}><EditIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
-                              <Tooltip title="Delete Area" arrow><IconButton size="small" onClick={() => handleOpenAreaDelete(area)} sx={{ p: 0.5, color: '#dc2626' }}><DeleteIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
-                            </>
-                          ) : <Tooltip title="Restore Area" arrow><IconButton size="small" onClick={() => handleOpenAreaRestore(area)} sx={{ p: 0.5, color: '#059669' }}><RestoreIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>}
+                          <Tooltip title="Edit Area" arrow><IconButton size="small" onClick={() => handleOpenAreaEdit(area)} sx={{ p: 0.5, color: '#64748b' }}><EditIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
+                          <Tooltip title="Delete Area" arrow><IconButton size="small" onClick={() => handleOpenAreaDelete(area)} sx={{ p: 0.5, color: '#dc2626' }}><DeleteIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -642,12 +634,8 @@ export const ProjectTrackingTypePage = () => {
                       <TableCell align="right" sx={{ pr: 1 }}>
                         <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
                           <Tooltip title="View Details" arrow><IconButton size="small" onClick={() => handleViewChecklistDetails(checklist)} sx={{ p: 0.5, color: '#6366f1' }}><ViewIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
-                          {checklist.is_active ? (
-                            <>
-                              <Tooltip title="Edit Checklist" arrow><IconButton size="small" onClick={() => handleOpenChecklistEdit(checklist)} sx={{ p: 0.5, color: '#64748b' }}><EditIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
-                              <Tooltip title="Delete Checklist" arrow><IconButton size="small" onClick={() => handleOpenChecklistDelete(checklist)} sx={{ p: 0.5, color: '#dc2626' }}><DeleteIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
-                            </>
-                          ) : <Tooltip title="Restore Checklist" arrow><IconButton size="small" onClick={() => handleOpenChecklistRestore(checklist)} sx={{ p: 0.5, color: '#059669' }}><RestoreIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>}
+                          <Tooltip title="Edit Checklist" arrow><IconButton size="small" onClick={() => handleOpenChecklistEdit(checklist)} sx={{ p: 0.5, color: '#64748b' }}><EditIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
+                          <Tooltip title="Delete Checklist" arrow><IconButton size="small" onClick={() => handleOpenChecklistDelete(checklist)} sx={{ p: 0.5, color: '#dc2626' }}><DeleteIcon sx={{ fontSize: 17 }} /></IconButton></Tooltip>
                         </Box>
                       </TableCell>
                     </TableRow>
