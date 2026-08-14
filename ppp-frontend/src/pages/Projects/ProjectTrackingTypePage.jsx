@@ -142,6 +142,7 @@ export const ProjectTrackingTypePage = () => {
   const [checklistRestoreOpen, setChecklistRestoreOpen] = useState(false);
   const [selectedChecklist, setSelectedChecklist] = useState(null);
   const [checklistFormData, setChecklistFormData] = useState({
+    trackingItemTypeId: '',
     trackingAreaId: '',
     name: '',
     description: '',
@@ -333,7 +334,7 @@ export const ProjectTrackingTypePage = () => {
   // ============================================
 
   const handleViewChecklistDetails = (checklist) => { setSelectedChecklist(checklist); setChecklistDetailsOpen(true); };
-  const handleOpenChecklistCreate = () => { setChecklistFormData({ trackingAreaId: '', name: '', description: '', isActive: true }); setChecklistCreateOpen(true); };
+  const handleOpenChecklistCreate = () => { setChecklistFormData({ trackingItemTypeId: '', trackingAreaId: '', name: '', description: '', isActive: true }); setChecklistCreateOpen(true); };
 
   const handleChecklistCreate = async () => {
     setFormLoading(true);
@@ -347,7 +348,15 @@ export const ProjectTrackingTypePage = () => {
 
   const handleOpenChecklistEdit = (checklist) => {
     setSelectedChecklist(checklist);
-    setChecklistFormData({ trackingAreaId: checklist.tracking_area_id, name: checklist.name, description: checklist.description || '', isActive: checklist.is_active });
+    // Find the area to get its tracking_item_type_id
+    const area = trackingAreas.find(a => a.id === checklist.tracking_area_id);
+    setChecklistFormData({ 
+      trackingItemTypeId: area?.tracking_item_type_id || '', 
+      trackingAreaId: checklist.tracking_area_id, 
+      name: checklist.name, 
+      description: checklist.description || '', 
+      isActive: checklist.is_active 
+    });
     setChecklistEditOpen(true);
   };
 
@@ -801,13 +810,37 @@ export const ProjectTrackingTypePage = () => {
         <DialogTitle sx={{ fontWeight: 700, fontSize: '1rem' }}>Create Checklist Item</DialogTitle>
         <DialogContent>
           <Box component="form" sx={{ mt: 2 }}>
-            <FormControl fullWidth margin="normal" size="small"><InputLabel shrink>Tracking Area *</InputLabel><Select value={checklistFormData.trackingAreaId} onChange={(e) => setChecklistFormData(prev => ({ ...prev, trackingAreaId: e.target.value }))} displayEmpty><MenuItem value="">Select Area</MenuItem>{trackingAreas.map((a) => (<MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>))}</Select></FormControl>
+            <FormControl fullWidth margin="normal" size="small">
+              <InputLabel shrink>Tracking Item Type *</InputLabel>
+              <Select 
+                value={checklistFormData.trackingItemTypeId} 
+                onChange={(e) => setChecklistFormData(prev => ({ ...prev, trackingItemTypeId: e.target.value, trackingAreaId: '' }))} 
+                displayEmpty
+              >
+                <MenuItem value="">Select Type</MenuItem>
+                {trackingTypes.map((t) => (<MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth margin="normal" size="small" disabled={!checklistFormData.trackingItemTypeId}>
+              <InputLabel shrink>Tracking Area *</InputLabel>
+              <Select 
+                value={checklistFormData.trackingAreaId} 
+                onChange={(e) => setChecklistFormData(prev => ({ ...prev, trackingAreaId: e.target.value }))} 
+                displayEmpty
+              >
+                <MenuItem value="">Select Area</MenuItem>
+                {trackingAreas
+                  .filter(a => a.tracking_item_type_id === checklistFormData.trackingItemTypeId)
+                  .map((a) => (<MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>))
+                }
+              </Select>
+            </FormControl>
             <TextField required fullWidth label="Name" value={checklistFormData.name} onChange={(e) => setChecklistFormData(prev => ({ ...prev, name: e.target.value }))} margin="normal" size="small" />
             <TextField fullWidth multiline rows={3} label="Description" value={checklistFormData.description} onChange={(e) => setChecklistFormData(prev => ({ ...prev, description: e.target.value }))} margin="normal" size="small" />
             <Box sx={{ mt: 2 }}><FormControlLabel control={<Switch checked={checklistFormData.isActive} onChange={(e) => setChecklistFormData(prev => ({ ...prev, isActive: e.target.checked }))} />} label="Active" /></Box>
           </Box>
         </DialogContent>
-        <DialogActions><Button onClick={() => setChecklistCreateOpen(false)}>Cancel</Button><Button onClick={handleChecklistCreate} variant="contained" disabled={formLoading || !checklistFormData.trackingAreaId || !checklistFormData.name}>{formLoading ? 'Creating...' : 'Create Checklist'}</Button></DialogActions>
+        <DialogActions><Button onClick={() => setChecklistCreateOpen(false)}>Cancel</Button><Button onClick={handleChecklistCreate} variant="contained" disabled={formLoading || !checklistFormData.trackingItemTypeId || !checklistFormData.trackingAreaId || !checklistFormData.name}>{formLoading ? 'Creating...' : 'Create Checklist'}</Button></DialogActions>
       </Dialog>
 
       {/* Checklist Edit Modal */}
@@ -815,7 +848,13 @@ export const ProjectTrackingTypePage = () => {
         <DialogTitle sx={{ fontWeight: 700, fontSize: '1rem' }}>Edit Checklist Item: {selectedChecklist?.name}</DialogTitle>
         <DialogContent>
           <Box component="form" sx={{ mt: 2 }}>
-            <FormControl fullWidth margin="normal" size="small"><InputLabel shrink>Tracking Area *</InputLabel><Select value={checklistFormData.trackingAreaId} onChange={(e) => setChecklistFormData(prev => ({ ...prev, trackingAreaId: e.target.value }))} displayEmpty><MenuItem value="">Select Area</MenuItem>{trackingAreas.map((a) => (<MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>))}</Select></FormControl>
+            <FormControl fullWidth margin="normal" size="small" disabled>
+              <InputLabel shrink>Tracking Area *</InputLabel>
+              <Select value={checklistFormData.trackingAreaId} displayEmpty>
+                <MenuItem value="">Select Area</MenuItem>
+                {trackingAreas.map((a) => (<MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>))}
+              </Select>
+            </FormControl>
             <TextField required fullWidth label="Name" value={checklistFormData.name} onChange={(e) => setChecklistFormData(prev => ({ ...prev, name: e.target.value }))} margin="normal" size="small" />
             <TextField fullWidth multiline rows={3} label="Description" value={checklistFormData.description} onChange={(e) => setChecklistFormData(prev => ({ ...prev, description: e.target.value }))} margin="normal" size="small" />
             <Box sx={{ mt: 2 }}><FormControlLabel control={<Switch checked={checklistFormData.isActive} onChange={(e) => setChecklistFormData(prev => ({ ...prev, isActive: e.target.checked }))} />} label="Active" /></Box>
