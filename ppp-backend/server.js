@@ -19,6 +19,7 @@ const trackingAreaRoutes        = require('./routes/projectController/trackingAr
 const checklistRoutes           = require('./routes/projectController/checklist.routes');
 const currencyRoutes            = require('./routes/foundationService/currency.routes');
 const proposalStatusRoutes    = require('./routes/foundationService/proposalStatus.routes');
+const projectStatusRoutes     = require('./routes/foundationService/projectStatus.routes');
 const fileRoutes              = require('./routes/file.routes');
 const reviewDecisionRoutes    = require('./routes/reviewDecision.routes');
 const proposalReviewRoutes    = require('./routes/proposalReview.routes');
@@ -68,6 +69,9 @@ app.use('/api/v1/currencies', currencyRoutes);
 
 // Proposal status routes
 app.use('/api/v1/proposal-statuses', proposalStatusRoutes);
+
+// Project status routes
+app.use('/api/v1/project-statuses', projectStatusRoutes);
 
 // File upload routes
 app.use('/api/v1/files', fileRoutes);
