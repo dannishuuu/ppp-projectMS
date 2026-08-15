@@ -52,7 +52,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     location.pathname.startsWith('/projects') && !location.pathname.startsWith('/projects/tracking-types') ? 'projects' :
     location.pathname.startsWith('/users') ? 'users' :
     location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types') ? 'organizations' :
-    location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/projects/tracking-types') ? 'foundation' :
+    location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') ? 'foundation' :
     location.pathname.startsWith('/document-sequences') ? 'docmgmt' :
     null
   );
@@ -135,6 +135,11 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
       path: '/project-categories',
     },
     {
+      text: 'Project Statuses',
+      icon: <StatusIcon />,
+      path: '/project-statuses',
+    },
+    {
       text: 'Currencies',
       icon: <CurrencyIcon />,
       path: '/currencies',
@@ -160,7 +165,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const isOrgTypesGroupActive = location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types'); // checks org pages
   const isOrgTypesTabActive = false; // Organization Types moved to Foundation
   const isOrgTypesMenuGroupActive = isOrgTypesGroupActive || isOrgTypesTabActive;
-  const isFoundationGroupActive = location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/projects/tracking-types');
+  const isFoundationGroupActive = location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types');
   const isDocMgmtGroupActive = location.pathname.startsWith('/document-sequences');
 
   const getUserDisplayName = () => {

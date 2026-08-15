@@ -10,7 +10,7 @@ import { Dashboard } from './pages/Dashboard/Dashboard';
 import { ProjectList } from './pages/Projects/ProjectList';
 import { ProjectDetails } from './pages/Projects/ProjectDetails';
 import { ProjectForm } from './pages/Projects/ProjectForm';
-import { ProjectCategoryPage } from './pages/Projects/ProjectCategoryPage';
+import { ProjectCategoryPage } from './pages/Foundation/ProjectCategoryPage';
 import { Login } from './pages/Login/Login';
 import { CreateUser } from './pages/Users/CreateUser';
 import { UsersList } from './pages/Users/UsersList';
@@ -28,7 +28,8 @@ import { ProjectProposalEdit } from './pages/Projects/ProjectProposalEdit';
 import { ProjectProposalDetails } from './pages/Projects/ProjectProposalDetails';
 import { ProjectReviewPage } from './pages/Projects/ProjectReviewPage';
 import { ProjectReviewApprovalPage } from './pages/Projects/ProjectReviewApprovalPage';
-import { ProjectTrackingTypePage } from './pages/Projects/ProjectTrackingTypePage';
+import { ProjectTrackingTypePage } from './pages/Foundation/ProjectTrackingTypePage';
+import { ProjectStatusPage } from './pages/Foundation/ProjectStatusPage';
 import { DocumentSequencePage } from './pages/DocumentManagement/DocumentSequencePage';
 
 
@@ -96,6 +97,7 @@ function App() {
                   <Route path="projects/reviews" element={<ProjectReviewPage />} />
                   <Route path="projects/reviews/:id" element={<ProjectReviewApprovalPage />} />
                   <Route path="projects/tracking-types" element={<ProjectTrackingTypePage />} />
+                  <Route path="project-statuses" element={<ProjectStatusPage />} />
 
                   {/* Document management pages */}
                   <Route path="document-sequences" element={<DocumentSequencePage />} />
