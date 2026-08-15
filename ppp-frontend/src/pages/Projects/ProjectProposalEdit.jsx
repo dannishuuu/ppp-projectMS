@@ -98,7 +98,7 @@ export const ProjectProposalEdit = () => {
 
         // Extract category IDs from proposal categories
         const categoryIds = (proposal.categories && proposal.categories.length > 0)
-          ? proposal.categories.map((cat) => cat.id)
+          ? proposal.categories.map((cat) => cat.category_id || cat.id)
           : [];
 
         setFormData({
