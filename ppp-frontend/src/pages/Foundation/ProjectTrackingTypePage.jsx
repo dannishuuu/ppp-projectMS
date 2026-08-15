@@ -460,7 +460,7 @@ export const ProjectTrackingTypePage = () => {
                               <Typography variant="body2" onClick={() => handleViewDetails(type)} sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.82rem', cursor: 'pointer', '&:hover': { color: '#4f46e5', textDecoration: 'underline' } }}>{type.name}</Typography>
                               <Chip label={type.code} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 600, backgroundColor: '#f1f5f9', color: '#475569' }} />
                             </Box>
-                            <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>Created: {formatDate(type.created_at)}</Typography>
+                            {/* <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>Created: {formatDate(type.created_at)}</Typography> */}
                           </Box>
                         </Box>
                       </TableCell>
@@ -543,7 +543,7 @@ export const ProjectTrackingTypePage = () => {
                           <Box>
                             <Typography variant="body2" onClick={() => handleViewAreaDetails(area)} sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.82rem', cursor: 'pointer', '&:hover': { color: '#4f46e5', textDecoration: 'underline' } }}>{area.name}</Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="caption" sx={{ color: '#94a3b8' }}>Created: {formatDate(area.created_at)}</Typography>
+                              {/* <Typography variant="caption" sx={{ color: '#94a3b8' }}>Created: {formatDate(area.created_at)}</Typography> */}
                               {area.parent_id && <Chip label="Phase" size="small" sx={{ height: 16, fontSize: '0.6rem', backgroundColor: '#d1fae5', color: '#065f46' }} />}
                             </Box>
                           </Box>
@@ -623,7 +623,7 @@ export const ProjectTrackingTypePage = () => {
                           </Avatar>
                           <Box>
                             <Typography variant="body2" onClick={() => handleViewChecklistDetails(checklist)} sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.82rem', cursor: 'pointer', '&:hover': { color: '#4f46e5', textDecoration: 'underline' } }}>{checklist.name}</Typography>
-                            <Typography variant="caption" sx={{ color: '#94a3b8' }}>Created: {formatDate(checklist.created_at)}</Typography>
+                            {/* <Typography variant="caption" sx={{ color: '#94a3b8' }}>Created: {formatDate(checklist.created_at)}</Typography> */}
                           </Box>
                         </Box>
                       </TableCell>
