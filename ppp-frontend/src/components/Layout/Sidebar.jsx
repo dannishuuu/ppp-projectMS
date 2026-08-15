@@ -49,10 +49,10 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const { user } = useAuth();
 
   const [openMenu, setOpenMenu] = useState(
-    location.pathname.startsWith('/projects') ? 'projects' :
+    location.pathname.startsWith('/projects') && !location.pathname.startsWith('/projects/tracking-types') ? 'projects' :
     location.pathname.startsWith('/users') ? 'users' :
-    location.pathname.startsWith('/organization') || location.pathname.startsWith('/organizations') ? 'organizations' :
-    location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') ? 'foundation' :
+    location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types') ? 'organizations' :
+    location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/projects/tracking-types') ? 'foundation' :
     location.pathname.startsWith('/document-sequences') ? 'docmgmt' :
     null
   );
@@ -90,16 +90,6 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
       icon: <UsersIcon />,
       path: '/projects/reviews',
     },
-    {
-      text: 'Project Categories',
-      icon: <CategoryIcon />,
-      path: '/project-categories',
-    },
-    {
-      text: 'Tracking Types',
-      icon: <CategoryIcon />,
-      path: '/projects/tracking-types',
-    },
   ];
 
   const userSubItems = [
@@ -126,14 +116,24 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
       icon: <AddIcon />,
       path: '/organizations/new',
     },
+  ];
+
+  const foundationSubItems = [
     {
       text: 'Organization Types',
       icon: <CategoryIcon />,
       path: '/organization-types',
     },
-  ];
-
-  const foundationSubItems = [
+    {
+      text: 'Tracking Types',
+      icon: <CategoryIcon />,
+      path: '/projects/tracking-types',
+    },
+    {
+      text: 'Project Categories',
+      icon: <CategoryIcon />,
+      path: '/project-categories',
+    },
     {
       text: 'Currencies',
       icon: <CurrencyIcon />,
@@ -155,12 +155,12 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   ];
 
   const isDashboardActive = location.pathname === '/';
-  const isProjectsGroupActive = location.pathname.startsWith('/projects');
+  const isProjectsGroupActive = location.pathname.startsWith('/projects') && !location.pathname.startsWith('/projects/tracking-types') && !location.pathname.startsWith('/project-categories');
   const isUsersGroupActive = location.pathname.startsWith('/users');
   const isOrgTypesGroupActive = location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types'); // checks org pages
-  const isOrgTypesTabActive = location.pathname.startsWith('/organization-types');
+  const isOrgTypesTabActive = false; // Organization Types moved to Foundation
   const isOrgTypesMenuGroupActive = isOrgTypesGroupActive || isOrgTypesTabActive;
-  const isFoundationGroupActive = location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses');
+  const isFoundationGroupActive = location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/projects/tracking-types');
   const isDocMgmtGroupActive = location.pathname.startsWith('/document-sequences');
 
   const getUserDisplayName = () => {
