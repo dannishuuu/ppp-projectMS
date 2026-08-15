@@ -24,3 +24,16 @@ exports.login = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.refreshToken = async (req, res, next) => {
+  try {
+    const refreshToken = req.body.refreshToken || req.headers['x-refresh-token'];
+    const result = await LoginService.refreshToken(refreshToken);
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

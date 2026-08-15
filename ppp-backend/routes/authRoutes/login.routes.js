@@ -5,4 +5,7 @@ const UserController = require('../../controllers/authController/login.controlle
 // POST /api/v1/login – user authentication
 router.post('/login', UserController.login);
 
+// POST /api/v1/refresh-token – token extension / refresh
+router.post('/refresh-token', UserController.refreshToken);
+
 module.exports = router;

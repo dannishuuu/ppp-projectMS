@@ -55,6 +55,45 @@ class LoginService {
       refreshToken,
     };
   }
+
+  /**
+   * Verify refresh token and issue new access & refresh tokens.
+   * @param {string} refreshTokenInput
+   * @returns {Promise<{user: Object, accessToken: string, refreshToken: string}>}
+   */
+  static async refreshToken(refreshTokenInput) {
+    if (!refreshTokenInput) {
+      const err = new Error('Refresh token is required');
+      err.status = 400;
+      throw err;
+    }
+
+    let decoded;
+    try {
+      const { verifyToken } = require('../../utils/jwtUtils');
+      decoded = verifyToken(refreshTokenInput);
+    } catch (e) {
+      const err = new Error('Invalid or expired refresh token');
+      err.status = 401;
+      throw err;
+    }
+
+    const user = await UserModel.findById(decoded.id);
+    if (!user || !user.is_active || user.is_deleted) {
+      const err = new Error('User account is inactive or disabled');
+      err.status = 401;
+      throw err;
+    }
+
+    const newAccessToken = generateAccessToken(user.id);
+    const newRefreshToken = generateRefreshToken(user.id);
+
+    return {
+      user,
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    };
+  }
 }
 
 module.exports = LoginService;
