@@ -33,6 +33,7 @@ import { ProjectStatusPage } from './pages/Foundation/ProjectStatusPage';
 import { DocumentSequencePage } from './pages/DocumentManagement/DocumentSequencePage';
 import { GeographicManagement } from './pages/Foundation/GeographicManagement';
 import { BuildingTypePage } from './pages/Foundation/BuildingTypePage';
+import { ShopServiceTypePage } from './pages/Foundation/ShopServiceTypePage';
 
 
 
@@ -120,6 +121,7 @@ function App() {
                   <Route path="proposal-statuses" element={<ProposalStatusPage />} />
                   <Route path="foundation/geographical" element={<GeographicManagement />} />
                   <Route path="foundation/building-types" element={<BuildingTypePage />} />
+                  <Route path="foundation/shop-service-types" element={<ShopServiceTypePage />} />
 
                 </Route>
 

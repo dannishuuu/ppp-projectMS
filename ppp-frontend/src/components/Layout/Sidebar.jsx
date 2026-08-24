@@ -35,6 +35,7 @@ import {
   Search as SearchIcon,
   Public as GeographicIcon,
   Apartment as BuildingTypeIcon,
+  Store as ShopServiceIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProjects } from '../../context/ProjectContext';
@@ -99,6 +100,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     { text: 'Proposal Statuses', icon: <StatusIcon />, path: '/proposal-statuses' },
     { text: 'Geographic Mngt', icon: <GeographicIcon />, path: '/foundation/geographical' },
     { text: 'Building Types', icon: <BuildingTypeIcon />, path: '/foundation/building-types' },
+    { text: 'Shop/Service Types', icon: <ShopServiceIcon />, path: '/foundation/shop-service-types' },
   ];
 
   const docMgmtSubItems = [
