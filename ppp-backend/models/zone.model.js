@@ -4,19 +4,26 @@ const { QueryTypes } = require('sequelize');
 class ZoneModel {
   static async findAll(options = {}) {
     const { limit = 100, offset = 0, search = '', isActive = null, regionId = null, sortBy = 'name' } = options;
-    let where = 'WHERE is_deleted = false';
+    let where = 'WHERE z.is_deleted = false';
     const replacements = {};
 
-    if (isActive !== null && isActive !== undefined) { where += ` AND is_active = :isActive`; replacements.isActive = isActive; }
-    if (regionId) { where += ` AND region_id = :regionId`; replacements.regionId = regionId; }
-    if (search && search.trim()) { where += ` AND name ILIKE :search`; replacements.search = `%${search.trim()}%`; }
+    if (isActive !== null && isActive !== undefined) { where += ` AND z.is_active = :isActive`; replacements.isActive = isActive; }
+    if (regionId) { where += ` AND z.region_id = :regionId`; replacements.regionId = regionId; }
+    if (search && search.trim()) { where += ` AND z.name ILIKE :search`; replacements.search = `%${search.trim()}%`; }
 
-    const countResult = await db.query(`SELECT COUNT(*) as total FROM zones ${where}`, { replacements, type: QueryTypes.SELECT });
+    const countResult = await db.query(`SELECT COUNT(*) as total FROM zones z ${where}`, { replacements, type: QueryTypes.SELECT });
     const total = parseInt(countResult[0]?.total || 0, 10);
 
     const validSortBy = ['name', 'created_at'].includes(sortBy) ? sortBy : 'name';
     replacements.limit = limit; replacements.offset = offset;
-    const rows = await db.query(`SELECT * FROM zones ${where} ORDER BY ${validSortBy} ASC LIMIT :limit OFFSET :offset`, { replacements, type: QueryTypes.SELECT });
+    const rows = await db.query(`
+      SELECT z.*, r.name as region_name 
+      FROM zones z
+      LEFT JOIN regions r ON r.id = z.region_id
+      ${where} 
+      ORDER BY z.${validSortBy} ASC 
+      LIMIT :limit OFFSET :offset
+    `, { replacements, type: QueryTypes.SELECT });
     return { rows, total };
   }
 

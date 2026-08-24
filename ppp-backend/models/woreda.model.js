@@ -4,19 +4,26 @@ const { QueryTypes } = require('sequelize');
 class WoredaModel {
   static async findAll(options = {}) {
     const { limit = 100, offset = 0, search = '', isActive = null, zoneId = null, sortBy = 'name' } = options;
-    let where = 'WHERE is_deleted = false';
+    let where = 'WHERE w.is_deleted = false';
     const replacements = {};
 
-    if (isActive !== null && isActive !== undefined) { where += ` AND is_active = :isActive`; replacements.isActive = isActive; }
-    if (zoneId) { where += ` AND zone_id = :zoneId`; replacements.zoneId = zoneId; }
-    if (search && search.trim()) { where += ` AND name ILIKE :search`; replacements.search = `%${search.trim()}%`; }
+    if (isActive !== null && isActive !== undefined) { where += ` AND w.is_active = :isActive`; replacements.isActive = isActive; }
+    if (zoneId) { where += ` AND w.zone_id = :zoneId`; replacements.zoneId = zoneId; }
+    if (search && search.trim()) { where += ` AND w.name ILIKE :search`; replacements.search = `%${search.trim()}%`; }
 
-    const countResult = await db.query(`SELECT COUNT(*) as total FROM woredas ${where}`, { replacements, type: QueryTypes.SELECT });
+    const countResult = await db.query(`SELECT COUNT(*) as total FROM woredas w ${where}`, { replacements, type: QueryTypes.SELECT });
     const total = parseInt(countResult[0]?.total || 0, 10);
 
     const validSortBy = ['name', 'created_at'].includes(sortBy) ? sortBy : 'name';
     replacements.limit = limit; replacements.offset = offset;
-    const rows = await db.query(`SELECT * FROM woredas ${where} ORDER BY ${validSortBy} ASC LIMIT :limit OFFSET :offset`, { replacements, type: QueryTypes.SELECT });
+    const rows = await db.query(`
+      SELECT w.*, z.name as zone_name 
+      FROM woredas w
+      LEFT JOIN zones z ON z.id = w.zone_id
+      ${where} 
+      ORDER BY w.${validSortBy} ASC 
+      LIMIT :limit OFFSET :offset
+    `, { replacements, type: QueryTypes.SELECT });
     return { rows, total };
   }
 

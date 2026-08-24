@@ -4,19 +4,26 @@ const { QueryTypes } = require('sequelize');
 class RegionModel {
   static async findAll(options = {}) {
     const { limit = 100, offset = 0, search = '', isActive = null, countryId = null, sortBy = 'name' } = options;
-    let where = 'WHERE is_deleted = false';
+    let where = 'WHERE r.is_deleted = false';
     const replacements = {};
 
-    if (isActive !== null && isActive !== undefined) { where += ` AND is_active = :isActive`; replacements.isActive = isActive; }
-    if (countryId) { where += ` AND country_id = :countryId`; replacements.countryId = countryId; }
-    if (search && search.trim()) { where += ` AND (name ILIKE :search OR code ILIKE :search)`; replacements.search = `%${search.trim()}%`; }
+    if (isActive !== null && isActive !== undefined) { where += ` AND r.is_active = :isActive`; replacements.isActive = isActive; }
+    if (countryId) { where += ` AND r.country_id = :countryId`; replacements.countryId = countryId; }
+    if (search && search.trim()) { where += ` AND (r.name ILIKE :search OR r.code ILIKE :search)`; replacements.search = `%${search.trim()}%`; }
 
-    const countResult = await db.query(`SELECT COUNT(*) as total FROM regions ${where}`, { replacements, type: QueryTypes.SELECT });
+    const countResult = await db.query(`SELECT COUNT(*) as total FROM regions r ${where}`, { replacements, type: QueryTypes.SELECT });
     const total = parseInt(countResult[0]?.total || 0, 10);
 
     const validSortBy = ['name', 'code', 'created_at'].includes(sortBy) ? sortBy : 'name';
     replacements.limit = limit; replacements.offset = offset;
-    const rows = await db.query(`SELECT * FROM regions ${where} ORDER BY ${validSortBy} ASC LIMIT :limit OFFSET :offset`, { replacements, type: QueryTypes.SELECT });
+    const rows = await db.query(`
+      SELECT r.*, c.name as country_name 
+      FROM regions r
+      LEFT JOIN countries c ON c.id = r.country_id
+      ${where} 
+      ORDER BY r.${validSortBy} ASC 
+      LIMIT :limit OFFSET :offset
+    `, { replacements, type: QueryTypes.SELECT });
     return { rows, total };
   }
 

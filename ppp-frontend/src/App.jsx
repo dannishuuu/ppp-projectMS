@@ -31,6 +31,7 @@ import { ProjectReviewApprovalPage } from './pages/Projects/ProjectReviewApprova
 import { ProjectTrackingTypePage } from './pages/Foundation/ProjectTrackingTypePage';
 import { ProjectStatusPage } from './pages/Foundation/ProjectStatusPage';
 import { DocumentSequencePage } from './pages/DocumentManagement/DocumentSequencePage';
+import { GeographicManagement } from './pages/Foundation/GeographicManagement';
 
 
 
@@ -116,6 +117,7 @@ function App() {
                   <Route path="organization-types" element={<OrganizationTypePage />} />
                   <Route path="currencies" element={<CurrenciesPage />} />
                   <Route path="proposal-statuses" element={<ProposalStatusPage />} />
+                  <Route path="foundation/geographical" element={<GeographicManagement />} />
 
                 </Route>
 
