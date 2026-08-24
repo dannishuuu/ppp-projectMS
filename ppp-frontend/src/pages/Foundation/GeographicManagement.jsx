@@ -44,6 +44,7 @@ import {
   Place as ZoneIcon,
   LocationCity as WoredaIcon,
   FilterList as FilterIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -308,6 +309,18 @@ export const GeographicManagement = () => {
     setAppliedRegion(selectedRegion);
     setAppliedZone(selectedZone);
     setFiltersApplied(true);
+    setPage(0);
+  };
+
+  // Handle Clear Filters
+  const handleClearFilters = () => {
+    setSelectedCountry(null);
+    setSelectedRegion(null);
+    setSelectedZone(null);
+    setAppliedCountry(null);
+    setAppliedRegion(null);
+    setAppliedZone(null);
+    setFiltersApplied(false);
     setPage(0);
   };
 
@@ -597,129 +610,8 @@ export const GeographicManagement = () => {
           mb: 3,
         }}
       >
-        {/* First Row - Hierarchical Filters */}
+        {/* First Row - Search, Status, Count, Add Button */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mb: activeTab > 0 ? 2 : 0 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
-            <FilterIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
-            <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-              Filters
-            </Typography>
-          </Box>
-
-          <Box sx={{ width: '1px', height: 24, backgroundColor: '#e2e8f0', flexShrink: 0 }} />
-
-          {/* Hierarchical Filters for Regions, Zones, Woredas */}
-          {activeTab === 1 && (
-            <>
-              <Autocomplete
-                size="small"
-                options={allCountries}
-                getOptionLabel={(option) => option.name || ''}
-                value={selectedCountry}
-                onChange={(e, newValue) => setSelectedCountry(newValue)}
-                renderInput={(params) => <TextField {...params} placeholder="Select Country *" />}
-                sx={{
-                  flex: '0 0 220px',
-                  '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem', backgroundColor: '#f8fafc' },
-                }}
-              />
-            </>
-          )}
-
-          {activeTab === 2 && (
-            <>
-              <Autocomplete
-                size="small"
-                options={allCountries}
-                getOptionLabel={(option) => option.name || ''}
-                value={selectedCountry}
-                onChange={(e, newValue) => setSelectedCountry(newValue)}
-                renderInput={(params) => <TextField {...params} placeholder="Select Country *" />}
-                sx={{
-                  flex: '0 0 200px',
-                  '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem', backgroundColor: '#f8fafc' },
-                }}
-              />
-              <Autocomplete
-                size="small"
-                options={allRegions}
-                getOptionLabel={(option) => option.name || ''}
-                value={selectedRegion}
-                onChange={(e, newValue) => setSelectedRegion(newValue)}
-                disabled={!selectedCountry}
-                renderInput={(params) => <TextField {...params} placeholder="Select Region *" />}
-                sx={{
-                  flex: '0 0 200px',
-                  '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem', backgroundColor: '#f8fafc' },
-                }}
-              />
-            </>
-          )}
-
-          {activeTab === 3 && (
-            <>
-              <Autocomplete
-                size="small"
-                options={allCountries}
-                getOptionLabel={(option) => option.name || ''}
-                value={selectedCountry}
-                onChange={(e, newValue) => setSelectedCountry(newValue)}
-                renderInput={(params) => <TextField {...params} placeholder="Select Country *" />}
-                sx={{
-                  flex: '0 0 180px',
-                  '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem', backgroundColor: '#f8fafc' },
-                }}
-              />
-              <Autocomplete
-                size="small"
-                options={allRegions}
-                getOptionLabel={(option) => option.name || ''}
-                value={selectedRegion}
-                onChange={(e, newValue) => setSelectedRegion(newValue)}
-                disabled={!selectedCountry}
-                renderInput={(params) => <TextField {...params} placeholder="Select Region *" />}
-                sx={{
-                  flex: '0 0 180px',
-                  '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem', backgroundColor: '#f8fafc' },
-                }}
-              />
-              <Autocomplete
-                size="small"
-                options={allZones}
-                getOptionLabel={(option) => option.name || ''}
-                value={selectedZone}
-                onChange={(e, newValue) => setSelectedZone(newValue)}
-                disabled={!selectedRegion}
-                renderInput={(params) => <TextField {...params} placeholder="Select Zone/Subcity *" />}
-                sx={{
-                  flex: '0 0 180px',
-                  '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem', backgroundColor: '#f8fafc' },
-                }}
-              />
-            </>
-          )}
-
-          {/* Filter Button */}
-          {activeTab > 0 && (
-            <Button
-              variant="contained"
-              onClick={handleApplyFilters}
-              sx={{
-                fontWeight: 600,
-                borderRadius: 2,
-                backgroundColor: '#4f46e5',
-                '&:hover': { backgroundColor: '#4338ca' },
-                fontSize: '0.82rem',
-                textTransform: 'none',
-              }}
-            >
-              Apply Filters
-            </Button>
-          )}
-        </Box>
-
-        {/* Second Row - Search and Status Filter */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
           {/* Search Input */}
           <TextField
             size="small"
@@ -793,6 +685,150 @@ export const GeographicManagement = () => {
             </Button>
           </Box>
         </Box>
+
+        {/* Second Row - Hierarchical Filters (Right-aligned) */}
+        {activeTab > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
+              <FilterIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
+              <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                Hierarchical Filters
+              </Typography>
+            </Box>
+
+            <Box sx={{ width: '1px', height: 24, backgroundColor: '#e2e8f0', flexShrink: 0 }} />
+
+            {/* Filters for Regions */}
+            {activeTab === 1 && (
+              <>
+                <Autocomplete
+                  size="small"
+                  options={allCountries}
+                  getOptionLabel={(option) => option.name || ''}
+                  value={selectedCountry}
+                  onChange={(e, newValue) => setSelectedCountry(newValue)}
+                  renderInput={(params) => <TextField {...params} placeholder="Select Country *" />}
+                  sx={{
+                    flex: '0 0 220px',
+                    '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem', backgroundColor: '#f8fafc' },
+                  }}
+                />
+              </>
+            )}
+
+            {/* Filters for Zones/Subcity */}
+            {activeTab === 2 && (
+              <>
+                <Autocomplete
+                  size="small"
+                  options={allCountries}
+                  getOptionLabel={(option) => option.name || ''}
+                  value={selectedCountry}
+                  onChange={(e, newValue) => setSelectedCountry(newValue)}
+                  renderInput={(params) => <TextField {...params} placeholder="Select Country *" />}
+                  sx={{
+                    flex: '0 0 200px',
+                    '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem', backgroundColor: '#f8fafc' },
+                  }}
+                />
+                <Autocomplete
+                  size="small"
+                  options={allRegions}
+                  getOptionLabel={(option) => option.name || ''}
+                  value={selectedRegion}
+                  onChange={(e, newValue) => setSelectedRegion(newValue)}
+                  disabled={!selectedCountry}
+                  renderInput={(params) => <TextField {...params} placeholder="Select Region *" />}
+                  sx={{
+                    flex: '0 0 200px',
+                    '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem', backgroundColor: '#f8fafc' },
+                  }}
+                />
+              </>
+            )}
+
+            {/* Filters for Woredas */}
+            {activeTab === 3 && (
+              <>
+                <Autocomplete
+                  size="small"
+                  options={allCountries}
+                  getOptionLabel={(option) => option.name || ''}
+                  value={selectedCountry}
+                  onChange={(e, newValue) => setSelectedCountry(newValue)}
+                  renderInput={(params) => <TextField {...params} placeholder="Select Country *" />}
+                  sx={{
+                    flex: '0 0 180px',
+                    '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem', backgroundColor: '#f8fafc' },
+                  }}
+                />
+                <Autocomplete
+                  size="small"
+                  options={allRegions}
+                  getOptionLabel={(option) => option.name || ''}
+                  value={selectedRegion}
+                  onChange={(e, newValue) => setSelectedRegion(newValue)}
+                  disabled={!selectedCountry}
+                  renderInput={(params) => <TextField {...params} placeholder="Select Region *" />}
+                  sx={{
+                    flex: '0 0 180px',
+                    '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem', backgroundColor: '#f8fafc' },
+                  }}
+                />
+                <Autocomplete
+                  size="small"
+                  options={allZones}
+                  getOptionLabel={(option) => option.name || ''}
+                  value={selectedZone}
+                  onChange={(e, newValue) => setSelectedZone(newValue)}
+                  disabled={!selectedRegion}
+                  renderInput={(params) => <TextField {...params} placeholder="Select Zone/Subcity *" />}
+                  sx={{
+                    flex: '0 0 180px',
+                    '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.8rem', backgroundColor: '#f8fafc' },
+                  }}
+                />
+              </>
+            )}
+
+            {/* Clear Button */}
+            <Button
+              variant="outlined"
+              startIcon={<ClearIcon />}
+              onClick={handleClearFilters}
+              sx={{
+                fontWeight: 600,
+                borderRadius: 2,
+                borderColor: '#cbd5e1',
+                color: '#64748b',
+                '&:hover': { 
+                  borderColor: '#94a3b8',
+                  backgroundColor: '#f8fafc',
+                },
+                fontSize: '0.82rem',
+                textTransform: 'none',
+              }}
+            >
+              Clear
+            </Button>
+
+            {/* Apply Filter Button */}
+            <Button
+              variant="contained"
+              onClick={handleApplyFilters}
+              sx={{
+                fontWeight: 600,
+                borderRadius: 2,
+                backgroundColor: '#4f46e5',
+                '&:hover': { backgroundColor: '#4338ca' },
+                fontSize: '0.82rem',
+                textTransform: 'none',
+              }}
+            >
+              Apply Filters
+            </Button>
+          </Box>
+        )}
       </Paper>
 
       {/* Table */}

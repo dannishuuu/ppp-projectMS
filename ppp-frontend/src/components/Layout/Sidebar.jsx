@@ -96,7 +96,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     { text: 'Project Statuses', icon: <StatusIcon />, path: '/project-statuses' },
     { text: 'Currencies', icon: <CurrencyIcon />, path: '/currencies' },
     { text: 'Proposal Statuses', icon: <StatusIcon />, path: '/proposal-statuses' },
-    { text: 'Geographic Management', icon: <GeographicIcon />, path: '/foundation/geographical' },
+    { text: 'Geographic Mngt', icon: <GeographicIcon />, path: '/foundation/geographical' },
   ];
 
   const docMgmtSubItems = [
