@@ -201,7 +201,7 @@ export const Login = () => {
                 Welcome back
               </Typography>
               <Typography variant="body2" sx={{ color: '#64748b' }}>
-                Access PPP Projects & Colider Rental Portal
+                Access PPP  & CBR Portal
               </Typography>
             </Box>
 
