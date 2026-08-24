@@ -29,6 +29,7 @@ const regionsRoutes = require('./routes/foundationService/regions.routes');
 const zonesRoutes = require('./routes/foundationService/zones.routes');
 const woredasRoutes = require('./routes/foundationService/woredas.routes');
 const buildingTypeRoutes = require('./routes/foundationService/buildingTypes.routes');
+const shopServiceTypeRoutes = require('./routes/foundationService/shopServiceTypes.routes');
 
 
 // Middleware
@@ -104,6 +105,9 @@ app.use('/api/v1/woredas', woredasRoutes);
 
 // Building types routes
 app.use('/api/v1/building-types', buildingTypeRoutes);
+
+// Shop service Type
+app.use('/api/v1/shop-service-types', shopServiceTypeRoutes);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static('uploads'));
