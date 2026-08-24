@@ -34,6 +34,7 @@ import {
   Tag as SequenceIcon,
   Search as SearchIcon,
   Public as GeographicIcon,
+  Apartment as BuildingTypeIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProjects } from '../../context/ProjectContext';
@@ -56,7 +57,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     location.pathname.startsWith('/projects') && !location.pathname.startsWith('/projects/tracking-types') ? 'projects' :
     location.pathname.startsWith('/users') ? 'users' :
     location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types') ? 'organizations' :
-    location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/foundation/geographical') ? 'foundation' :
+    location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/foundation/') ? 'foundation' :
     location.pathname.startsWith('/document-sequences') ? 'docmgmt' :
     null
   );
@@ -97,6 +98,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     { text: 'Currencies', icon: <CurrencyIcon />, path: '/currencies' },
     { text: 'Proposal Statuses', icon: <StatusIcon />, path: '/proposal-statuses' },
     { text: 'Geographic Mngt', icon: <GeographicIcon />, path: '/foundation/geographical' },
+    { text: 'Building Types', icon: <BuildingTypeIcon />, path: '/foundation/building-types' },
   ];
 
   const docMgmtSubItems = [
@@ -108,7 +110,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const isProjectsGroupActive = location.pathname.startsWith('/projects') && !location.pathname.startsWith('/projects/tracking-types') && !location.pathname.startsWith('/project-categories');
   const isUsersGroupActive = location.pathname.startsWith('/users');
   const isOrgGroupActive = location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types');
-  const isFoundationGroupActive = location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/foundation/geographical');
+  const isFoundationGroupActive = location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/foundation/');
   const isDocMgmtGroupActive = location.pathname.startsWith('/document-sequences');
 
   const getUserDisplayName = () => {
