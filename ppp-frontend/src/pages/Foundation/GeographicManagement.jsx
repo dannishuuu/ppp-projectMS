@@ -948,11 +948,11 @@ export const GeographicManagement = () => {
                             <EditIcon sx={{ fontSize: 17 }} />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Delete">
+                        {/* <Tooltip title="Delete">
                           <IconButton size="small" onClick={() => handleDeleteDialogOpen(item)} sx={{ p: 0.5, color: '#dc2626' }}>
                             <DeleteIcon sx={{ fontSize: 17 }} />
                           </IconButton>
-                        </Tooltip>
+                        </Tooltip> */}
                       </Box>
                     </TableCell>
                   </TableRow>
