@@ -107,10 +107,10 @@ export const Login = () => {
             </Box>
             <Box>
               <Typography sx={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', lineHeight: 1.1 }}>
-                AAPPP
+                AA
               </Typography>
               <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.72rem', fontWeight: 500, letterSpacing: 1.2 }}>
-                MANAGEMENT SYSTEM
+                PPP & CBRM SYSTEM
               </Typography>
             </Box>
           </Box>
@@ -118,18 +118,26 @@ export const Login = () => {
           <Divider sx={{ borderColor: 'rgba(255,255,255,0.15)', width: 60 }} />
 
           <Box>
-            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 800, lineHeight: 1.15, mb: 2, maxWidth: 420 }}>
-              Addis Ababa PPP Concession Projects
+            <Typography
+              variant="h4"
+              sx={{ color: '#fff', fontWeight: 800, lineHeight: 1.2, mb: 2, maxWidth: 420 }}
+              >
+                PPP Projects & Corridor
+                <br />
+                Building & Rental
+                <br />
+                Management System
             </Typography>
+
             <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', lineHeight: 1.7, maxWidth: 380 }}>
-              A centralized platform for tracking, managing, and reporting on
-              Public–Private Partnership concession projects across the city.
+                Unified platform for Addis Ababa  PPP project management and
+                Corridor Development building & office rental operations.
             </Typography>
           </Box>
 
           {/* Feature pills */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
-            {['Real-time project monitoring', 'Budget & schedule tracking', 'Stakeholder management'].map((item) => (
+            {['PPP project tracking', 'Building & office rental management', 'Multi-department operations'].map((item) => (
               <Box
                 key={item}
                 sx={{
@@ -193,7 +201,7 @@ export const Login = () => {
                 Welcome back
               </Typography>
               <Typography variant="body2" sx={{ color: '#64748b' }}>
-                Sign in to access the PPP dashboard
+                Access PPP Projects & Colider Rental Portal
               </Typography>
             </Box>
 
