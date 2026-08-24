@@ -474,7 +474,7 @@ export const ShopServiceTypePage = () => {
                           </IconButton>
                         </Tooltip>
 
-                        <Tooltip title="Delete Shop/Service Type" arrow placement="top">
+                        {/* <Tooltip title="Delete Shop/Service Type" arrow placement="top">
                           <IconButton
                             size="small"
                             onClick={() => handleDeleteDialogOpen(type)}
@@ -482,7 +482,7 @@ export const ShopServiceTypePage = () => {
                           >
                             <DeleteIcon sx={{ fontSize: 17 }} />
                           </IconButton>
-                        </Tooltip>
+                        </Tooltip> */}
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -512,18 +512,59 @@ export const ShopServiceTypePage = () => {
       <Dialog
         open={dialogOpen}
         onClose={handleDialogClose}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 3, p: 0.5 } }}
+        maxWidth={false}
+        PaperProps={{ 
+          sx: { 
+            borderRadius: 3,
+            width: dialogMode === 'view' ? '750px' : '680px',
+            maxWidth: '90vw',
+            height: dialogMode === 'view' ? 'auto' : '620px',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
+          } 
+        }}
       >
-        <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', pb: 1 }}>
-          {getDialogTitle()}
+        <DialogTitle sx={{ 
+          fontWeight: 800, 
+          color: '#0f172a', 
+          pb: 2,
+          pt: 3,
+          px: 3.5,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderBottom: 'none',
+          flexShrink: 0,
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar sx={{ width: 46, height: 46, backgroundColor: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)' }}>
+              <ShopIcon sx={{ fontSize: 26, color: 'white' }} />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: 'white', lineHeight: 1.2, fontSize: '1.15rem' }}>
+                {getDialogTitle()}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.8rem', fontWeight: 500 }}>
+                {dialogMode === 'add' ? 'Create a new shop/service type' : dialogMode === 'edit' ? 'Modify shop/service type details' : 'View shop/service type information'}
+              </Typography>
+            </Box>
+          </Box>
         </DialogTitle>
-        <Divider />
 
-        <DialogContent sx={{ pt: 2.5 }}>
+        <DialogContent sx={{ 
+          pt: 3.5,
+          pb: 2.5,
+          px: 3.5,
+          flex: 1,
+          overflow: 'auto',
+          backgroundColor: '#fafbfc',
+          '&::-webkit-scrollbar': { width: '10px' },
+          '&::-webkit-scrollbar-track': { background: '#f1f5f9', borderRadius: '10px' },
+          '&::-webkit-scrollbar-thumb': { background: '#cbd5e1', borderRadius: '10px' },
+          '&::-webkit-scrollbar-thumb:hover': { background: '#94a3b8' },
+        }}>
           {formError && (
-            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+            <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
               {formError}
             </Alert>
           )}
@@ -670,75 +711,171 @@ export const ShopServiceTypePage = () => {
               </Box>
             </Box>
           ) : (
-            <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 0.5 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
+            <Box 
+              component="form" 
+              onSubmit={handleSubmit} 
+              sx={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: 2.5,
+                height: '100%',
+              }}
+            >
+              {/* Info Banner */}
+              <Box sx={{ 
+                p: 2.5, 
+                borderRadius: 2.5, 
+                background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)',
+                border: '1.5px solid #c7d2fe',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                boxShadow: '0 2px 8px rgba(99, 102, 241, 0.08)',
+              }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  width: 36,
+                  height: 36,
+                  borderRadius: 2,
+                  backgroundColor: '#4f46e5',
+                }}>
+                  <ShopIcon sx={{ color: 'white', fontSize: 20 }} />
+                </Box>
+                <Typography variant="body2" sx={{ color: '#3730a3', fontSize: '0.875rem', fontWeight: 600, lineHeight: 1.5 }}>
+                  Provide multilingual names to support all users across different language preferences
+                </Typography>
+              </Box>
+
+              {/* Form Fields */}
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {/* English Name - Full Width */}
+                <Box>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 1.25, display: 'block', fontSize: '0.75rem' }}>
+                    Primary Name (English) *
+                  </Typography>
                   <TextField
                     required
                     fullWidth
-                    label="Name (English)"
-                    placeholder="e.g. Restaurant, Pharmacy, Salon"
+                    placeholder="e.g. Restaurant, Pharmacy, Salon, Spa"
                     value={formData.name}
                     onChange={handleChange('name')}
-                    size="small"
                     disabled={formLoading}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': { 
+                        borderRadius: 2.5,
+                        backgroundColor: '#ffffff',
+                        fontSize: '0.95rem',
+                        '& fieldset': { borderColor: '#cbd5e1', borderWidth: '1.5px' },
+                        '&:hover fieldset': { borderColor: '#94a3b8' },
+                        '&.Mui-focused fieldset': { borderColor: '#4f46e5', borderWidth: '2px' },
+                      },
+                      '& .MuiInputBase-input': { py: 1.5 }
+                    }}
                   />
+                </Box>
+
+                {/* Multilingual Names - Side by Side */}
+                <Grid container spacing={2.5}>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 1.25, display: 'block', fontSize: '0.75rem' }}>
+                      አማርኛ ስም (Amharic)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      placeholder="e.g. ምግብ ቤት, ፋርማሲ, ሳሎን"
+                      value={formData.amharic_name}
+                      onChange={handleChange('amharic_name')}
+                      disabled={formLoading}
+                      sx={{ 
+                        '& .MuiOutlinedInput-root': { 
+                          borderRadius: 2.5,
+                          backgroundColor: '#ffffff',
+                          fontSize: '0.95rem',
+                          '& fieldset': { borderColor: '#cbd5e1', borderWidth: '1.5px' },
+                          '&:hover fieldset': { borderColor: '#94a3b8' },
+                        },
+                        '& .MuiInputBase-input': { py: 1.5 }
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 1.25, display: 'block', fontSize: '0.75rem' }}>
+                      Maqaa Afaan Oromo
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      placeholder="e.g. Mana Nyaataa, Mana Qoricha"
+                      value={formData.afaan_oromo_name}
+                      onChange={handleChange('afaan_oromo_name')}
+                      disabled={formLoading}
+                      sx={{ 
+                        '& .MuiOutlinedInput-root': { 
+                          borderRadius: 2.5,
+                          backgroundColor: '#ffffff',
+                          fontSize: '0.95rem',
+                          '& fieldset': { borderColor: '#cbd5e1', borderWidth: '1.5px' },
+                          '&:hover fieldset': { borderColor: '#94a3b8' },
+                        },
+                        '& .MuiInputBase-input': { py: 1.5 }
+                      }}
+                    />
+                  </Grid>
                 </Grid>
-                <Grid item xs={6}>
-                  <TextField
-                    fullWidth
-                    label="Name (አማርኛ)"
-                    placeholder="e.g. ምግብ ቤት, ፋርማሲ, ሳሎን"
-                    value={formData.amharic_name}
-                    onChange={handleChange('amharic_name')}
-                    size="small"
-                    disabled={formLoading}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                  />
-                </Grid>
-                <Grid item xs={6}>
-                  <TextField
-                    fullWidth
-                    label="Name (Afaan Oromo)"
-                    placeholder="e.g. Mana Nyaataa, Mana Qoricha"
-                    value={formData.afaan_oromo_name}
-                    onChange={handleChange('afaan_oromo_name')}
-                    size="small"
-                    disabled={formLoading}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                  />
-                </Grid>
-                <Grid item xs={12}>
+
+                {/* Description */}
+                <Box>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', mb: 1.25, display: 'block', fontSize: '0.75rem' }}>
+                    Description
+                  </Typography>
                   <TextField
                     fullWidth
                     multiline
-                    rows={3}
-                    label="Description"
-                    placeholder="Describe this shop/service type and its characteristics..."
+                    rows={5}
+                    placeholder="Describe this shop/service type, its purpose, and typical characteristics..."
                     value={formData.description}
                     onChange={handleChange('description')}
-                    size="small"
                     disabled={formLoading}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': { 
+                        borderRadius: 2.5,
+                        backgroundColor: '#ffffff',
+                        fontSize: '0.925rem',
+                        '& fieldset': { borderColor: '#cbd5e1', borderWidth: '1.5px' },
+                        '&:hover fieldset': { borderColor: '#94a3b8' },
+                      }
+                    }}
                   />
-                </Grid>
-              </Grid>
+                </Box>
+              </Box>
             </Box>
           )}
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1.5, gap: 1 }}>
+        <DialogActions sx={{ 
+          px: 3.5, 
+          py: 2.75, 
+          gap: 2,
+          borderTop: '2px solid #e2e8f0',
+          backgroundColor: '#ffffff',
+          flexShrink: 0,
+          boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.03)',
+        }}>
           {dialogMode !== 'view' && (
             <>
               <Button 
                 onClick={handleDialogClose} 
                 disabled={formLoading}
                 sx={{ 
-                  borderRadius: 2, 
-                  fontWeight: 600, 
+                  borderRadius: 2.5, 
+                  fontWeight: 700, 
                   color: '#64748b',
-                  '&:hover': { backgroundColor: '#f1f5f9' }
+                  px: 4,
+                  py: 1.25,
+                  fontSize: '0.9rem',
+                  border: '1.5px solid #cbd5e1',
+                  '&:hover': { backgroundColor: '#f1f5f9', borderColor: '#94a3b8' }
                 }}
               >
                 Cancel
@@ -748,14 +885,19 @@ export const ShopServiceTypePage = () => {
                 variant="contained"
                 disabled={formLoading}
                 sx={{
-                  borderRadius: 2,
-                  fontWeight: 700,
+                  borderRadius: 2.5,
+                  fontWeight: 800,
                   backgroundColor: '#4f46e5',
-                  '&:hover': { backgroundColor: '#4338ca' },
-                  minWidth: 100,
+                  '&:hover': { backgroundColor: '#4338ca', transform: 'translateY(-1px)' },
+                  minWidth: 140,
+                  px: 4,
+                  py: 1.25,
+                  fontSize: '0.9rem',
+                  boxShadow: '0 6px 16px rgba(79, 70, 229, 0.35)',
+                  transition: 'all 0.2s ease-in-out',
                 }}
               >
-                {formLoading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : dialogMode === 'add' ? 'Create' : 'Update'}
+                {formLoading ? <CircularProgress size={22} sx={{ color: 'white' }} /> : dialogMode === 'add' ? 'Create Type' : 'Save Changes'}
               </Button>
             </>
           )}
@@ -764,10 +906,15 @@ export const ShopServiceTypePage = () => {
               onClick={handleDialogClose}
               variant="contained"
               sx={{
-                borderRadius: 2,
-                fontWeight: 700,
+                borderRadius: 2.5,
+                fontWeight: 800,
                 backgroundColor: '#4f46e5',
-                '&:hover': { backgroundColor: '#4338ca' },
+                '&:hover': { backgroundColor: '#4338ca', transform: 'translateY(-1px)' },
+                px: 5,
+                py: 1.25,
+                fontSize: '0.9rem',
+                boxShadow: '0 6px 16px rgba(79, 70, 229, 0.35)',
+                transition: 'all 0.2s ease-in-out',
               }}
             >
               Close
