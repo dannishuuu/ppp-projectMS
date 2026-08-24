@@ -184,7 +184,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
               fontSize: '0.95rem',
             }}
           >
-            PPP Portal
+            PPP & CBR Portal
           </Typography>
           <Typography
             variant="caption"
@@ -196,7 +196,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
               mt: 0.2,
             }}
           >
-            Addis Ababa City Admin
+            Addis Ababa City
           </Typography>
         </Box>
       </Box>

@@ -110,7 +110,7 @@ export const Login = () => {
                 AA
               </Typography>
               <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.72rem', fontWeight: 500, letterSpacing: 1.2 }}>
-                PPP & CBRM SYSTEM
+                PPP & CBR MANAGEMENT SYSTEM
               </Typography>
             </Box>
           </Box>
