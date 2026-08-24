@@ -534,7 +534,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
                 <FoundationIcon sx={{ fontSize: 20 }} />
               </ListItemIcon>
               <ListItemText
-                primary="Foundation Settings"
+                primary="Foundation ⚙️"
                 primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isFoundationGroupActive ? 700 : 500 }}
               />
               <Box
