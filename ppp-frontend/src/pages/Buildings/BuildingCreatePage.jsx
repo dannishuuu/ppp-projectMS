@@ -11,16 +11,12 @@ import {
   Link,
   Divider,
   Alert,
-  Grid,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
   Save as SaveIcon,
-  Apartment as BuildingIcon,
-  LocationOn as LocationIcon,
-  Layers as SpecsIcon,
 } from '@mui/icons-material';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -95,7 +91,7 @@ export const BuildingCreatePage = () => {
         const res = await zonesService.getZones({ regionId: formData.regionId, limit: 100, status: 'active' });
         setZones(res?.zones || res?.rows || (Array.isArray(res) ? res : []));
       } catch (err) {
-        console.error('Failed to load zones for region:', err);
+        console.error('Failed to load zones:', err);
       }
     };
     fetchZones();
@@ -113,7 +109,7 @@ export const BuildingCreatePage = () => {
         const res = await woredasService.getWoredas({ zoneId: formData.zoneId, limit: 100, status: 'active' });
         setWoredas(res?.woredas || res?.rows || (Array.isArray(res) ? res : []));
       } catch (err) {
-        console.error('Failed to load woredas for zone:', err);
+        console.error('Failed to load woredas:', err);
       }
     };
     fetchWoredas();
@@ -172,10 +168,10 @@ export const BuildingCreatePage = () => {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, width: '100%' }}>
-      {/* Header Bar */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 1.5 }}>
-        <Box>
-          <Breadcrumbs aria-label="breadcrumb" sx={{ fontSize: '0.78rem', mb: 0.5 }}>
+      {/* Compact Header Bar */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5, flexWrap: 'wrap', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+          <Breadcrumbs aria-label="breadcrumb" sx={{ fontSize: '0.78rem' }}>
             <Link underline="hover" color="inherit" component={RouterLink} to="/dashboard" sx={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
               Dashboard
             </Link>
@@ -186,24 +182,19 @@ export const BuildingCreatePage = () => {
               New Building
             </Typography>
           </Breadcrumbs>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.25rem' }}>
+
+          <Box sx={{ width: '1px', height: 16, backgroundColor: '#cbd5e1', flexShrink: 0 }} />
+
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', lineHeight: 1 }}>
             Register New Building
           </Typography>
         </Box>
 
         <Button
           variant="outlined"
-          startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
+          startIcon={<ArrowBackIcon />}
           onClick={() => navigate('/buildings')}
-          sx={{
-            borderRadius: 2,
-            fontWeight: 600,
-            fontSize: '0.8rem',
-            textTransform: 'none',
-            color: '#64748b',
-            borderColor: '#cbd5e1',
-            '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
-          }}
+          sx={{ borderRadius: 2, borderColor: '#cbd5e1', color: '#475569', fontWeight: 600, fontSize: '0.82rem' }}
         >
           Back to Buildings
         </Button>
@@ -215,26 +206,34 @@ export const BuildingCreatePage = () => {
         </Alert>
       )}
 
-      <Box component="form" onSubmit={handleSubmit}>
-        {/* Section 1: Basic & General Info */}
-        <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 2.5, border: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-            <Box sx={{ p: 1, borderRadius: 2, backgroundColor: '#eef2ff', color: '#4f46e5', display: 'flex', alignItems: 'center' }}>
-              <BuildingIcon sx={{ fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
+      {/* Main 3-Column Paper Grid */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2.5, sm: 4, md: 4 },
+          borderRadius: 3,
+          border: '1px solid #e2e8f0',
+          backgroundColor: '#ffffff',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          width: '100%',
+        }}
+      >
+        <form onSubmit={handleSubmit} noValidate>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+              gap: 4,
+              alignItems: 'start',
+            }}
+          >
+            {/* Column 1: Basic Information */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', letterSpacing: '0.5px', fontSize: '0.8rem', textTransform: 'uppercase' }}>
                 Basic Information
               </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b' }}>
-                Primary identification and architectural categorization
-              </Typography>
-            </Box>
-          </Box>
-          <Divider sx={{ mb: 2.5 }} />
+              <Divider />
 
-          <Grid container spacing={2.5}>
-            <Grid item xs={12} sm={6}>
               <TextField
                 required
                 fullWidth
@@ -246,9 +245,29 @@ export const BuildingCreatePage = () => {
                 disabled={saving}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
-            </Grid>
 
-            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Amharic Name"
+                placeholder="e.g. የንግድ ማዕከል ህንፃ ሀ"
+                value={formData.nameAmharic}
+                onChange={handleChange('nameAmharic')}
+                size="small"
+                disabled={saving}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+
+              <TextField
+                fullWidth
+                label="Afaan Oromo Name"
+                placeholder="e.g. Gamoo Daldalaa A"
+                value={formData.nameAfaanOromo}
+                onChange={handleChange('nameAfaanOromo')}
+                size="small"
+                disabled={saving}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+
               <TextField
                 required
                 select
@@ -263,54 +282,11 @@ export const BuildingCreatePage = () => {
                 <MenuItem value="" disabled>Select Building Type</MenuItem>
                 {buildingTypes.map((type) => (
                   <MenuItem key={type.id} value={type.id}>
-                    {type.name} {type.type_code ? `(${type.type_code})` : ''}
+                    {type.name}
                   </MenuItem>
                 ))}
               </TextField>
-            </Grid>
 
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Amharic Name"
-                placeholder="e.g. የንግድ ማዕከል ህንፃ ሀ"
-                value={formData.nameAmharic}
-                onChange={handleChange('nameAmharic')}
-                size="small"
-                disabled={saving}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Afaan Oromo Name"
-                placeholder="e.g. Gamoo Daldalaa A"
-                value={formData.nameAfaanOromo}
-                onChange={handleChange('nameAfaanOromo')}
-                size="small"
-                disabled={saving}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Year Built / Commissioned"
-                placeholder="e.g. 2022"
-                value={formData.yearBuilt}
-                onChange={handleChange('yearBuilt')}
-                size="small"
-                disabled={saving}
-                inputProps={{ min: 1900, max: 2100 }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Grid>
-
-            <Grid item xs={12}>
               <TextField
                 fullWidth
                 multiline
@@ -323,29 +299,15 @@ export const BuildingCreatePage = () => {
                 disabled={saving}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
-            </Grid>
-          </Grid>
-        </Paper>
-
-        {/* Section 2: Structure & Specifications */}
-        <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 2.5, border: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-            <Box sx={{ p: 1, borderRadius: 2, backgroundColor: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center' }}>
-              <SpecsIcon sx={{ fontSize: 20 }} />
             </Box>
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
+
+            {/* Column 2: Structure & Measurements */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', letterSpacing: '0.5px', fontSize: '0.8rem', textTransform: 'uppercase' }}>
                 Structure & Measurements
               </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b' }}>
-                Floor count and total construction floor area
-              </Typography>
-            </Box>
-          </Box>
-          <Divider sx={{ mb: 2.5 }} />
+              <Divider />
 
-          <Grid container spacing={2.5}>
-            <Grid item xs={12} sm={4}>
               <TextField
                 required
                 fullWidth
@@ -360,9 +322,7 @@ export const BuildingCreatePage = () => {
                 helperText="Total number of physical floor levels"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
-            </Grid>
 
-            <Grid item xs={12} sm={4}>
               <TextField
                 fullWidth
                 type="number"
@@ -375,9 +335,7 @@ export const BuildingCreatePage = () => {
                 inputProps={{ min: 0, step: 'any' }}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
-            </Grid>
 
-            <Grid item xs={12} sm={4}>
               <TextField
                 select
                 fullWidth
@@ -395,29 +353,28 @@ export const BuildingCreatePage = () => {
                   </MenuItem>
                 ))}
               </TextField>
-            </Grid>
-          </Grid>
-        </Paper>
 
-        {/* Section 3: Location & Address */}
-        <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 2.5, border: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-            <Box sx={{ p: 1, borderRadius: 2, backgroundColor: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center' }}>
-              <LocationIcon sx={{ fontSize: 20 }} />
+              <TextField
+                fullWidth
+                type="number"
+                label="Year Built / Commissioned"
+                placeholder="e.g. 2022"
+                value={formData.yearBuilt}
+                onChange={handleChange('yearBuilt')}
+                size="small"
+                disabled={saving}
+                inputProps={{ min: 1900, max: 2100 }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
             </Box>
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
-                Geographical Location & Address
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b' }}>
-                Administrative jurisdiction and precise site address
-              </Typography>
-            </Box>
-          </Box>
-          <Divider sx={{ mb: 2.5 }} />
 
-          <Grid container spacing={2.5}>
-            <Grid item xs={12} sm={4}>
+            {/* Column 3: Location & Address */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', letterSpacing: '0.5px', fontSize: '0.8rem', textTransform: 'uppercase' }}>
+                Location & Address
+              </Typography>
+              <Divider />
+
               <TextField
                 select
                 fullWidth
@@ -433,9 +390,7 @@ export const BuildingCreatePage = () => {
                   <MenuItem key={reg.id} value={reg.id}>{reg.name}</MenuItem>
                 ))}
               </TextField>
-            </Grid>
 
-            <Grid item xs={12} sm={4}>
               <TextField
                 select
                 fullWidth
@@ -451,9 +406,7 @@ export const BuildingCreatePage = () => {
                   <MenuItem key={zone.id} value={zone.id}>{zone.name}</MenuItem>
                 ))}
               </TextField>
-            </Grid>
 
-            <Grid item xs={12} sm={4}>
               <TextField
                 select
                 fullWidth
@@ -469,9 +422,7 @@ export const BuildingCreatePage = () => {
                   <MenuItem key={woreda.id} value={woreda.id}>{woreda.name}</MenuItem>
                 ))}
               </TextField>
-            </Grid>
 
-            <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Street Address / Specific Location"
@@ -480,50 +431,53 @@ export const BuildingCreatePage = () => {
                 onChange={handleChange('address')}
                 size="small"
                 disabled={saving}
+                multiline
+                rows={2}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
-            </Grid>
-          </Grid>
-        </Paper>
+            </Box>
+          </Box>
 
-        {/* Action Buttons */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1.5, pb: 4 }}>
-          <Button
-            variant="outlined"
-            onClick={() => navigate('/buildings')}
-            disabled={saving}
+          {/* Submit Actions Footer */}
+          <Box
             sx={{
-              borderRadius: 2,
-              fontWeight: 600,
-              color: '#64748b',
-              borderColor: '#cbd5e1',
-              '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
-              px: 2.5,
-              py: 1,
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 2,
+              mt: 4,
+              pt: 3,
+              borderTop: '1px solid #e2e8f0',
             }}
           >
-            Cancel
-          </Button>
-
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={saving}
-            startIcon={saving ? <CircularProgress size={18} sx={{ color: 'white' }} /> : <SaveIcon sx={{ fontSize: 18 }} />}
-            sx={{
-              borderRadius: 2,
-              fontWeight: 700,
-              backgroundColor: '#4f46e5',
-              '&:hover': { backgroundColor: '#4338ca' },
-              px: 3,
-              py: 1,
-              boxShadow: '0 2px 8px rgba(79, 70, 229, 0.25)',
-            }}
-          >
-            {saving ? 'Registering...' : 'Register Building'}
-          </Button>
-        </Box>
-      </Box>
+            <Button
+              variant="outlined"
+              color="inherit"
+              onClick={() => navigate('/buildings')}
+              disabled={saving}
+              sx={{ borderRadius: 2, px: 3, borderColor: '#cbd5e1', color: '#475569', fontWeight: 600 }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={saving}
+              startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
+              sx={{
+                px: 4,
+                py: 1,
+                borderRadius: 2,
+                fontWeight: 700,
+                backgroundColor: '#4f46e5',
+                '&:hover': { backgroundColor: '#4338ca' },
+                boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)',
+              }}
+            >
+              {saving ? 'Registering...' : 'Register Building'}
+            </Button>
+          </Box>
+        </form>
+      </Paper>
     </Box>
   );
 };
