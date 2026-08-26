@@ -1,34 +1,67 @@
 const db = require('../config/database');
 const { QueryTypes } = require('sequelize');
 
+const PUBLIC_AREA_UNIT_FIELDS = `
+  au.id,
+  au.name,
+  au.code,
+  au.name_amharic,
+  au.name_afaan_oromo,
+  au.description,
+  au.is_active,
+  au.created_at,
+  au.updated_at,
+  au.created_by,
+  au.updated_by,
+  creator.first_name || ' ' || creator.last_name AS created_by_name,
+  updater.first_name || ' ' || updater.last_name AS updated_by_name
+`;
+
 class AreaUnitModel {
     static async findAll(options = {}) {
         const { limit = 100, offset = 0, search = '', isActive = null, sortBy = 'name' } = options;
-        let where = 'WHERE is_deleted = false';
+        let where = 'WHERE au.is_deleted = false';
         const replacements = {};
 
         if (isActive !== null && isActive !== undefined) {
-            where += ` AND is_active = :isActive`;
+            where += ` AND au.is_active = :isActive`;
             replacements.isActive = isActive;
         }
 
         if (search && search.trim()) {
-            where += ` AND (name ILIKE :search OR code ILIKE :search OR name_amharic ILIKE :search OR name_afaan_oromo ILIKE :search)`;
+            where += ` AND (au.name ILIKE :search OR au.code ILIKE :search OR au.name_amharic ILIKE :search OR au.name_afaan_oromo ILIKE :search OR au.description ILIKE :search)`;
             replacements.search = `%${search.trim()}%`;
         }
 
-        const countResult = await db.query(`SELECT COUNT(*) as total FROM area_units ${where}`, { replacements, type: QueryTypes.SELECT });
+        const countResult = await db.query(`SELECT COUNT(*) as total FROM area_units au ${where}`, { replacements, type: QueryTypes.SELECT });
         const total = parseInt(countResult[0]?.total || 0, 10);
 
         const validSortBy = ['name', 'code', 'created_at', 'updated_at'].includes(sortBy) ? sortBy : 'name';
-        replacements.limit = limit; replacements.offset = offset;
+        replacements.limit = limit; 
+        replacements.offset = offset;
 
-        const rows = await db.query(`SELECT * FROM area_units ${where} ORDER BY ${validSortBy} ASC LIMIT :limit OFFSET :offset`, { replacements, type: QueryTypes.SELECT });
+        const rows = await db.query(`
+          SELECT ${PUBLIC_AREA_UNIT_FIELDS} 
+          FROM area_units au 
+          LEFT JOIN users creator ON creator.id = au.created_by
+          LEFT JOIN users updater ON updater.id = au.updated_by
+          ${where} 
+          ORDER BY au.${validSortBy} ASC 
+          LIMIT :limit OFFSET :offset`, 
+          { replacements, type: QueryTypes.SELECT }
+        );
         return { rows, total };
     }
 
     static async findById(id) {
-        const rows = await db.query('SELECT * FROM area_units WHERE id = :id AND is_deleted = false', { replacements: { id }, type: QueryTypes.SELECT });
+        const rows = await db.query(`
+          SELECT ${PUBLIC_AREA_UNIT_FIELDS} 
+          FROM area_units au 
+          LEFT JOIN users creator ON creator.id = au.created_by
+          LEFT JOIN users updater ON updater.id = au.updated_by
+          WHERE au.id = :id AND au.is_deleted = false`, 
+          { replacements: { id }, type: QueryTypes.SELECT }
+        );
         return rows[0] || null;
     }
 
@@ -40,11 +73,19 @@ class AreaUnitModel {
         return rows[0] || null;
     }
 
+    static async findByName(name, excludeId = null) {
+        let query = 'SELECT * FROM area_units WHERE LOWER(name) = LOWER(:name) AND is_deleted = false';
+        const replacements = { name };
+        if (excludeId) { query += ' AND id != :excludeId'; replacements.excludeId = excludeId; }
+        const rows = await db.query(query, { replacements, type: QueryTypes.SELECT });
+        return rows[0] || null;
+    }
+
     static async create(data) {
         const { name, code, nameAmharic, nameAfaanOromo, description, createdBy } = data;
         const rows = await db.query(`
-      INSERT INTO area_units (name, code, name_amharic, name_afaan_oromo, description, created_by) 
-      VALUES (:name, :code, :nameAmharic, :nameAfaanOromo, :description, :createdBy) RETURNING *`,
+          INSERT INTO area_units (name, code, name_amharic, name_afaan_oromo, description, created_by, updated_by) 
+          VALUES (:name, :code, :nameAmharic, :nameAfaanOromo, :description, :createdBy, :createdBy) RETURNING *`,
             {
                 replacements: {
                     name,
@@ -53,14 +94,16 @@ class AreaUnitModel {
                     nameAfaanOromo: nameAfaanOromo || null,
                     description: description || null,
                     createdBy: createdBy || null
-                }, type: QueryTypes.SELECT
+                }, 
+                type: QueryTypes.SELECT
             });
         return rows[0];
     }
 
     static async update(id, data) {
         const { name, code, nameAmharic, nameAfaanOromo, description, isActive, updatedBy } = data;
-        const setClauses = []; const replacements = { id };
+        const setClauses = []; 
+        const replacements = { id };
 
         if (name !== undefined) { setClauses.push('name = :name'); replacements.name = name; }
         if (code !== undefined) { setClauses.push('code = :code'); replacements.code = code; }

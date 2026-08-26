@@ -36,6 +36,7 @@ import { BuildingTypePage } from './pages/Foundation/BuildingTypePage';
 import { ShopServiceTypePage } from './pages/Foundation/ShopServiceTypePage';
 import { PaymentTimingPage } from './pages/Foundation/PaymentTimingPage';
 import { RentalPaymentTypePage } from './pages/Foundation/RentalPaymentTypePage';
+import { AreaUnitPage } from './pages/Foundation/AreaUnitPage';
 
 
 
@@ -128,6 +129,8 @@ function App() {
                   <Route path="payment-timings" element={<PaymentTimingPage />} />
                   <Route path="foundation/rental-payment-types" element={<RentalPaymentTypePage />} />
                   <Route path="rental-payment-types" element={<RentalPaymentTypePage />} />
+                  <Route path="foundation/area-units" element={<AreaUnitPage />} />
+                  <Route path="area-units" element={<AreaUnitPage />} />
 
                 </Route>
 
