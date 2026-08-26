@@ -38,6 +38,7 @@ import { PaymentTimingPage } from './pages/Foundation/PaymentTimingPage';
 import { RentalPaymentTypePage } from './pages/Foundation/RentalPaymentTypePage';
 import { AreaUnitPage } from './pages/Foundation/AreaUnitPage';
 import { FloorTypePage } from './pages/Foundation/FloorTypePage';
+import { BuildingIndexPage, BuildingCreatePage, BuildingEditPage, BuildingDetailPage } from './pages/Buildings';
 
 
 
@@ -131,10 +132,14 @@ function App() {
                   <Route path="foundation/rental-payment-types" element={<RentalPaymentTypePage />} />
                   <Route path="rental-payment-types" element={<RentalPaymentTypePage />} />
                   <Route path="foundation/area-units" element={<AreaUnitPage />} />
-                  <Route path="area-units" element={<AreaUnitPage />} />
                   <Route path="foundation/floor-types" element={<FloorTypePage />} />
                   <Route path="floor-types" element={<FloorTypePage />} />
 
+                  {/* Building Management pages */}
+                  <Route path="buildings" element={<BuildingIndexPage />} />
+                  <Route path="buildings/new" element={<BuildingCreatePage />} />
+                  <Route path="buildings/:id" element={<BuildingDetailPage />} />
+                  <Route path="buildings/:id/edit" element={<BuildingEditPage />} />
                 </Route>
 
                 {/* Catch-all */}

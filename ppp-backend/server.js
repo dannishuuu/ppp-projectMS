@@ -135,10 +135,10 @@ app.use('/api/v1/floor-types', floorTypeRoutes);
 app.use('/api/v1/buildings', buildingRoutes);
 
 // Building Floors
-app.use('./api/v1/building-floors', buildingFloorRoutes);
+app.use('/api/v1/building-floors', buildingFloorRoutes);
 
 // Building Units
-app.use('./api/v1/building-units', buildingUnitRoutes);
+app.use('/api/v1/building-units', buildingUnitRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

@@ -1,4 +1,4 @@
-const BuildingUnitService = require('../../services/buildingController/buildingUnits.service');
+const BuildingUnitService = require('../../services/buildingService/buildingUnits.service');
 
 exports.getUnits = async (req, res, next) => {
     try {

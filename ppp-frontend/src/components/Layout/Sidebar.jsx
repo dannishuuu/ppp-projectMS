@@ -40,6 +40,7 @@ import {
   ReceiptLong as RentalTypeIcon,
   Straighten as AreaUnitIcon,
   Layers as FloorTypeIcon,
+  Domain as BuildingNavIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProjects } from '../../context/ProjectContext';
@@ -95,6 +96,11 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     { text: 'New Organization', icon: <AddIcon />, path: '/organizations/new' },
   ];
 
+  const buildingSubItems = [
+    { text: 'Buildings List', icon: <BuildingNavIcon />, path: '/buildings' },
+    { text: 'New Building', icon: <AddIcon />, path: '/buildings/new' },
+  ];
+
   const foundationSubItems = [
     { text: 'Organization Types', icon: <CategoryIcon />, path: '/organization-types' },
     { text: 'Tracking Types', icon: <CategoryIcon />, path: '/projects/tracking-types' },
@@ -120,6 +126,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const isProjectsGroupActive = location.pathname.startsWith('/projects') && !location.pathname.startsWith('/projects/tracking-types') && !location.pathname.startsWith('/project-categories');
   const isUsersGroupActive = location.pathname.startsWith('/users');
   const isOrgGroupActive = location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types');
+  const isBuildingsGroupActive = location.pathname.startsWith('/buildings');
   const isFoundationGroupActive = location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/payment-timings') || location.pathname.startsWith('/rental-payment-types') || location.pathname.startsWith('/area-units') || location.pathname.startsWith('/floor-types') || location.pathname.startsWith('/foundation/');
   const isDocMgmtGroupActive = location.pathname.startsWith('/document-sequences');
 
@@ -469,6 +476,93 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
                 }}
               >
                 {filterSubItems(orgSubItems).map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <ListItem key={item.text} disablePadding>
+                      <ListItemButton
+                        onClick={() => handleNavigate(item.path)}
+                        sx={{
+                          borderRadius: '10px',
+                          py: 0.85,
+                          px: 1.5,
+                          backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+                          color: isActive ? '#a5b4fc' : '#94a3b8',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                            color: '#ffffff',
+                            transform: 'translateX(4px)',
+                          },
+                        }}
+                      >
+                        <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
+                          {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.text}
+                          primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </Collapse>
+          </ListItem>
+
+          {/* Buildings Group */}
+          <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+            <ListItemButton
+              onClick={() => handleMenuToggle('buildings')}
+              sx={{
+                borderRadius: '12px',
+                py: 1.1,
+                px: 1.75,
+                backgroundColor: isBuildingsGroupActive && !isMenuOpen('buildings') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                color: isBuildingsGroupActive ? '#ffffff' : '#cbd5e1',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                borderLeft: isBuildingsGroupActive ? '3px solid #818cf8' : '3px solid transparent',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                  color: '#ffffff',
+                  transform: 'translateX(3px)',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: isBuildingsGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
+                <BuildingNavIcon sx={{ fontSize: 20 }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Buildings"
+                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isBuildingsGroupActive ? 700 : 500 }}
+              />
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  transition: 'transform 0.2s ease',
+                  transform: isMenuOpen('buildings') ? 'rotate(180deg)' : 'rotate(0deg)',
+                }}
+              >
+                <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
+              </Box>
+            </ListItemButton>
+
+            <Collapse in={isMenuOpen('buildings')} timeout="auto" unmountOnExit>
+              <List
+                disablePadding
+                sx={{
+                  ml: 2.2,
+                  pl: 1.5,
+                  pt: 0.6,
+                  pb: 0.6,
+                  borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0.4,
+                }}
+              >
+                {filterSubItems(buildingSubItems).map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
                     <ListItem key={item.text} disablePadding>
