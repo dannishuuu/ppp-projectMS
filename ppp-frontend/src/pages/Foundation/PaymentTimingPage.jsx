@@ -39,6 +39,7 @@ import {
   CheckCircle as ActivateIcon,
   Schedule as TimingIcon,
   FilterList as FilterIcon,
+  Code as CodeIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -68,6 +69,7 @@ export const PaymentTimingPage = () => {
   const [selectedTiming, setSelectedTiming] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
+    timingCode: '',
     nameAmharic: '',
     description: '',
   });
@@ -129,12 +131,14 @@ export const PaymentTimingPage = () => {
     if ((mode === 'edit' || mode === 'view') && timing) {
       setFormData({
         name: timing.name || '',
+        timingCode: timing.timing_code || '',
         nameAmharic: timing.name_amharic || '',
         description: timing.description || '',
       });
     } else {
       setFormData({
         name: '',
+        timingCode: '',
         nameAmharic: '',
         description: '',
       });
@@ -148,6 +152,7 @@ export const PaymentTimingPage = () => {
     setSelectedTiming(null);
     setFormData({
       name: '',
+      timingCode: '',
       nameAmharic: '',
       description: '',
     });
@@ -155,7 +160,11 @@ export const PaymentTimingPage = () => {
   };
 
   const handleChange = (field) => (event) => {
-    setFormData((prev) => ({ ...prev, [field]: event.target.value }));
+    let value = event.target.value;
+    if (field === 'timingCode') {
+      value = value.toUpperCase().replace(/\s+/g, '');
+    }
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (formError) setFormError('');
   };
 
@@ -170,6 +179,7 @@ export const PaymentTimingPage = () => {
 
     const payload = {
       name: formData.name.trim(),
+      timingCode: formData.timingCode.trim().toUpperCase().replace(/\s+/g, '') || null,
       nameAmharic: formData.nameAmharic.trim() || null,
       description: formData.description.trim() || null,
     };
@@ -270,7 +280,7 @@ export const PaymentTimingPage = () => {
         {/* Search Input */}
         <TextField
           size="small"
-          placeholder="Search timing by name or description..."
+          placeholder="Search by code, name, or description..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
@@ -358,6 +368,9 @@ export const PaymentTimingPage = () => {
                   TIMING NAME
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
+                  CODE
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
                   AMHARIC NAME
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
@@ -377,7 +390,7 @@ export const PaymentTimingPage = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: '#4f46e5', mb: 1 }} />
                     <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
                       Loading payment timings...
@@ -386,7 +399,7 @@ export const PaymentTimingPage = () => {
                 </TableRow>
               ) : timings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                     <TimingIcon sx={{ fontSize: 44, color: '#cbd5e1', mb: 1 }} />
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#475569' }}>
                       No payment timings found
@@ -428,10 +441,30 @@ export const PaymentTimingPage = () => {
                         </Typography>
                       </Box>
                     </TableCell>
+                    <TableCell sx={{ py: 1.5 }}>
+                      {timing.timing_code ? (
+                        <Chip
+                          label={timing.timing_code}
+                          size="small"
+                          sx={{
+                            height: 22,
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            fontFamily: 'monospace',
+                            backgroundColor: '#f1f5f9',
+                            color: '#334155',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: 1.5,
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="caption" sx={{ color: '#94a3b8' }}>—</Typography>
+                      )}
+                    </TableCell>
                     <TableCell sx={{ py: 1.5, fontSize: '0.82rem', color: '#64748b' }}>
                       {timing.name_amharic || '—'}
                     </TableCell>
-                    <TableCell sx={{ py: 1.5, fontSize: '0.82rem', color: '#64748b', maxWidth: 260 }}>
+                    <TableCell sx={{ py: 1.5, fontSize: '0.82rem', color: '#64748b', maxWidth: 240 }}>
                       <Typography
                         variant="body2"
                         noWrap
@@ -570,18 +603,36 @@ export const PaymentTimingPage = () => {
                       {selectedTiming.name_amharic}
                     </Typography>
                   )}
-                  <Chip
-                    label={selectedTiming.is_active ? 'Active' : 'Inactive'}
-                    size="small"
-                    sx={{
-                      height: 22,
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      backgroundColor: selectedTiming.is_active ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)',
-                      color: 'white',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Chip
+                      label={selectedTiming.is_active ? 'Active' : 'Inactive'}
+                      size="small"
+                      sx={{
+                        height: 22,
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        backgroundColor: selectedTiming.is_active ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)',
+                        color: 'white',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                      }}
+                    />
+                    {selectedTiming.timing_code && (
+                      <Chip
+                        icon={<CodeIcon style={{ fontSize: 13, color: 'white' }} />}
+                        label={`Code: ${selectedTiming.timing_code}`}
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          fontFamily: 'monospace',
+                          backgroundColor: 'rgba(255,255,255,0.25)',
+                          color: 'white',
+                          border: '1px solid rgba(255,255,255,0.3)',
+                        }}
+                      />
+                    )}
+                  </Box>
                 </Box>
               </Box>
 
@@ -666,6 +717,31 @@ export const PaymentTimingPage = () => {
                 size="small"
                 disabled={formLoading}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+
+              <TextField
+                fullWidth
+                label="Timing Code"
+                placeholder="e.g. ADV, ARREARS, MILESTONE"
+                value={formData.timingCode}
+                onChange={handleChange('timingCode')}
+                size="small"
+                disabled={formLoading || dialogMode === 'edit'}
+                inputProps={{
+                  maxLength: 20,
+                  style: { textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: 600 },
+                }}
+                helperText={
+                  dialogMode === 'edit'
+                    ? 'Timing code is permanent and cannot be modified'
+                    : 'Auto-capitalized, no spaces allowed (optional, max 20 chars)'
+                }
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    backgroundColor: dialogMode === 'edit' ? '#f8fafc' : 'inherit',
+                  },
+                }}
               />
 
               <TextField

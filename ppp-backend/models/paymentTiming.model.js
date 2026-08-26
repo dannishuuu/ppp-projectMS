@@ -4,6 +4,7 @@ const { QueryTypes } = require('sequelize');
 const PUBLIC_PAYMENT_TIMING_FIELDS = `
   pt.id,
   pt.name,
+  pt.timing_code,
   pt.name_amharic,
   pt.description,
   pt.is_active,
@@ -27,14 +28,14 @@ class PaymentTimingModel {
     }
 
     if (search && search.trim()) {
-      where += ` AND (pt.name ILIKE :search OR pt.name_amharic ILIKE :search OR pt.description ILIKE :search)`;
+      where += ` AND (pt.name ILIKE :search OR pt.timing_code ILIKE :search OR pt.name_amharic ILIKE :search OR pt.description ILIKE :search)`;
       replacements.search = `%${search.trim()}%`;
     }
 
     const countResult = await db.query(`SELECT COUNT(*) as total FROM payment_timings pt ${where}`, { replacements, type: QueryTypes.SELECT });
     const total = parseInt(countResult[0]?.total || 0, 10);
 
-    const validSortBy = ['name', 'created_at', 'updated_at'].includes(sortBy) ? sortBy : 'name';
+    const validSortBy = ['name', 'timing_code', 'created_at', 'updated_at'].includes(sortBy) ? sortBy : 'name';
     replacements.limit = limit;
     replacements.offset = offset;
     
@@ -72,14 +73,23 @@ class PaymentTimingModel {
     return rows[0] || null;
   }
 
+  static async findByCode(timingCode, excludeId = null) {
+    let query = 'SELECT * FROM payment_timings WHERE timing_code = :timingCode AND is_deleted = false';
+    const replacements = { timingCode };
+    if (excludeId) { query += ' AND id != :excludeId'; replacements.excludeId = excludeId; }
+    const rows = await db.query(query, { replacements, type: QueryTypes.SELECT });
+    return rows[0] || null;
+  }
+
   static async create(data) {
-    const { name, nameAmharic, description, createdBy } = data;
+    const { name, timingCode, nameAmharic, description, createdBy } = data;
     const rows = await db.query(`
-      INSERT INTO payment_timings (name, name_amharic, description, created_by) 
-      VALUES (:name, :nameAmharic, :description, :createdBy) RETURNING *`,
+      INSERT INTO payment_timings (name, timing_code, name_amharic, description, created_by) 
+      VALUES (:name, :timingCode, :nameAmharic, :description, :createdBy) RETURNING *`,
       {
         replacements: {
           name,
+          timingCode: timingCode || null,
           nameAmharic: nameAmharic || null,
           description: description || null,
           createdBy: createdBy || null,
@@ -90,11 +100,12 @@ class PaymentTimingModel {
   }
 
   static async update(id, data) {
-    const { name, nameAmharic, description, isActive, updatedBy } = data;
+    const { name, timingCode, nameAmharic, description, isActive, updatedBy } = data;
     const setClauses = [];
     const replacements = { id };
     
     if (name !== undefined) { setClauses.push('name = :name'); replacements.name = name; }
+    if (timingCode !== undefined) { setClauses.push('timing_code = :timingCode'); replacements.timingCode = timingCode; }
     if (nameAmharic !== undefined) { setClauses.push('name_amharic = :nameAmharic'); replacements.nameAmharic = nameAmharic; }
     if (description !== undefined) { setClauses.push('description = :description'); replacements.description = description; }
     if (isActive !== undefined) { setClauses.push('is_active = :isActive'); replacements.isActive = isActive; }

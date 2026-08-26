@@ -19,14 +19,22 @@ class PaymentTimingService {
   }
 
   static async createPaymentTiming(payload, actorId) {
-    const { name, nameAmharic, description } = payload;
+    const { name, timingCode, timing_code, nameAmharic, description } = payload;
     if (!name || !name.trim()) { const err = new Error('Payment timing name is required.'); err.status = 400; throw err; }
 
-    const existing = await PaymentTimingModel.findByName(name.trim());
-    if (existing) { const err = new Error(`Payment timing "${name.trim()}" already exists.`); err.status = 409; throw err; }
+    const code = (timingCode || timing_code) ? (timingCode || timing_code).trim().toUpperCase().replace(/\s+/g, '') : null;
+
+    const existingName = await PaymentTimingModel.findByName(name.trim());
+    if (existingName) { const err = new Error(`Payment timing "${name.trim()}" already exists.`); err.status = 409; throw err; }
+
+    if (code) {
+      const existingCode = await PaymentTimingModel.findByCode(code);
+      if (existingCode) { const err = new Error(`Payment timing with code "${code}" already exists.`); err.status = 409; throw err; }
+    }
 
     const created = await PaymentTimingModel.create({ 
       name: name.trim(), 
+      timingCode: code,
       nameAmharic: nameAmharic?.trim() || null, 
       description: description?.trim() || null, 
       createdBy: actorId 
@@ -37,15 +45,22 @@ class PaymentTimingService {
 
   static async updatePaymentTiming(id, payload, actorId) {
     await this.getPaymentTimingById(id);
-    const { name, nameAmharic, description } = payload;
+    const { name, timingCode, timing_code, nameAmharic, description } = payload;
+    const code = timingCode !== undefined ? (timingCode ? timingCode.trim() : null) : (timing_code !== undefined ? (timing_code ? timing_code.trim() : null) : undefined);
 
     if (name && name.trim()) {
       const existing = await PaymentTimingModel.findByName(name.trim(), id);
       if (existing) { const err = new Error(`Payment timing "${name.trim()}" already exists.`); err.status = 409; throw err; }
     }
 
+    if (code) {
+      const existingCode = await PaymentTimingModel.findByCode(code, id);
+      if (existingCode) { const err = new Error(`Payment timing with code "${code}" already exists.`); err.status = 409; throw err; }
+    }
+
     const updated = await PaymentTimingModel.update(id, {
       name: name ? name.trim() : undefined,
+      timingCode: code,
       nameAmharic: nameAmharic !== undefined ? (nameAmharic ? nameAmharic.trim() : null) : undefined,
       description: description !== undefined ? (description ? description.trim() : null) : undefined,
       updatedBy: actorId,
