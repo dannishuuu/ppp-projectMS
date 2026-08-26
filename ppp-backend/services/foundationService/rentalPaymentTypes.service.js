@@ -19,15 +19,21 @@ class RentalPaymentTypeService {
   }
 
   static async createRentalPaymentType(payload, actorId) {
-    const { name, nameAmharic, durationDays, description } = payload;
+    const { name, paymentTypeCode, nameAmharic, durationDays, description } = payload;
     if (!name || !name.trim()) { const err = new Error('Payment type name is required.'); err.status = 400; throw err; }
+    if (!paymentTypeCode || !paymentTypeCode.trim()) { const err = new Error('Payment type code is required.'); err.status = 400; throw err; }
     if (!durationDays || durationDays <= 0) { const err = new Error('Duration days must be greater than 0.'); err.status = 400; throw err; }
 
-    const existing = await RentalPaymentTypeModel.findByName(name.trim());
-    if (existing) { const err = new Error(`Rental payment type "${name.trim()}" already exists.`); err.status = 409; throw err; }
+    const cleanCode = paymentTypeCode.trim().toUpperCase().replace(/\s+/g, '');
+    const existingCode = await RentalPaymentTypeModel.findByCode(cleanCode);
+    if (existingCode) { const err = new Error(`Rental payment type with code "${cleanCode}" already exists.`); err.status = 409; throw err; }
+
+    const existingName = await RentalPaymentTypeModel.findByName(name.trim());
+    if (existingName) { const err = new Error(`Rental payment type "${name.trim()}" already exists.`); err.status = 409; throw err; }
 
     const created = await RentalPaymentTypeModel.create({ 
       name: name.trim(), 
+      paymentTypeCode: cleanCode,
       nameAmharic: nameAmharic?.trim() || null, 
       durationDays: parseInt(durationDays, 10), 
       description: description?.trim() || null, 
@@ -38,7 +44,13 @@ class RentalPaymentTypeService {
 
   static async updateRentalPaymentType(id, payload, actorId) {
     await this.getRentalPaymentTypeById(id);
-    const { name, nameAmharic, durationDays, description } = payload;
+    const { name, paymentTypeCode, nameAmharic, durationDays, description } = payload;
+
+    if (paymentTypeCode && paymentTypeCode.trim()) {
+      const cleanCode = paymentTypeCode.trim().toUpperCase().replace(/\s+/g, '');
+      const existingCode = await RentalPaymentTypeModel.findByCode(cleanCode, id);
+      if (existingCode) { const err = new Error(`Rental payment type with code "${cleanCode}" already exists.`); err.status = 409; throw err; }
+    }
 
     if (name && name.trim()) {
       const existing = await RentalPaymentTypeModel.findByName(name.trim(), id);
@@ -51,6 +63,7 @@ class RentalPaymentTypeService {
 
     const updated = await RentalPaymentTypeModel.update(id, {
       name: name ? name.trim() : undefined,
+      paymentTypeCode: paymentTypeCode ? paymentTypeCode.trim().toUpperCase().replace(/\s+/g, '') : undefined,
       nameAmharic: nameAmharic !== undefined ? (nameAmharic ? nameAmharic.trim() : null) : undefined,
       durationDays: durationDays !== undefined ? parseInt(durationDays, 10) : undefined,
       description: description !== undefined ? (description ? description.trim() : null) : undefined,

@@ -40,6 +40,7 @@ import {
   ReceiptLong as RentalTypeIcon,
   FilterList as FilterIcon,
   CalendarMonth as DaysIcon,
+  Code as CodeIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -69,6 +70,7 @@ export const RentalPaymentTypePage = () => {
   const [selectedType, setSelectedType] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
+    paymentTypeCode: '',
     nameAmharic: '',
     durationDays: '',
     description: '',
@@ -131,6 +133,7 @@ export const RentalPaymentTypePage = () => {
     if ((mode === 'edit' || mode === 'view') && type) {
       setFormData({
         name: type.name || '',
+        paymentTypeCode: type.payment_type_code || '',
         nameAmharic: type.name_amharic || '',
         durationDays: type.duration_days !== null && type.duration_days !== undefined ? type.duration_days.toString() : '',
         description: type.description || '',
@@ -138,6 +141,7 @@ export const RentalPaymentTypePage = () => {
     } else {
       setFormData({
         name: '',
+        paymentTypeCode: '',
         nameAmharic: '',
         durationDays: '',
         description: '',
@@ -152,6 +156,7 @@ export const RentalPaymentTypePage = () => {
     setSelectedType(null);
     setFormData({
       name: '',
+      paymentTypeCode: '',
       nameAmharic: '',
       durationDays: '',
       description: '',
@@ -160,7 +165,11 @@ export const RentalPaymentTypePage = () => {
   };
 
   const handleChange = (field) => (event) => {
-    setFormData((prev) => ({ ...prev, [field]: event.target.value }));
+    let value = event.target.value;
+    if (field === 'paymentTypeCode') {
+      value = value.toUpperCase().replace(/\s+/g, '');
+    }
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (formError) setFormError('');
   };
 
@@ -173,15 +182,21 @@ export const RentalPaymentTypePage = () => {
       return;
     }
 
-    if (formData.durationDays !== '' && Number(formData.durationDays) <= 0) {
+    if (!formData.paymentTypeCode.trim()) {
+      setFormError('Payment type code is required.');
+      return;
+    }
+
+    if (!formData.durationDays || Number(formData.durationDays) <= 0) {
       setFormError('Duration days must be greater than 0.');
       return;
     }
 
     const payload = {
       name: formData.name.trim(),
+      paymentTypeCode: formData.paymentTypeCode.trim().toUpperCase().replace(/\s+/g, ''),
       nameAmharic: formData.nameAmharic.trim() || null,
-      durationDays: formData.durationDays !== '' ? parseInt(formData.durationDays, 10) : null,
+      durationDays: parseInt(formData.durationDays, 10),
       description: formData.description.trim() || null,
     };
 
@@ -281,7 +296,7 @@ export const RentalPaymentTypePage = () => {
         {/* Search Input */}
         <TextField
           size="small"
-          placeholder="Search payment type by name or description..."
+          placeholder="Search by code, name, or description..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
@@ -366,12 +381,15 @@ export const RentalPaymentTypePage = () => {
             <TableHead sx={{ backgroundColor: '#f8fafc' }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
-                  PAYMENT TYPE NAME
+                  TYPE NAME
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
+                  CODE
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
                   AMHARIC NAME
                 </TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5, textAlign: 'center' }}>
                   DURATION
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
@@ -391,7 +409,7 @@ export const RentalPaymentTypePage = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: '#4f46e5', mb: 1 }} />
                     <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
                       Loading rental payment types...
@@ -400,7 +418,7 @@ export const RentalPaymentTypePage = () => {
                 </TableRow>
               ) : types.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                     <RentalTypeIcon sx={{ fontSize: 44, color: '#cbd5e1', mb: 1 }} />
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#475569' }}>
                       No rental payment types found
@@ -442,29 +460,50 @@ export const RentalPaymentTypePage = () => {
                         </Typography>
                       </Box>
                     </TableCell>
-                    <TableCell sx={{ py: 1.5, fontSize: '0.82rem', color: '#64748b' }}>
-                      {type.name_amharic || '—'}
-                    </TableCell>
                     <TableCell sx={{ py: 1.5 }}>
-                      {type.duration_days !== null && type.duration_days !== undefined ? (
+                      {type.payment_type_code ? (
                         <Chip
-                          icon={<DaysIcon style={{ fontSize: 14 }} />}
-                          label={`${type.duration_days} ${type.duration_days === 1 ? 'day' : 'days'}`}
+                          label={type.payment_type_code}
                           size="small"
                           sx={{
-                            height: 24,
+                            height: 22,
                             fontSize: '0.72rem',
-                            fontWeight: 600,
+                            fontWeight: 700,
+                            fontFamily: 'monospace',
                             backgroundColor: '#f1f5f9',
                             color: '#334155',
                             border: '1px solid #e2e8f0',
+                            borderRadius: 1.5,
                           }}
                         />
                       ) : (
                         <Typography variant="caption" sx={{ color: '#94a3b8' }}>—</Typography>
                       )}
                     </TableCell>
-                    <TableCell sx={{ py: 1.5, fontSize: '0.82rem', color: '#64748b', maxWidth: 260 }}>
+                    <TableCell sx={{ py: 1.5, fontSize: '0.82rem', color: '#64748b' }}>
+                      {type.name_amharic || '—'}
+                    </TableCell>
+                    <TableCell sx={{ py: 1.5, textAlign: 'center' }}>
+                      {type.duration_days !== null && type.duration_days !== undefined ? (
+                        <Chip
+                          icon={<DaysIcon sx={{ fontSize: '14px !important', color: '#64748b !important' }} />}
+                          label={`${type.duration_days} days`}
+                          size="small"
+                          sx={{
+                            height: 22,
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            backgroundColor: '#f1f5f9',
+                            color: '#475569',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: 1.5,
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="caption" sx={{ color: '#94a3b8' }}>—</Typography>
+                      )}
+                    </TableCell>
+                    <TableCell sx={{ py: 1.5, fontSize: '0.82rem', color: '#64748b', maxWidth: 200 }}>
                       <Typography
                         variant="body2"
                         noWrap
@@ -503,7 +542,7 @@ export const RentalPaymentTypePage = () => {
                           </IconButton>
                         </Tooltip>
 
-                        <Tooltip title="Edit Payment Type" arrow placement="top">
+                        <Tooltip title="Edit Rental Payment Type" arrow placement="top">
                           <IconButton
                             size="small"
                             onClick={() => handleDialogOpen('edit', type)}
@@ -587,7 +626,7 @@ export const RentalPaymentTypePage = () => {
                   gap: 2.5,
                   p: 2.5,
                   borderRadius: 2.5,
-                  background: 'linear-gradient(135deg, #0284c7 0%, #4f46e5 100%)',
+                  background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
                   color: 'white',
                 }}
               >
@@ -616,6 +655,22 @@ export const RentalPaymentTypePage = () => {
                         border: '1px solid rgba(255,255,255,0.3)',
                       }}
                     />
+                    {selectedType.payment_type_code && (
+                      <Chip
+                        icon={<CodeIcon style={{ fontSize: 13, color: 'white' }} />}
+                        label={`Code: ${selectedType.payment_type_code}`}
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          fontFamily: 'monospace',
+                          backgroundColor: 'rgba(255,255,255,0.25)',
+                          color: 'white',
+                          border: '1px solid rgba(255,255,255,0.3)',
+                        }}
+                      />
+                    )}
                     {selectedType.duration_days !== null && selectedType.duration_days !== undefined && (
                       <Chip
                         icon={<DaysIcon style={{ fontSize: 13, color: 'white' }} />}
@@ -719,6 +774,32 @@ export const RentalPaymentTypePage = () => {
               />
 
               <TextField
+                required
+                fullWidth
+                label="Payment Type Code"
+                placeholder="e.g. MTH, QTR, SEMI, ANN"
+                value={formData.paymentTypeCode}
+                onChange={handleChange('paymentTypeCode')}
+                size="small"
+                disabled={formLoading || dialogMode === 'edit'}
+                inputProps={{
+                  maxLength: 20,
+                  style: { textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: 600 },
+                }}
+                helperText={
+                  dialogMode === 'edit'
+                    ? 'Payment type code is permanent and cannot be modified'
+                    : 'Auto-capitalized, no spaces allowed (max 20 chars)'
+                }
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    backgroundColor: dialogMode === 'edit' ? '#f8fafc' : 'inherit',
+                  },
+                }}
+              />
+
+              <TextField
                 fullWidth
                 label="Amharic Name"
                 placeholder="e.g. ወርሃዊ የኪራይ ክፍያ"
@@ -730,6 +811,7 @@ export const RentalPaymentTypePage = () => {
               />
 
               <TextField
+                required
                 fullWidth
                 type="number"
                 label="Duration (Days)"
@@ -785,19 +867,20 @@ export const RentalPaymentTypePage = () => {
                   minWidth: 100,
                 }}
               >
-                {formLoading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : dialogMode === 'add' ? 'Create' : 'Update'}
+                {formLoading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : dialogMode === 'add' ? 'Create Type' : 'Save Changes'}
               </Button>
             </>
           )}
           {dialogMode === 'view' && (
             <Button 
               onClick={handleDialogClose}
-              variant="contained"
+              variant="outlined"
               sx={{
                 borderRadius: 2,
-                fontWeight: 700,
-                backgroundColor: '#4f46e5',
-                '&:hover': { backgroundColor: '#4338ca' },
+                fontWeight: 600,
+                color: '#64748b',
+                borderColor: '#cbd5e1',
+                '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
               }}
             >
               Close
@@ -806,16 +889,21 @@ export const RentalPaymentTypePage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Confirmation Modal - Toggle Status */}
+      {/* CONFIRMATION MODAL (Toggle Status) */}
       <ConfirmationModal
         open={toggleDialogOpen}
-        onClose={() => setToggleDialogOpen(false)}
-        onConfirm={handleToggleConfirm}
         title={selectedType?.is_active ? 'Deactivate Rental Payment Type' : 'Activate Rental Payment Type'}
-        message={`Are you sure you want to ${selectedType?.is_active ? 'deactivate' : 'activate'} the rental payment type "${selectedType?.name}"?`}
+        message={
+          selectedType?.is_active
+            ? `Are you sure you want to deactivate "${selectedType?.name}" (${selectedType?.payment_type_code})?`
+            : `Are you sure you want to activate "${selectedType?.name}" (${selectedType?.payment_type_code})?`
+        }
         confirmText={selectedType?.is_active ? 'Deactivate' : 'Activate'}
+        cancelText="Cancel"
+        confirmColor={selectedType?.is_active ? 'warning' : 'primary'}
         loading={toggleLoading}
-        severity={selectedType?.is_active ? 'warning' : 'info'}
+        onConfirm={handleToggleConfirm}
+        onCancel={() => setToggleDialogOpen(false)}
       />
     </Box>
   );

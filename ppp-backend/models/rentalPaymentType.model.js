@@ -4,6 +4,7 @@ const { QueryTypes } = require('sequelize');
 const PUBLIC_RENTAL_PAYMENT_TYPE_FIELDS = `
   pt.id,
   pt.name,
+  pt.payment_type_code,
   pt.name_amharic,
   pt.duration_days,
   pt.description,
@@ -28,14 +29,14 @@ class RentalPaymentTypeModel {
     }
 
     if (search && search.trim()) {
-      where += ` AND (pt.name ILIKE :search OR pt.name_amharic ILIKE :search OR pt.description ILIKE :search)`;
+      where += ` AND (pt.name ILIKE :search OR pt.payment_type_code ILIKE :search OR pt.name_amharic ILIKE :search OR pt.description ILIKE :search)`;
       replacements.search = `%${search.trim()}%`;
     }
 
     const countResult = await db.query(`SELECT COUNT(*) as total FROM rental_payment_types pt ${where}`, { replacements, type: QueryTypes.SELECT });
     const total = parseInt(countResult[0]?.total || 0, 10);
 
-    const validSortBy = ['name', 'duration_days', 'created_at', 'updated_at'].includes(sortBy) ? sortBy : 'name';
+    const validSortBy = ['name', 'payment_type_code', 'duration_days', 'created_at', 'updated_at'].includes(sortBy) ? sortBy : 'name';
     replacements.limit = limit;
     replacements.offset = offset;
     
@@ -62,8 +63,16 @@ class RentalPaymentTypeModel {
     return rows[0] || null;
   }
 
+  static async findByCode(code, excludeId = null) {
+    let query = 'SELECT * FROM rental_payment_types WHERE payment_type_code = :code AND is_deleted = false';
+    const replacements = { code };
+    if (excludeId) { query += ' AND id != :excludeId'; replacements.excludeId = excludeId; }
+    const rows = await db.query(query, { replacements, type: QueryTypes.SELECT });
+    return rows[0] || null;
+  }
+
   static async findByName(name, excludeId = null) {
-    let query = 'SELECT * FROM rental_payment_types WHERE name = :name AND is_deleted = false';
+    let query = 'SELECT * FROM rental_payment_types WHERE LOWER(name) = LOWER(:name) AND is_deleted = false';
     const replacements = { name };
     if (excludeId) { query += ' AND id != :excludeId'; replacements.excludeId = excludeId; }
     const rows = await db.query(query, { replacements, type: QueryTypes.SELECT });
@@ -71,20 +80,21 @@ class RentalPaymentTypeModel {
   }
 
   static async create(data) {
-    const { name, nameAmharic, durationDays, description, createdBy } = data;
+    const { name, paymentTypeCode, nameAmharic, durationDays, description, createdBy } = data;
     const rows = await db.query(`
-      INSERT INTO rental_payment_types (name, name_amharic, duration_days, description, created_by) 
-      VALUES (:name, :nameAmharic, :durationDays, :description, :createdBy) RETURNING *`,
-      { replacements: { name, nameAmharic: nameAmharic || null, durationDays, description: description || null, createdBy: createdBy || null }, type: QueryTypes.SELECT });
+      INSERT INTO rental_payment_types (name, payment_type_code, name_amharic, duration_days, description, created_by, updated_by) 
+      VALUES (:name, :paymentTypeCode, :nameAmharic, :durationDays, :description, :createdBy, :createdBy) RETURNING *`,
+      { replacements: { name, paymentTypeCode, nameAmharic: nameAmharic || null, durationDays, description: description || null, createdBy: createdBy || null }, type: QueryTypes.SELECT });
     return rows[0];
   }
 
   static async update(id, data) {
-    const { name, nameAmharic, durationDays, description, isActive, updatedBy } = data;
+    const { name, paymentTypeCode, nameAmharic, durationDays, description, isActive, updatedBy } = data;
     const setClauses = [];
     const replacements = { id };
     
     if (name !== undefined) { setClauses.push('name = :name'); replacements.name = name; }
+    if (paymentTypeCode !== undefined) { setClauses.push('payment_type_code = :paymentTypeCode'); replacements.paymentTypeCode = paymentTypeCode; }
     if (nameAmharic !== undefined) { setClauses.push('name_amharic = :nameAmharic'); replacements.nameAmharic = nameAmharic; }
     if (durationDays !== undefined) { setClauses.push('duration_days = :durationDays'); replacements.durationDays = durationDays; }
     if (description !== undefined) { setClauses.push('description = :description'); replacements.description = description; }
