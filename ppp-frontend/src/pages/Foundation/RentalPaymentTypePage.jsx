@@ -37,22 +37,23 @@ import {
   Edit as EditIcon,
   Block as DeactivateIcon,
   CheckCircle as ActivateIcon,
-  Schedule as TimingIcon,
+  ReceiptLong as RentalTypeIcon,
   FilterList as FilterIcon,
+  CalendarMonth as DaysIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { paymentTimingsService } from '../../services/foundationService/paymentTimingsService';
+import { rentalPaymentTypesService } from '../../services/foundationService/rentalPaymentTypesService';
 import { formatDate } from '../../utils/formatters';
 import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 
-export const PaymentTimingPage = () => {
+export const RentalPaymentTypePage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { enqueueSnackbar } = useSnackbar();
 
   // State
-  const [timings, setTimings] = useState([]);
+  const [types, setTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -65,10 +66,11 @@ export const PaymentTimingPage = () => {
   // Dialog State (Create, Edit, View)
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState('add'); // 'add' | 'edit' | 'view'
-  const [selectedTiming, setSelectedTiming] = useState(null);
+  const [selectedType, setSelectedType] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     nameAmharic: '',
+    durationDays: '',
     description: '',
   });
   const [formLoading, setFormLoading] = useState(false);
@@ -78,36 +80,36 @@ export const PaymentTimingPage = () => {
   const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
   const [toggleLoading, setToggleLoading] = useState(false);
 
-  // Fetch Payment Timings List
-  const fetchTimings = async () => {
+  // Fetch Rental Payment Types List
+  const fetchTypes = async () => {
     setLoading(true);
     try {
-      const result = await paymentTimingsService.getPaymentTimings({
+      const result = await rentalPaymentTypesService.getRentalPaymentTypes({
         page: page + 1,
         limit: rowsPerPage,
         search: searchTerm,
         status: statusFilter,
       });
-      const dataList = result?.paymentTimings || result?.rows || (Array.isArray(result) ? result : []);
+      const dataList = result?.rentalPaymentTypes || result?.rows || (Array.isArray(result) ? result : []);
       const total = result?.pagination?.total ?? result?.total ?? dataList.length;
-      setTimings(dataList);
+      setTypes(dataList);
       setTotalCount(total);
     } catch (error) {
-      enqueueSnackbar(error.message || 'Failed to load payment timings', { variant: 'error' });
+      enqueueSnackbar(error.message || 'Failed to load rental payment types', { variant: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchTimings();
+    fetchTypes();
   }, [page, rowsPerPage, statusFilter]);
 
   // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (page === 0) {
-        fetchTimings();
+        fetchTypes();
       } else {
         setPage(0);
       }
@@ -123,19 +125,21 @@ export const PaymentTimingPage = () => {
   };
 
   // Open Create/Edit/View Dialog
-  const handleDialogOpen = (mode, timing = null) => {
+  const handleDialogOpen = (mode, type = null) => {
     setDialogMode(mode);
-    setSelectedTiming(timing);
-    if ((mode === 'edit' || mode === 'view') && timing) {
+    setSelectedType(type);
+    if ((mode === 'edit' || mode === 'view') && type) {
       setFormData({
-        name: timing.name || '',
-        nameAmharic: timing.name_amharic || '',
-        description: timing.description || '',
+        name: type.name || '',
+        nameAmharic: type.name_amharic || '',
+        durationDays: type.duration_days !== null && type.duration_days !== undefined ? type.duration_days.toString() : '',
+        description: type.description || '',
       });
     } else {
       setFormData({
         name: '',
         nameAmharic: '',
+        durationDays: '',
         description: '',
       });
     }
@@ -145,10 +149,11 @@ export const PaymentTimingPage = () => {
 
   const handleDialogClose = () => {
     setDialogOpen(false);
-    setSelectedTiming(null);
+    setSelectedType(null);
     setFormData({
       name: '',
       nameAmharic: '',
+      durationDays: '',
       description: '',
     });
     setFormError('');
@@ -164,48 +169,54 @@ export const PaymentTimingPage = () => {
     e?.preventDefault();
     setFormError('');
     if (!formData.name.trim()) {
-      setFormError('Payment timing name is required.');
+      setFormError('Rental payment type name is required.');
+      return;
+    }
+
+    if (formData.durationDays !== '' && Number(formData.durationDays) <= 0) {
+      setFormError('Duration days must be greater than 0.');
       return;
     }
 
     const payload = {
       name: formData.name.trim(),
       nameAmharic: formData.nameAmharic.trim() || null,
+      durationDays: formData.durationDays !== '' ? parseInt(formData.durationDays, 10) : null,
       description: formData.description.trim() || null,
     };
 
     setFormLoading(true);
     try {
       if (dialogMode === 'add') {
-        await paymentTimingsService.createPaymentTiming(payload);
-        enqueueSnackbar('Payment timing created successfully', { variant: 'success' });
-      } else if (dialogMode === 'edit' && selectedTiming) {
-        await paymentTimingsService.updatePaymentTiming(selectedTiming.id, payload);
-        enqueueSnackbar('Payment timing updated successfully', { variant: 'success' });
+        await rentalPaymentTypesService.createRentalPaymentType(payload);
+        enqueueSnackbar('Rental payment type created successfully', { variant: 'success' });
+      } else if (dialogMode === 'edit' && selectedType) {
+        await rentalPaymentTypesService.updateRentalPaymentType(selectedType.id, payload);
+        enqueueSnackbar('Rental payment type updated successfully', { variant: 'success' });
       }
       handleDialogClose();
-      fetchTimings();
+      fetchTypes();
     } catch (error) {
-      setFormError(error.message || `Failed to ${dialogMode === 'add' ? 'create' : 'update'} payment timing.`);
+      setFormError(error.message || `Failed to ${dialogMode === 'add' ? 'create' : 'update'} rental payment type.`);
     } finally {
       setFormLoading(false);
     }
   };
 
   // Toggle Status
-  const handleToggleDialogOpen = (timing) => {
-    setSelectedTiming(timing);
+  const handleToggleDialogOpen = (type) => {
+    setSelectedType(type);
     setToggleDialogOpen(true);
   };
 
   const handleToggleConfirm = async () => {
-    if (!selectedTiming) return;
+    if (!selectedType) return;
     setToggleLoading(true);
     try {
-      const result = await paymentTimingsService.togglePaymentTimingStatus(selectedTiming.id);
+      const result = await rentalPaymentTypesService.toggleRentalPaymentTypeStatus(selectedType.id);
       enqueueSnackbar(result.message || 'Status updated successfully', { variant: 'success' });
       setToggleDialogOpen(false);
-      fetchTimings();
+      fetchTypes();
     } catch (error) {
       enqueueSnackbar(error.message || 'Failed to update status', { variant: 'error' });
     } finally {
@@ -215,9 +226,9 @@ export const PaymentTimingPage = () => {
 
   const getDialogTitle = () => {
     switch (dialogMode) {
-      case 'add': return 'Add Payment Timing';
-      case 'edit': return 'Edit Payment Timing';
-      case 'view': return 'Payment Timing Details';
+      case 'add': return 'Add Rental Payment Type';
+      case 'edit': return 'Edit Rental Payment Type';
+      case 'view': return 'Rental Payment Type Details';
       default: return '';
     }
   };
@@ -231,14 +242,14 @@ export const PaymentTimingPage = () => {
             Dashboard
           </Link>
           <Typography sx={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
-            Payment Timings
+            Rental Payment Types
           </Typography>
         </Breadcrumbs>
 
         <Box sx={{ width: '1px', height: 16, backgroundColor: '#cbd5e1', flexShrink: 0 }} />
 
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', lineHeight: 1 }}>
-          Payment Timing Management
+          Rental Payment Type Management
         </Typography>
       </Box>
 
@@ -270,7 +281,7 @@ export const PaymentTimingPage = () => {
         {/* Search Input */}
         <TextField
           size="small"
-          placeholder="Search timing by name or description..."
+          placeholder="Search payment type by name or description..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
@@ -336,7 +347,7 @@ export const PaymentTimingPage = () => {
             boxShadow: '0 2px 8px rgba(79, 70, 229, 0.25)',
           }}
         >
-          Add Payment Timing
+          Add Rental Payment Type
         </Button>
       </Paper>
 
@@ -355,10 +366,13 @@ export const PaymentTimingPage = () => {
             <TableHead sx={{ backgroundColor: '#f8fafc' }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
-                  TIMING NAME
+                  PAYMENT TYPE NAME
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
                   AMHARIC NAME
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
+                  DURATION
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
                   DESCRIPTION
@@ -377,31 +391,31 @@ export const PaymentTimingPage = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: '#4f46e5', mb: 1 }} />
                     <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
-                      Loading payment timings...
+                      Loading rental payment types...
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : timings.length === 0 ? (
+              ) : types.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
-                    <TimingIcon sx={{ fontSize: 44, color: '#cbd5e1', mb: 1 }} />
+                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                    <RentalTypeIcon sx={{ fontSize: 44, color: '#cbd5e1', mb: 1 }} />
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#475569' }}>
-                      No payment timings found
+                      No rental payment types found
                     </Typography>
                     <Typography variant="caption" sx={{ color: '#94a3b8' }}>
                       {searchTerm || statusFilter !== 'all'
                         ? 'Try clearing or changing your search filters.'
-                        : 'Click "Add Payment Timing" above to create one.'}
+                        : 'Click "Add Rental Payment Type" above to create one.'}
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                timings.map((timing) => (
+                types.map((type) => (
                   <TableRow
-                    key={timing.id}
+                    key={type.id}
                     hover
                     sx={{
                       '&:last-child td, &:last-child th': { border: 0 },
@@ -421,78 +435,97 @@ export const PaymentTimingPage = () => {
                             fontWeight: 700,
                           }}
                         >
-                          <TimingIcon sx={{ fontSize: 18 }} />
+                          <RentalTypeIcon sx={{ fontSize: 18 }} />
                         </Avatar>
                         <Typography sx={{ fontWeight: 600, fontSize: '0.85rem', color: '#0f172a' }}>
-                          {timing.name}
+                          {type.name}
                         </Typography>
                       </Box>
                     </TableCell>
                     <TableCell sx={{ py: 1.5, fontSize: '0.82rem', color: '#64748b' }}>
-                      {timing.name_amharic || '—'}
+                      {type.name_amharic || '—'}
+                    </TableCell>
+                    <TableCell sx={{ py: 1.5 }}>
+                      {type.duration_days !== null && type.duration_days !== undefined ? (
+                        <Chip
+                          icon={<DaysIcon style={{ fontSize: 14 }} />}
+                          label={`${type.duration_days} ${type.duration_days === 1 ? 'day' : 'days'}`}
+                          size="small"
+                          sx={{
+                            height: 24,
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            backgroundColor: '#f1f5f9',
+                            color: '#334155',
+                            border: '1px solid #e2e8f0',
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="caption" sx={{ color: '#94a3b8' }}>—</Typography>
+                      )}
                     </TableCell>
                     <TableCell sx={{ py: 1.5, fontSize: '0.82rem', color: '#64748b', maxWidth: 260 }}>
                       <Typography
                         variant="body2"
                         noWrap
                         sx={{ fontSize: '0.82rem', color: '#64748b' }}
-                        title={timing.description || ''}
+                        title={type.description || ''}
                       >
-                        {timing.description || '—'}
+                        {type.description || '—'}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ py: 1.5, textAlign: 'center' }}>
                       <Chip
-                        label={timing.is_active ? 'Active' : 'Inactive'}
+                        label={type.is_active ? 'Active' : 'Inactive'}
                         size="small"
                         sx={{
                           height: 22,
                           fontSize: '0.7rem',
                           fontWeight: 700,
-                          backgroundColor: timing.is_active ? '#dcfce7' : '#fee2e2',
-                          color: timing.is_active ? '#15803d' : '#b91c1c',
+                          backgroundColor: type.is_active ? '#dcfce7' : '#fee2e2',
+                          color: type.is_active ? '#15803d' : '#b91c1c',
                           borderRadius: 1.5,
                         }}
                       />
                     </TableCell>
                     <TableCell sx={{ py: 1.5, fontSize: '0.8rem', color: '#64748b' }}>
-                      {formatDate(timing.created_at)}
+                      {formatDate(type.created_at)}
                     </TableCell>
                     <TableCell sx={{ py: 1.5, textAlign: 'right' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
                         <Tooltip title="View Details" arrow placement="top">
                           <IconButton
                             size="small"
-                            onClick={() => handleDialogOpen('view', timing)}
+                            onClick={() => handleDialogOpen('view', type)}
                             sx={{ p: 0.5, color: '#64748b', '&:hover': { color: '#4f46e5', backgroundColor: '#eef2ff' } }}
                           >
                             <ViewIcon sx={{ fontSize: 17 }} />
                           </IconButton>
                         </Tooltip>
 
-                        <Tooltip title="Edit Payment Timing" arrow placement="top">
+                        <Tooltip title="Edit Payment Type" arrow placement="top">
                           <IconButton
                             size="small"
-                            onClick={() => handleDialogOpen('edit', timing)}
+                            onClick={() => handleDialogOpen('edit', type)}
                             sx={{ p: 0.5, color: '#64748b', '&:hover': { color: '#0284c7', backgroundColor: '#e0f2fe' } }}
                           >
                             <EditIcon sx={{ fontSize: 17 }} />
                           </IconButton>
                         </Tooltip>
 
-                        <Tooltip title={timing.is_active ? 'Deactivate' : 'Activate'} arrow placement="top">
+                        <Tooltip title={type.is_active ? 'Deactivate' : 'Activate'} arrow placement="top">
                           <IconButton
                             size="small"
-                            onClick={() => handleToggleDialogOpen(timing)}
+                            onClick={() => handleToggleDialogOpen(type)}
                             sx={{
                               p: 0.5,
-                              color: timing.is_active ? '#eab308' : '#16a34a',
+                              color: type.is_active ? '#eab308' : '#16a34a',
                               '&:hover': {
-                                backgroundColor: timing.is_active ? '#fef9c3' : '#dcfce7',
+                                backgroundColor: type.is_active ? '#fef9c3' : '#dcfce7',
                               },
                             }}
                           >
-                            {timing.is_active ? (
+                            {type.is_active ? (
                               <DeactivateIcon sx={{ fontSize: 17 }} />
                             ) : (
                               <ActivateIcon sx={{ fontSize: 17 }} />
@@ -544,7 +577,7 @@ export const PaymentTimingPage = () => {
             </Alert>
           )}
 
-          {dialogMode === 'view' && selectedTiming ? (
+          {dialogMode === 'view' && selectedType ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {/* Header Section with Icon and Name */}
               <Box 
@@ -554,34 +587,51 @@ export const PaymentTimingPage = () => {
                   gap: 2.5,
                   p: 2.5,
                   borderRadius: 2.5,
-                  background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #4f46e5 100%)',
                   color: 'white',
                 }}
               >
                 <Avatar sx={{ width: 56, height: 56, backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
-                  <TimingIcon sx={{ fontSize: 32, color: 'white' }} />
+                  <RentalTypeIcon sx={{ fontSize: 32, color: 'white' }} />
                 </Avatar>
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="h5" sx={{ fontWeight: 700, color: 'white', mb: 0.5 }}>
-                    {selectedTiming.name}
+                    {selectedType.name}
                   </Typography>
-                  {selectedTiming.name_amharic && (
+                  {selectedType.name_amharic && (
                     <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', mb: 1, fontWeight: 500 }}>
-                      {selectedTiming.name_amharic}
+                      {selectedType.name_amharic}
                     </Typography>
                   )}
-                  <Chip
-                    label={selectedTiming.is_active ? 'Active' : 'Inactive'}
-                    size="small"
-                    sx={{
-                      height: 22,
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      backgroundColor: selectedTiming.is_active ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)',
-                      color: 'white',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                    }}
-                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Chip
+                      label={selectedType.is_active ? 'Active' : 'Inactive'}
+                      size="small"
+                      sx={{
+                        height: 22,
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        backgroundColor: selectedType.is_active ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)',
+                        color: 'white',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                      }}
+                    />
+                    {selectedType.duration_days !== null && selectedType.duration_days !== undefined && (
+                      <Chip
+                        icon={<DaysIcon style={{ fontSize: 13, color: 'white' }} />}
+                        label={`${selectedType.duration_days} days`}
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          backgroundColor: 'rgba(255,255,255,0.25)',
+                          color: 'white',
+                          border: '1px solid rgba(255,255,255,0.3)',
+                        }}
+                      />
+                    )}
+                  </Box>
                 </Box>
               </Box>
 
@@ -603,7 +653,7 @@ export const PaymentTimingPage = () => {
                   }}
                 >
                   <Typography variant="body2" sx={{ color: '#334155', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
-                    {selectedTiming.description || 'No description provided for this payment timing.'}
+                    {selectedType.description || 'No description provided for this rental payment type.'}
                   </Typography>
                 </Box>
               </Box>
@@ -623,7 +673,7 @@ export const PaymentTimingPage = () => {
                     <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                       <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5, fontWeight: 600 }}>Created By</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {selectedTiming.created_by_name || 'System'}
+                        {selectedType.created_by_name || 'System'}
                       </Typography>
                     </Box>
                   </Grid>
@@ -631,7 +681,7 @@ export const PaymentTimingPage = () => {
                     <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                       <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5, fontWeight: 600 }}>Created At</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {formatDate(selectedTiming.created_at)}
+                        {formatDate(selectedType.created_at)}
                       </Typography>
                     </Box>
                   </Grid>
@@ -639,7 +689,7 @@ export const PaymentTimingPage = () => {
                     <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                       <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5, fontWeight: 600 }}>Last Updated By</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {selectedTiming.updated_by_name || 'System'}
+                        {selectedType.updated_by_name || 'System'}
                       </Typography>
                     </Box>
                   </Grid>
@@ -647,7 +697,7 @@ export const PaymentTimingPage = () => {
                     <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                       <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 0.5, fontWeight: 600 }}>Last Updated At</Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {formatDate(selectedTiming.updated_at)}
+                        {formatDate(selectedType.updated_at)}
                       </Typography>
                     </Box>
                   </Grid>
@@ -659,8 +709,8 @@ export const PaymentTimingPage = () => {
               <TextField
                 required
                 fullWidth
-                label="Payment Timing Name"
-                placeholder="e.g. In Advance, In Arrears, Milestone Based"
+                label="Rental Payment Type Name"
+                placeholder="e.g. Monthly, Advance Quarterly, Bi-Annual"
                 value={formData.name}
                 onChange={handleChange('name')}
                 size="small"
@@ -671,7 +721,7 @@ export const PaymentTimingPage = () => {
               <TextField
                 fullWidth
                 label="Amharic Name"
-                placeholder="e.g. በቅድሚያ፣ በውል ማጠናቀቂያ"
+                placeholder="e.g. ወርሃዊ የኪራይ ክፍያ"
                 value={formData.nameAmharic}
                 onChange={handleChange('nameAmharic')}
                 size="small"
@@ -681,10 +731,23 @@ export const PaymentTimingPage = () => {
 
               <TextField
                 fullWidth
+                type="number"
+                label="Duration (Days)"
+                placeholder="e.g. 30, 90, 180, 365"
+                value={formData.durationDays}
+                onChange={handleChange('durationDays')}
+                size="small"
+                disabled={formLoading}
+                inputProps={{ min: 1 }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+
+              <TextField
+                fullWidth
                 multiline
                 rows={3}
                 label="Description"
-                placeholder="Describe this payment timing policy or notes..."
+                placeholder="Describe this rental payment terms or notes..."
                 value={formData.description}
                 onChange={handleChange('description')}
                 size="small"
@@ -748,14 +811,14 @@ export const PaymentTimingPage = () => {
         open={toggleDialogOpen}
         onClose={() => setToggleDialogOpen(false)}
         onConfirm={handleToggleConfirm}
-        title={selectedTiming?.is_active ? 'Deactivate Payment Timing' : 'Activate Payment Timing'}
-        message={`Are you sure you want to ${selectedTiming?.is_active ? 'deactivate' : 'activate'} the payment timing "${selectedTiming?.name}"?`}
-        confirmText={selectedTiming?.is_active ? 'Deactivate' : 'Activate'}
+        title={selectedType?.is_active ? 'Deactivate Rental Payment Type' : 'Activate Rental Payment Type'}
+        message={`Are you sure you want to ${selectedType?.is_active ? 'deactivate' : 'activate'} the rental payment type "${selectedType?.name}"?`}
+        confirmText={selectedType?.is_active ? 'Deactivate' : 'Activate'}
         loading={toggleLoading}
-        severity={selectedTiming?.is_active ? 'warning' : 'info'}
+        severity={selectedType?.is_active ? 'warning' : 'info'}
       />
     </Box>
   );
 };
 
-export default PaymentTimingPage;
+export default RentalPaymentTypePage;

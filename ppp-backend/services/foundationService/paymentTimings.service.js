@@ -19,7 +19,7 @@ class PaymentTimingService {
   }
 
   static async createPaymentTiming(payload, actorId) {
-    const { name, nameAmharic, durationDays, description } = payload;
+    const { name, nameAmharic, description } = payload;
     if (!name || !name.trim()) { const err = new Error('Payment timing name is required.'); err.status = 400; throw err; }
 
     const existing = await PaymentTimingModel.findByName(name.trim());
@@ -28,7 +28,6 @@ class PaymentTimingService {
     const created = await PaymentTimingModel.create({ 
       name: name.trim(), 
       nameAmharic: nameAmharic?.trim() || null, 
-      durationDays: durationDays !== undefined && durationDays !== '' && durationDays !== null ? parseInt(durationDays, 10) : null,
       description: description?.trim() || null, 
       createdBy: actorId 
     });
@@ -38,7 +37,7 @@ class PaymentTimingService {
 
   static async updatePaymentTiming(id, payload, actorId) {
     await this.getPaymentTimingById(id);
-    const { name, nameAmharic, durationDays, description } = payload;
+    const { name, nameAmharic, description } = payload;
 
     if (name && name.trim()) {
       const existing = await PaymentTimingModel.findByName(name.trim(), id);
@@ -48,7 +47,6 @@ class PaymentTimingService {
     const updated = await PaymentTimingModel.update(id, {
       name: name ? name.trim() : undefined,
       nameAmharic: nameAmharic !== undefined ? (nameAmharic ? nameAmharic.trim() : null) : undefined,
-      durationDays: durationDays !== undefined ? (durationDays !== '' && durationDays !== null ? parseInt(durationDays, 10) : null) : undefined,
       description: description !== undefined ? (description ? description.trim() : null) : undefined,
       updatedBy: actorId,
     });
