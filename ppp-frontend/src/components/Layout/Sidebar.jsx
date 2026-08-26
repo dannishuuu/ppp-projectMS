@@ -36,6 +36,7 @@ import {
   Public as GeographicIcon,
   Apartment as BuildingTypeIcon,
   Store as ShopServiceIcon,
+  Schedule as TimingIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProjects } from '../../context/ProjectContext';
@@ -101,6 +102,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     { text: 'Geographic Mngt', icon: <GeographicIcon />, path: '/foundation/geographical' },
     { text: 'Building Types', icon: <BuildingTypeIcon />, path: '/foundation/building-types' },
     { text: 'Shop/Service Types', icon: <ShopServiceIcon />, path: '/foundation/shop-service-types' },
+    { text: 'Payment Timings', icon: <TimingIcon />, path: '/foundation/payment-timings' },
   ];
 
   const docMgmtSubItems = [
@@ -112,7 +114,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const isProjectsGroupActive = location.pathname.startsWith('/projects') && !location.pathname.startsWith('/projects/tracking-types') && !location.pathname.startsWith('/project-categories');
   const isUsersGroupActive = location.pathname.startsWith('/users');
   const isOrgGroupActive = location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types');
-  const isFoundationGroupActive = location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/foundation/');
+  const isFoundationGroupActive = location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/payment-timings') || location.pathname.startsWith('/foundation/');
   const isDocMgmtGroupActive = location.pathname.startsWith('/document-sequences');
 
   const getUserDisplayName = () => {

@@ -26,13 +26,14 @@ class RentalPaymentTypeService {
     const existing = await RentalPaymentTypeModel.findByName(name.trim());
     if (existing) { const err = new Error(`Rental payment type "${name.trim()}" already exists.`); err.status = 409; throw err; }
 
-    return RentalPaymentTypeModel.create({ 
+    const created = await RentalPaymentTypeModel.create({ 
       name: name.trim(), 
       nameAmharic: nameAmharic?.trim() || null, 
       durationDays: parseInt(durationDays, 10), 
       description: description?.trim() || null, 
       createdBy: actorId 
     });
+    return this.getRentalPaymentTypeById(created.id);
   }
 
   static async updateRentalPaymentType(id, payload, actorId) {

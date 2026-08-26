@@ -1,34 +1,64 @@
 const db = require('../config/database');
 const { QueryTypes } = require('sequelize');
 
+const PUBLIC_RENTAL_PAYMENT_TYPE_FIELDS = `
+  pt.id,
+  pt.name,
+  pt.name_amharic,
+  pt.duration_days,
+  pt.description,
+  pt.is_active,
+  pt.created_at,
+  pt.updated_at,
+  pt.created_by,
+  pt.updated_by,
+  creator.first_name || ' ' || creator.last_name AS created_by_name,
+  updater.first_name || ' ' || updater.last_name AS updated_by_name
+`;
+
 class RentalPaymentTypeModel {
   static async findAll(options = {}) {
     const { limit = 100, offset = 0, search = '', isActive = null, sortBy = 'name' } = options;
-    let where = 'WHERE is_deleted = false';
+    let where = 'WHERE pt.is_deleted = false';
     const replacements = {};
 
     if (isActive !== null && isActive !== undefined) {
-      where += ` AND is_active = :isActive`;
+      where += ` AND pt.is_active = :isActive`;
       replacements.isActive = isActive;
     }
 
     if (search && search.trim()) {
-      where += ` AND (name ILIKE :search OR name_amharic ILIKE :search OR description ILIKE :search)`;
+      where += ` AND (pt.name ILIKE :search OR pt.name_amharic ILIKE :search OR pt.description ILIKE :search)`;
       replacements.search = `%${search.trim()}%`;
     }
 
-    const countResult = await db.query(`SELECT COUNT(*) as total FROM rental_payment_types ${where}`, { replacements, type: QueryTypes.SELECT });
+    const countResult = await db.query(`SELECT COUNT(*) as total FROM rental_payment_types pt ${where}`, { replacements, type: QueryTypes.SELECT });
     const total = parseInt(countResult[0]?.total || 0, 10);
 
-    const validSortBy = ['name', 'duration_days', 'created_at'].includes(sortBy) ? sortBy : 'name';
-    replacements.limit = limit; replacements.offset = offset;
+    const validSortBy = ['name', 'duration_days', 'created_at', 'updated_at'].includes(sortBy) ? sortBy : 'name';
+    replacements.limit = limit;
+    replacements.offset = offset;
     
-    const rows = await db.query(`SELECT * FROM rental_payment_types ${where} ORDER BY ${validSortBy} ASC LIMIT :limit OFFSET :offset`, { replacements, type: QueryTypes.SELECT });
+    const rows = await db.query(`
+      SELECT ${PUBLIC_RENTAL_PAYMENT_TYPE_FIELDS}
+      FROM rental_payment_types pt
+      LEFT JOIN users creator ON creator.id = pt.created_by
+      LEFT JOIN users updater ON updater.id = pt.updated_by
+      ${where}
+      ORDER BY pt.${validSortBy} ASC
+      LIMIT :limit OFFSET :offset
+    `, { replacements, type: QueryTypes.SELECT });
     return { rows, total };
   }
 
   static async findById(id) {
-    const rows = await db.query('SELECT * FROM rental_payment_types WHERE id = :id AND is_deleted = false', { replacements: { id }, type: QueryTypes.SELECT });
+    const rows = await db.query(`
+      SELECT ${PUBLIC_RENTAL_PAYMENT_TYPE_FIELDS}
+      FROM rental_payment_types pt
+      LEFT JOIN users creator ON creator.id = pt.created_by
+      LEFT JOIN users updater ON updater.id = pt.updated_by
+      WHERE pt.id = :id AND pt.is_deleted = false
+    `, { replacements: { id }, type: QueryTypes.SELECT });
     return rows[0] || null;
   }
 
@@ -51,7 +81,8 @@ class RentalPaymentTypeModel {
 
   static async update(id, data) {
     const { name, nameAmharic, durationDays, description, isActive, updatedBy } = data;
-    const setClauses = []; const replacements = { id };
+    const setClauses = [];
+    const replacements = { id };
     
     if (name !== undefined) { setClauses.push('name = :name'); replacements.name = name; }
     if (nameAmharic !== undefined) { setClauses.push('name_amharic = :nameAmharic'); replacements.nameAmharic = nameAmharic; }

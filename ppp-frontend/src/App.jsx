@@ -34,6 +34,7 @@ import { DocumentSequencePage } from './pages/DocumentManagement/DocumentSequenc
 import { GeographicManagement } from './pages/Foundation/GeographicManagement';
 import { BuildingTypePage } from './pages/Foundation/BuildingTypePage';
 import { ShopServiceTypePage } from './pages/Foundation/ShopServiceTypePage';
+import { PaymentTimingPage } from './pages/Foundation/PaymentTimingPage';
 
 
 
@@ -122,6 +123,8 @@ function App() {
                   <Route path="foundation/geographical" element={<GeographicManagement />} />
                   <Route path="foundation/building-types" element={<BuildingTypePage />} />
                   <Route path="foundation/shop-service-types" element={<ShopServiceTypePage />} />
+                  <Route path="foundation/payment-timings" element={<PaymentTimingPage />} />
+                  <Route path="payment-timings" element={<PaymentTimingPage />} />
 
                 </Route>
 

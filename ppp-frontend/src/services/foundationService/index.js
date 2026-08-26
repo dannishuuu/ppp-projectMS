@@ -6,4 +6,5 @@ export * from './regionsService';
 export * from './woredasService';
 export * from './zonesService';
 export * from './buildingTypesService';
-export * from './shopServiceTypesService'
+export * from './shopServiceTypesService';
+export * from './paymentTimingsService';
