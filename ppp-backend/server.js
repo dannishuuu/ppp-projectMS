@@ -35,6 +35,7 @@ const rentalPaymentTypeRoutes = require('./routes/foundationService/rentalPaymen
 const areaUnitRoutes = require('./routes/foundationService/areaUnits.routes');
 const floorTypeRoutes = require('./routes/foundationService/floorTypes.routes');
 const buildingRoutes = require('./routes/buildingRoutes/buildings.routes');
+const buildingFloorRoutes = require('./routes/buildingRoutes/buildingFloors.routes');
 
 
 // Middleware
@@ -131,6 +132,9 @@ app.use('/api/v1/floor-types', floorTypeRoutes);
 
 // Building
 app.use('/api/v1/buildings', buildingRoutes);
+
+// Building Floors
+app.use('./api/v1/building-floors', buildingFloorRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
