@@ -36,6 +36,7 @@ const areaUnitRoutes = require('./routes/foundationService/areaUnits.routes');
 const floorTypeRoutes = require('./routes/foundationService/floorTypes.routes');
 const buildingRoutes = require('./routes/buildingRoutes/buildings.routes');
 const buildingFloorRoutes = require('./routes/buildingRoutes/buildingFloors.routes');
+const buildingUnitRoutes = require('./routes/buildingRoutes/buildingUnits.routes');
 
 
 // Middleware
@@ -135,6 +136,9 @@ app.use('/api/v1/buildings', buildingRoutes);
 
 // Building Floors
 app.use('./api/v1/building-floors', buildingFloorRoutes);
+
+// Building Units
+app.use('./api/v1/building-units', buildingUnitRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
