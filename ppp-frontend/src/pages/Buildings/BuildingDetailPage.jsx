@@ -111,7 +111,7 @@ export const BuildingDetailPage = () => {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, width: '100%', maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, width: '100%' }}>
       {/* Top Header & Breadcrumbs */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 1.5 }}>
         <Box>

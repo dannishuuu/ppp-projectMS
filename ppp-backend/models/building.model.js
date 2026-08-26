@@ -22,7 +22,6 @@ const PUBLIC_BUILDING_FIELDS = `
   b.created_by,
   b.updated_by,
   bt.name AS building_type_name,
-  bt.type_code AS building_type_code,
   r.name AS region_name,
   z.name AS zone_name,
   w.name AS woreda_name,
