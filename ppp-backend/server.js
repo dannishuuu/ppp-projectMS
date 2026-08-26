@@ -33,6 +33,7 @@ const shopServiceTypeRoutes = require('./routes/foundationService/shopServiceTyp
 const paymentTimingRoutes = require('./routes/foundationService/paymentTimings.routes');
 const rentalPaymentTypeRoutes = require('./routes/foundationService/rentalPaymentTypes.routes');
 const areaUnitRoutes = require('./routes/foundationService/areaUnits.routes');
+const floorTypeRoutes = require('./routes/foundationService/floorTypes.routes');
 
 
 // Middleware
@@ -123,6 +124,9 @@ app.use('/api/v1/rental-payment-types', rentalPaymentTypeRoutes);
 
 // Area units routes
 app.use('/api/v1/area-units', areaUnitRoutes);
+
+// Floor types routes
+app.use('/api/v1/floor-types', floorTypeRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
