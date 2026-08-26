@@ -336,7 +336,7 @@ export const ProjectStatusPage = () => {
               border: '1px solid #c7d2fe',
             }}
           />
-          <Button
+          {/* <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleDialogOpen('add')}
@@ -349,7 +349,7 @@ export const ProjectStatusPage = () => {
             }}
           >
             Add Status
-          </Button>
+          </Button> */}
         </Box>
       </Paper>
 
@@ -421,7 +421,7 @@ export const ProjectStatusPage = () => {
                     </TableCell>
                     <TableCell align="right" sx={{ pr: 1 }}>
                       <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                        <Tooltip title={status.is_active ? 'Deactivate' : 'Activate'} arrow placement="top">
+                        {/* <Tooltip title={status.is_active ? 'Deactivate' : 'Activate'} arrow placement="top">
                           <IconButton
                             size="small"
                             onClick={() => handleToggleDialogOpen(status)}
@@ -429,7 +429,7 @@ export const ProjectStatusPage = () => {
                           >
                             {status.is_active ? <DeactivateIcon sx={{ fontSize: 17 }} /> : <ActivateIcon sx={{ fontSize: 17 }} />}
                           </IconButton>
-                        </Tooltip>
+                        </Tooltip> */}
 
                         <Tooltip title="View Details" arrow placement="top">
                           <IconButton

@@ -279,14 +279,14 @@ export const ProposalStatusPage = () => {
             size="small"
             sx={{ height: 22, fontSize: '0.72rem', fontWeight: 700, backgroundColor: '#eef2ff', color: '#3730a3', border: '1px solid #c7d2fe' }}
           />
-          <Button
+          {/* <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleDialogOpen('add')}
             sx={{ fontWeight: 600, borderRadius: 2, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' }, fontSize: '0.82rem' }}
           >
             Add Status
-          </Button>
+          </Button> */}
         </Box>
       </Paper>
 
@@ -369,7 +369,7 @@ export const ProposalStatusPage = () => {
                     </TableCell>
                     <TableCell align="right" sx={{ pr: 1 }}>
                       <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                        <Tooltip title={s.is_active ? 'Deactivate' : 'Activate'} arrow placement="top">
+                        {/* <Tooltip title={s.is_active ? 'Deactivate' : 'Activate'} arrow placement="top">
                           <IconButton
                             size="small"
                             onClick={() => { setSelectedStatus(s); setToggleDialogOpen(true); }}
@@ -377,7 +377,7 @@ export const ProposalStatusPage = () => {
                           >
                             {s.is_active ? <DeactivateIcon sx={{ fontSize: 17 }} /> : <ActivateIcon sx={{ fontSize: 17 }} />}
                           </IconButton>
-                        </Tooltip>
+                        </Tooltip> */}
                         <Tooltip title="View Details" arrow placement="top">
                           <IconButton size="small" onClick={() => handleDialogOpen('view', s)} sx={{ p: 0.5, color: '#6366f1' }}>
                             <ViewIcon sx={{ fontSize: 17 }} />
