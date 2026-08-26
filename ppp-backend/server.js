@@ -7,23 +7,23 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-const loginRoutes        = require('./routes/authRoutes/login.routes');
-const userRoutes         = require('./routes/usersRoutes/users.routes');
-const orgTypeRoutes      = require('./routes/organizationRoles/organizationType.routes');
-const orgRoutes          = require('./routes/organizationRoles/organization.routes');
-const projectCatRoutes        = require('./routes/projectController/projectCategory.routes');
-const projectProposalRoutes     = require('./routes/projectController/projectProposal.routes');
-const projectReviewersRoutes    = require('./routes/projectController/projectReviewers.routes');
-const trackingItemTypeRoutes    = require('./routes/projectController/trackingItemType.routes');
-const trackingAreaRoutes        = require('./routes/projectController/trackingArea.routes');
-const checklistRoutes           = require('./routes/projectController/checklist.routes');
-const currencyRoutes            = require('./routes/foundationService/currency.routes');
-const proposalStatusRoutes    = require('./routes/foundationService/proposalStatus.routes');
-const projectStatusRoutes     = require('./routes/foundationService/projectStatus.routes');
-const fileRoutes              = require('./routes/file.routes');
-const reviewDecisionRoutes    = require('./routes/reviewDecision.routes');
-const proposalReviewRoutes    = require('./routes/proposalReview.routes');
-const documentSequenceRoutes  = require('./routes/projectController/documentSequence.routes');
+const loginRoutes = require('./routes/authRoutes/login.routes');
+const userRoutes = require('./routes/usersRoutes/users.routes');
+const orgTypeRoutes = require('./routes/organizationRoles/organizationType.routes');
+const orgRoutes = require('./routes/organizationRoles/organization.routes');
+const projectCatRoutes = require('./routes/projectController/projectCategory.routes');
+const projectProposalRoutes = require('./routes/projectController/projectProposal.routes');
+const projectReviewersRoutes = require('./routes/projectController/projectReviewers.routes');
+const trackingItemTypeRoutes = require('./routes/projectController/trackingItemType.routes');
+const trackingAreaRoutes = require('./routes/projectController/trackingArea.routes');
+const checklistRoutes = require('./routes/projectController/checklist.routes');
+const currencyRoutes = require('./routes/foundationService/currency.routes');
+const proposalStatusRoutes = require('./routes/foundationService/proposalStatus.routes');
+const projectStatusRoutes = require('./routes/foundationService/projectStatus.routes');
+const fileRoutes = require('./routes/file.routes');
+const reviewDecisionRoutes = require('./routes/reviewDecision.routes');
+const proposalReviewRoutes = require('./routes/proposalReview.routes');
+const documentSequenceRoutes = require('./routes/projectController/documentSequence.routes');
 const countriesRoutes = require('./routes/foundationService/countries.routes');
 const regionsRoutes = require('./routes/foundationService/regions.routes');
 const zonesRoutes = require('./routes/foundationService/zones.routes');
@@ -32,6 +32,7 @@ const buildingTypeRoutes = require('./routes/foundationService/buildingTypes.rou
 const shopServiceTypeRoutes = require('./routes/foundationService/shopServiceTypes.routes');
 const paymentTimingRoutes = require('./routes/foundationService/paymentTimings.routes');
 const rentalPaymentTypeRoutes = require('./routes/foundationService/rentalPaymentTypes.routes');
+const areaUnitRoutes = require('./routes/foundationService/areaUnits.routes');
 
 
 // Middleware
@@ -120,6 +121,9 @@ app.use('/api/v1/payment-timings', paymentTimingRoutes);
 // Rental Payment Types
 app.use('/api/v1/rental-payment-types', rentalPaymentTypeRoutes);
 
+// Area units routes
+app.use('/api/v1/area-units', areaUnitRoutes);
+
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -130,5 +134,5 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
