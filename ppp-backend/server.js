@@ -30,6 +30,8 @@ const zonesRoutes = require('./routes/foundationService/zones.routes');
 const woredasRoutes = require('./routes/foundationService/woredas.routes');
 const buildingTypeRoutes = require('./routes/foundationService/buildingTypes.routes');
 const shopServiceTypeRoutes = require('./routes/foundationService/shopServiceTypes.routes');
+const paymentTimingRoutes = require('./routes/foundationService/paymentTimings.routes');
+const rentalPaymentTypeRoutes = require('./routes/foundationService/rentalPaymentTypes.routes');
 
 
 // Middleware
@@ -111,6 +113,12 @@ app.use('/api/v1/shop-service-types', shopServiceTypeRoutes);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static('uploads'));
+
+// Payment Timings
+app.use('/api/v1/payment-timings', paymentTimingRoutes);
+
+// Rental Payment Types
+app.use('/api/v1/rental-payment-types', rentalPaymentTypeRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
