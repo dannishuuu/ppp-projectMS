@@ -50,11 +50,11 @@ class OrganizationTypeService {
 
   /**
    * Create a new organization type.
-   * @param {object} payload  - { name, description }
+   * @param {object} payload  - { name, orgTypeCode, org_type_code, description }
    * @param {string} actorId  - ID of the authenticated user performing the action
    */
   static async createOrganizationType(payload, actorId) {
-    const { name, description } = payload;
+    const { name, orgTypeCode, org_type_code, description } = payload;
 
     if (!name || !name.trim()) {
       const err = new Error('Organization type name is required.');
@@ -62,7 +62,11 @@ class OrganizationTypeService {
       throw err;
     }
 
-    // Uniqueness check
+    const code = (orgTypeCode || org_type_code)
+      ? (orgTypeCode || org_type_code).trim().toUpperCase().replace(/\s+/g, '')
+      : null;
+
+    // Uniqueness check by name
     const existing = await OrganizationTypeModel.findByName(name.trim());
     if (existing) {
       const err = new Error(`An organization type named "${name.trim()}" already exists.`);
@@ -70,13 +74,24 @@ class OrganizationTypeService {
       throw err;
     }
 
+    // Uniqueness check by code
+    if (code) {
+      const existingCode = await OrganizationTypeModel.findByCode(code);
+      if (existingCode) {
+        const err = new Error(`An organization type with code "${code}" already exists.`);
+        err.status = 409;
+        throw err;
+      }
+    }
+
     const orgType = await OrganizationTypeModel.create({
       name: name.trim(),
+      orgTypeCode: code,
       description: description?.trim() || null,
       createdBy: actorId,
     });
 
-    return orgType;
+    return this.getOrganizationTypeById(orgType.id);
   }
 
   // ─── UPDATE ───────────────────────────────────────────────────────────────
@@ -84,20 +99,33 @@ class OrganizationTypeService {
   /**
    * Update an existing organization type.
    * @param {string} id
-   * @param {object} payload  - { name?, description? }
+   * @param {object} payload  - { name?, orgTypeCode?, org_type_code?, description? }
    * @param {string} actorId  - ID of the authenticated user performing the action
    */
   static async updateOrganizationType(id, payload, actorId) {
     // Confirm it exists first
     await this.getOrganizationTypeById(id);
 
-    const { name, description } = payload;
+    const { name, orgTypeCode, org_type_code, description } = payload;
+    const rawCode = orgTypeCode !== undefined ? orgTypeCode : org_type_code;
+    const code = rawCode !== undefined
+      ? (rawCode ? rawCode.trim().toUpperCase().replace(/\s+/g, '') : null)
+      : undefined;
 
     // If renaming, check uniqueness against other records
     if (name && name.trim()) {
-      const existing = await OrganizationTypeModel.findByName(name.trim());
-      if (existing && existing.id !== id) {
+      const existing = await OrganizationTypeModel.findByName(name.trim(), id);
+      if (existing) {
         const err = new Error(`An organization type named "${name.trim()}" already exists.`);
+        err.status = 409;
+        throw err;
+      }
+    }
+
+    if (code) {
+      const existingCode = await OrganizationTypeModel.findByCode(code, id);
+      if (existingCode) {
+        const err = new Error(`An organization type with code "${code}" already exists.`);
         err.status = 409;
         throw err;
       }
@@ -105,6 +133,7 @@ class OrganizationTypeService {
 
     const updated = await OrganizationTypeModel.update(id, {
       name: name ? name.trim() : undefined,
+      orgTypeCode: code,
       description: description !== undefined ? description?.trim() || null : undefined,
       updatedBy: actorId,
     });

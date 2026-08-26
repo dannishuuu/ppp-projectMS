@@ -38,9 +38,9 @@ import {
   Edit as EditIcon,
   Block as DeactivateIcon,
   CheckCircle as ActivateIcon,
-  ArrowBack as ArrowBackIcon,
   Description as DescriptionIcon,
   Label as LabelIcon,
+  Code as CodeIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -64,7 +64,7 @@ export const OrganizationTypePage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState('add'); // 'add', 'edit', 'view'
   const [selectedOrgType, setSelectedOrgType] = useState(null);
-  const [formData, setFormData] = useState({ name: '', description: '' });
+  const [formData, setFormData] = useState({ name: '', orgTypeCode: '', description: '' });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -113,10 +113,14 @@ export const OrganizationTypePage = () => {
   const handleDialogOpen = (mode, orgType = null) => {
     setDialogMode(mode);
     setSelectedOrgType(orgType);
-    if (mode === 'edit' && orgType) {
-      setFormData({ name: orgType.name || '', description: orgType.description || '' });
+    if ((mode === 'edit' || mode === 'view') && orgType) {
+      setFormData({
+        name: orgType.name || '',
+        orgTypeCode: orgType.org_type_code || '',
+        description: orgType.description || '',
+      });
     } else if (mode === 'add') {
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', orgTypeCode: '', description: '' });
     }
     setFormError('');
     setDialogOpen(true);
@@ -125,12 +129,17 @@ export const OrganizationTypePage = () => {
   const handleDialogClose = () => {
     setDialogOpen(false);
     setSelectedOrgType(null);
-    setFormData({ name: '', description: '' });
+    setFormData({ name: '', orgTypeCode: '', description: '' });
     setFormError('');
   };
 
   const handleChange = (field) => (event) => {
-    setFormData((prev) => ({ ...prev, [field]: event.target.value }));
+    let value = event.target.value;
+    if (field === 'orgTypeCode') {
+      value = value.toUpperCase().replace(/\s+/g, '');
+    }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (formError) setFormError('');
   };
 
   const handleSubmit = async () => {
@@ -140,13 +149,19 @@ export const OrganizationTypePage = () => {
       return;
     }
 
+    const payload = {
+      name: formData.name.trim(),
+      orgTypeCode: formData.orgTypeCode.trim().toUpperCase().replace(/\s+/g, '') || null,
+      description: formData.description.trim() || null,
+    };
+
     setFormLoading(true);
     try {
       if (dialogMode === 'add') {
-        await organizationTypeService.createOrganizationType(formData);
+        await organizationTypeService.createOrganizationType(payload);
         enqueueSnackbar('Organization type created successfully', { variant: 'success' });
       } else if (dialogMode === 'edit' && selectedOrgType) {
-        await organizationTypeService.updateOrganizationType(selectedOrgType.id, formData);
+        await organizationTypeService.updateOrganizationType(selectedOrgType.id, payload);
         enqueueSnackbar('Organization type updated successfully', { variant: 'success' });
       }
       handleDialogClose();
@@ -165,16 +180,6 @@ export const OrganizationTypePage = () => {
       fetchOrgTypes();
     } catch (error) {
       enqueueSnackbar(error.message || 'Failed to toggle status', { variant: 'error' });
-    }
-  };
-
-  const handleDelete = async (orgType) => {
-    try {
-      await organizationTypeService.deleteOrganizationType(orgType.id);
-      enqueueSnackbar('Organization type deleted successfully', { variant: 'success' });
-      fetchOrgTypes();
-    } catch (error) {
-      enqueueSnackbar(error.message || 'Failed to delete organization type', { variant: 'error' });
     }
   };
 
@@ -258,7 +263,7 @@ export const OrganizationTypePage = () => {
 
         <TextField
           size="small"
-          placeholder="Search by name..."
+          placeholder="Search by name, code, or description..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           InputProps={{
@@ -321,7 +326,12 @@ export const OrganizationTypePage = () => {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleDialogOpen('add')}
-            sx={{ fontWeight: 600, borderRadius: 2 }}
+            sx={{
+              fontWeight: 600,
+              borderRadius: 2,
+              backgroundColor: '#1a237e',
+              '&:hover': { backgroundColor: '#0d1642' },
+            }}
           >
             Add Type
           </Button>
@@ -334,29 +344,30 @@ export const OrganizationTypePage = () => {
           <Table size="small" sx={{ minWidth: 650 }}>
             <TableHead sx={{ backgroundColor: '#f8fafc' }}>
               <TableRow>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Type Name</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Description</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Created</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }} align="right">Actions</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1.25, fontSize: '0.78rem' }}>Type Name</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1.25, fontSize: '0.78rem' }}>Type Code</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1.25, fontSize: '0.78rem' }}>Description</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1.25, fontSize: '0.78rem', textAlign: 'center' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1.25, fontSize: '0.78rem' }}>Created</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1.25, fontSize: '0.78rem' }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 8 }}>
-                    <CircularProgress size={36} sx={{ color: '#6366f1' }} />
+                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                    <CircularProgress size={36} sx={{ color: '#1a237e' }} />
                   </TableCell>
                 </TableRow>
               ) : orgTypes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 6, color: '#94a3b8' }}>
+                  <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#94a3b8' }}>
                     No organization types found
                   </TableCell>
                 </TableRow>
               ) : (
                 orgTypes.map((orgType) => (
-                  <TableRow key={orgType.id} hover sx={{ '& td': { py: 0.75 } }}>
+                  <TableRow key={orgType.id} hover sx={{ '& td': { py: 1 } }}>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Avatar sx={{ width: 28, height: 28, backgroundColor: '#1a237e', fontSize: '0.72rem', fontWeight: 700 }}>
@@ -368,11 +379,31 @@ export const OrganizationTypePage = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.82rem', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {orgType.description || '-'}
-                      </Typography>
+                      {orgType.org_type_code ? (
+                        <Chip
+                          label={orgType.org_type_code}
+                          size="small"
+                          sx={{
+                            height: 22,
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            fontFamily: 'monospace',
+                            backgroundColor: '#f1f5f9',
+                            color: '#334155',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: 1.5,
+                          }}
+                        />
+                      ) : (
+                        <Typography variant="caption" sx={{ color: '#94a3b8' }}>—</Typography>
+                      )}
                     </TableCell>
                     <TableCell>
+                      <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.82rem', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {orgType.description || '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
                       <Chip
                         label={orgType.is_active ? 'Active' : 'Inactive'}
                         size="small"
@@ -404,7 +435,7 @@ export const OrganizationTypePage = () => {
                         <IconButton
                           size="small"
                           onClick={() => handleDialogOpen('view', orgType)}
-                          sx={{ p: 0.5, color: '#6366f1' }}
+                          sx={{ p: 0.5, color: '#1a237e' }}
                         >
                           <ViewIcon sx={{ fontSize: 17 }} />
                         </IconButton>
@@ -450,7 +481,7 @@ export const OrganizationTypePage = () => {
         maxWidth="sm"
         fullWidth
         PaperProps={{
-          sx: { borderRadius: 3, p: 1, maxWidth: 500, width: '100%' },
+          sx: { borderRadius: 3, p: 1, maxWidth: 520, width: '100%' },
         }}
       >
         <DialogTitle sx={{ pb: 1 }}>
@@ -479,15 +510,40 @@ export const OrganizationTypePage = () => {
         <DialogContent sx={{ pb: 1 }}>
           {dialogMode === 'view' && selectedOrgType ? (
             <Box sx={{ mt: 1 }}>
-              <Grid container spacing={3}>
+              <Grid container spacing={2.5}>
                 <Grid item xs={12}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#475569', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.75rem' }}>
-                    Name
+                    Type Name
                   </Typography>
                   <Typography variant="body1" sx={{ color: '#0f172a', fontWeight: 600 }}>
                     {selectedOrgType.name}
                   </Typography>
                 </Grid>
+
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#475569', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.75rem' }}>
+                    Type Code
+                  </Typography>
+                  {selectedOrgType.org_type_code ? (
+                    <Chip
+                      icon={<CodeIcon style={{ fontSize: 14 }} />}
+                      label={selectedOrgType.org_type_code}
+                      size="small"
+                      sx={{
+                        fontWeight: 700,
+                        fontFamily: 'monospace',
+                        backgroundColor: '#f1f5f9',
+                        color: '#334155',
+                        border: '1px solid #cbd5e1',
+                      }}
+                    />
+                  ) : (
+                    <Typography variant="body2" sx={{ color: '#94a3b8' }}>
+                      No code assigned
+                    </Typography>
+                  )}
+                </Grid>
+
                 <Grid item xs={12}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#475569', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.75rem' }}>
                     Description
@@ -496,6 +552,7 @@ export const OrganizationTypePage = () => {
                     {selectedOrgType.description || 'No description provided'}
                   </Typography>
                 </Grid>
+
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#475569', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.75rem' }}>
                     Status
@@ -510,6 +567,7 @@ export const OrganizationTypePage = () => {
                     }}
                   />
                 </Grid>
+
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#475569', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.75rem' }}>
                     Created At
@@ -518,6 +576,7 @@ export const OrganizationTypePage = () => {
                     {formatDate(selectedOrgType.created_at)}
                   </Typography>
                 </Grid>
+
                 {selectedOrgType.created_by_name && (
                   <Grid item xs={12} md={6}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#475569', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.75rem' }}>
@@ -525,6 +584,17 @@ export const OrganizationTypePage = () => {
                     </Typography>
                     <Typography variant="body1" sx={{ color: '#0f172a' }}>
                       {selectedOrgType.created_by_name}
+                    </Typography>
+                  </Grid>
+                )}
+
+                {selectedOrgType.updated_by_name && (
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#475569', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.75rem' }}>
+                      Last Updated By
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: '#0f172a' }}>
+                      {selectedOrgType.updated_by_name}
                     </Typography>
                   </Grid>
                 )}
@@ -539,11 +609,12 @@ export const OrganizationTypePage = () => {
               )}
               <TextField
                 fullWidth
-                label="Name"
+                label="Type Name"
                 value={formData.name}
                 onChange={handleChange('name')}
-                disabled={dialogMode === 'view'}
+                disabled={formLoading}
                 required
+                placeholder="e.g. SPV, Contracting Authority, Financial Institution"
                 sx={{ mb: 2 }}
                 InputProps={{
                   startAdornment: (
@@ -553,14 +624,47 @@ export const OrganizationTypePage = () => {
                   ),
                 }}
               />
+
+              <TextField
+                fullWidth
+                label="Type Code"
+                value={formData.orgTypeCode}
+                onChange={handleChange('orgTypeCode')}
+                disabled={formLoading || dialogMode === 'edit'}
+                placeholder="e.g. SPV, CA, FI, DEV"
+                inputProps={{
+                  maxLength: 20,
+                  style: { textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: 600 },
+                }}
+                helperText={
+                  dialogMode === 'edit'
+                    ? 'Type code cannot be modified once created'
+                    : 'Auto-capitalized, no spaces allowed (optional, max 20 chars)'
+                }
+                sx={{
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: dialogMode === 'edit' ? '#f8fafc' : 'inherit',
+                  },
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <CodeIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
               <TextField
                 fullWidth
                 label="Description"
                 value={formData.description}
                 onChange={handleChange('description')}
-                disabled={dialogMode === 'view'}
+                disabled={formLoading}
                 multiline
                 rows={3}
+                placeholder="Describe this organization type role or notes..."
                 sx={{ mb: 2 }}
               />
             </Box>
@@ -572,6 +676,7 @@ export const OrganizationTypePage = () => {
             onClick={handleDialogClose}
             variant="outlined"
             color="inherit"
+            disabled={formLoading}
             sx={{ borderColor: '#e2e8f0', color: '#475569', fontWeight: 600, borderRadius: 2, flex: 1 }}
           >
             {dialogMode === 'view' ? 'Close' : 'Cancel'}

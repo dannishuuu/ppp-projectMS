@@ -5,6 +5,7 @@ const { QueryTypes } = require('sequelize');
 const PUBLIC_ORG_TYPE_FIELDS = `
   ot.id,
   ot.name,
+  ot.org_type_code,
   ot.description,
   ot.is_active,
   ot.created_at,
@@ -19,14 +20,14 @@ class OrganizationTypeModel {
   // ─── READ ────────────────────────────────────────────────────────────────
 
   static async findAll(options = {}) {
-    const { limit = 100, offset = 0, search = '', status = 'all' } = options;
+    const { limit = 100, offset = 0, search = '', status = 'all', sortBy = 'created_at' } = options;
 
     let where = `WHERE ot.is_deleted = FALSE`;
     const replacements = {};
 
-    if (search) {
-      where += ` AND ot.name ILIKE :search`;
-      replacements.search = `%${search}%`;
+    if (search && search.trim()) {
+      where += ` AND (ot.name ILIKE :search OR ot.org_type_code ILIKE :search OR ot.description ILIKE :search)`;
+      replacements.search = `%${search.trim()}%`;
     }
 
     if (status !== 'all') {
@@ -45,17 +46,19 @@ class OrganizationTypeModel {
     });
     const total = parseInt(countResult[0]?.total || 0, 10);
 
+    const validSortBy = ['name', 'org_type_code', 'created_at', 'updated_at'].includes(sortBy) ? sortBy : 'created_at';
+    replacements.limit = limit;
+    replacements.offset = offset;
+
     const query = `
       SELECT ${PUBLIC_ORG_TYPE_FIELDS}
       FROM organization_types ot
       LEFT JOIN users creator ON creator.id = ot.created_by
       LEFT JOIN users updater ON updater.id = ot.updated_by
       ${where}
-      ORDER BY ot.created_at DESC
+      ORDER BY ot.${validSortBy} DESC
       LIMIT :limit OFFSET :offset
     `;
-    replacements.limit = limit;
-    replacements.offset = offset;
 
     const rows = await db.query(query, {
       replacements,
@@ -80,13 +83,35 @@ class OrganizationTypeModel {
     return rows[0] || null;
   }
 
-  static async findByName(name) {
-    const query = `
-      SELECT id, name FROM organization_types
+  static async findByName(name, excludeId = null) {
+    let query = `
+      SELECT id, name, org_type_code FROM organization_types
       WHERE LOWER(name) = LOWER(:name) AND is_deleted = FALSE
     `;
+    const replacements = { name };
+    if (excludeId) {
+      query += ' AND id != :excludeId';
+      replacements.excludeId = excludeId;
+    }
     const rows = await db.query(query, {
-      replacements: { name },
+      replacements,
+      type: QueryTypes.SELECT,
+    });
+    return rows[0] || null;
+  }
+
+  static async findByCode(orgTypeCode, excludeId = null) {
+    let query = `
+      SELECT id, name, org_type_code FROM organization_types
+      WHERE org_type_code = :orgTypeCode AND is_deleted = FALSE
+    `;
+    const replacements = { orgTypeCode };
+    if (excludeId) {
+      query += ' AND id != :excludeId';
+      replacements.excludeId = excludeId;
+    }
+    const rows = await db.query(query, {
+      replacements,
       type: QueryTypes.SELECT,
     });
     return rows[0] || null;
@@ -94,14 +119,19 @@ class OrganizationTypeModel {
 
   // ─── CREATE ──────────────────────────────────────────────────────────────
 
-  static async create({ name, description, createdBy }) {
+  static async create({ name, orgTypeCode, description, createdBy }) {
     const query = `
-      INSERT INTO organization_types (name, description, created_by, updated_by)
-      VALUES (:name, :description, :createdBy, :createdBy)
-      RETURNING id, name, description, is_active, created_at, updated_at
+      INSERT INTO organization_types (name, org_type_code, description, created_by, updated_by)
+      VALUES (:name, :orgTypeCode, :description, :createdBy, :createdBy)
+      RETURNING id, name, org_type_code, description, is_active, created_at, updated_at
     `;
     const rows = await db.query(query, {
-      replacements: { name, description: description || null, createdBy },
+      replacements: {
+        name,
+        orgTypeCode: orgTypeCode || null,
+        description: description || null,
+        createdBy,
+      },
       type: QueryTypes.SELECT,
     });
     return rows[0];
@@ -109,13 +139,17 @@ class OrganizationTypeModel {
 
   // ─── UPDATE ──────────────────────────────────────────────────────────────
 
-  static async update(id, { name, description, updatedBy }) {
+  static async update(id, { name, orgTypeCode, description, updatedBy }) {
     const setClauses = [];
     const replacements = { id, updatedBy };
 
     if (name !== undefined) {
       setClauses.push('name = :name');
       replacements.name = name;
+    }
+    if (orgTypeCode !== undefined) {
+      setClauses.push('org_type_code = :orgTypeCode');
+      replacements.orgTypeCode = orgTypeCode;
     }
     if (description !== undefined) {
       setClauses.push('description = :description');
@@ -130,7 +164,7 @@ class OrganizationTypeModel {
       UPDATE organization_types
       SET ${setClauses.join(', ')}
       WHERE id = :id AND is_deleted = FALSE
-      RETURNING id
+      RETURNING id, name, org_type_code, description, is_active, updated_at
     `;
     const rows = await db.query(query, {
       replacements,

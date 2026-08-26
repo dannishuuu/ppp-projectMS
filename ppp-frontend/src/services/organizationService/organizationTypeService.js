@@ -32,7 +32,7 @@ export const organizationTypeService = {
 
   /**
    * Create a new organization type.
-   * @param {{ name: string, description?: string }} payload
+   * @param {{ name: string, orgTypeCode?: string, description?: string }} payload
    */
   async createOrganizationType(payload) {
     const response = await apiClient.post(BASE, payload);
@@ -42,7 +42,7 @@ export const organizationTypeService = {
   /**
    * Update an existing organization type.
    * @param {string} id
-   * @param {{ name?: string, description?: string }} payload
+   * @param {{ name?: string, orgTypeCode?: string, description?: string }} payload
    */
   async updateOrganizationType(id, payload) {
     const response = await apiClient.put(`${BASE}/${id}`, payload);
