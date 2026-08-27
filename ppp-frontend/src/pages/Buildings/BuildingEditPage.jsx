@@ -13,10 +13,13 @@ import {
   Alert,
   useMediaQuery,
   useTheme,
+  Chip,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
   Save as SaveIcon,
+  Layers as FloorIcon,
+  MeetingRoom as UnitIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -58,6 +61,7 @@ export const BuildingEditPage = () => {
   const [woredas, setWoredas] = useState([]);
   const [areaUnits, setAreaUnits] = useState([]);
 
+  const [buildingMeta, setBuildingMeta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -80,6 +84,10 @@ export const BuildingEditPage = () => {
 
         const b = buildingRes?.building || buildingRes;
         if (b) {
+          setBuildingMeta({
+            floorsCount: b.floors_count ?? b.total_floors ?? 0,
+            unitsCount: b.units_count ?? 0,
+          });
           setFormData({
             name: b.name || '',
             nameAmharic: b.name_amharic || '',
@@ -145,7 +153,10 @@ export const BuildingEditPage = () => {
   };
 
   const handleChange = (field) => (e) => {
-    const val = e.target.value;
+    let val = e.target.value;
+    if (field === 'totalFloors') {
+      val = val.replace(/[^0-9]/g, '');
+    }
     setFormData((prev) => ({ ...prev, [field]: val }));
     if (errorMsg) setErrorMsg('');
   };
@@ -156,7 +167,12 @@ export const BuildingEditPage = () => {
 
     if (!formData.name.trim()) { setErrorMsg('Building name is required.'); return; }
     if (!formData.buildingTypeId) { setErrorMsg('Building Type is required.'); return; }
-    if (formData.totalFloors === '' || Number(formData.totalFloors) < 1) { setErrorMsg('Total floors must be at least 1.'); return; }
+
+    const totalFloorsVal = Number(formData.totalFloors);
+    if (!formData.totalFloors || isNaN(totalFloorsVal) || totalFloorsVal < 1 || !Number.isInteger(totalFloorsVal)) {
+      setErrorMsg('Total floors must be a whole number greater than 0.');
+      return;
+    }
 
     const payload = {
       name: formData.name.trim(),
@@ -337,7 +353,23 @@ export const BuildingEditPage = () => {
               <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', letterSpacing: '0.5px', fontSize: '0.8rem', textTransform: 'uppercase' }}>
                 Structure & Measurements
               </Typography>
-              <Divider />
+              {buildingMeta && (
+                <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: '#64748b' }}>Current:</Typography>
+                  <Chip
+                    icon={<FloorIcon sx={{ fontSize: '13px !important' }} />}
+                    label={`${buildingMeta.floorsCount} Floors`}
+                    size="small"
+                    sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600, backgroundColor: '#eef2ff', color: '#4f46e5' }}
+                  />
+                  <Chip
+                    icon={<UnitIcon sx={{ fontSize: '13px !important' }} />}
+                    label={`${buildingMeta.unitsCount} Units`}
+                    size="small"
+                    sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600, backgroundColor: '#f0fdf4', color: '#16a34a' }}
+                  />
+                </Box>
+              )}
 
               <TextField
                 required
@@ -347,10 +379,15 @@ export const BuildingEditPage = () => {
                 placeholder="e.g. 8"
                 value={formData.totalFloors}
                 onChange={handleChange('totalFloors')}
+                onKeyDown={(e) => {
+                  if (['.', ',', 'e', 'E', '+', '-'].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
                 size="small"
                 disabled={saving}
-                inputProps={{ min: 1, max: 200 }}
-                helperText="Total number of physical floor levels"
+                inputProps={{ min: 1, max: 200, step: 1 }}
+                helperText="Total number of physical floor levels (Floors are created manually)"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
 

@@ -1,29 +1,65 @@
 const db = require('../config/database');
 const { QueryTypes } = require('sequelize');
 
+const PUBLIC_UNIT_FIELDS = `
+  bu.id,
+  bu.building_id,
+  bu.floor_id,
+  bu.floor_number,
+  bu.unit_number,
+  bu.area_value,
+  bu.area_unit_id,
+  bu.unit_use_type,
+  bu.is_active,
+  bu.created_at,
+  bu.updated_at,
+  bu.created_by,
+  bu.updated_by,
+  bf.name AS floor_name,
+  au.name AS area_unit_name,
+  au.code AS area_unit_code
+`;
+
 class BuildingUnitModel {
     static async findAll(options = {}) {
         const { limit = 100, offset = 0, search = '', isActive = null, buildingId = null, floorId = null, sortBy = 'unit_number' } = options;
-        let where = 'WHERE is_deleted = false';
+        let where = 'WHERE bu.is_deleted = false';
         const replacements = {};
 
-        if (isActive !== null && isActive !== undefined) { where += ` AND is_active = :isActive`; replacements.isActive = isActive; }
-        if (buildingId) { where += ` AND building_id = :buildingId`; replacements.buildingId = buildingId; }
-        if (floorId) { where += ` AND floor_id = :floorId`; replacements.floorId = floorId; }
-        if (search && search.trim()) { where += ` AND unit_number ILIKE :search`; replacements.search = `%${search.trim()}%`; }
+        if (isActive !== null && isActive !== undefined) { where += ` AND bu.is_active = :isActive`; replacements.isActive = isActive; }
+        if (buildingId) { where += ` AND bu.building_id = :buildingId`; replacements.buildingId = buildingId; }
+        if (floorId) { where += ` AND bu.floor_id = :floorId`; replacements.floorId = floorId; }
+        if (search && search.trim()) { where += ` AND (bu.unit_number ILIKE :search OR bu.unit_use_type ILIKE :search)`; replacements.search = `%${search.trim()}%`; }
 
-        const countResult = await db.query(`SELECT COUNT(*) as total FROM building_units ${where}`, { replacements, type: QueryTypes.SELECT });
+        const countResult = await db.query(`SELECT COUNT(*) as total FROM building_units bu ${where}`, { replacements, type: QueryTypes.SELECT });
         const total = parseInt(countResult[0]?.total || 0, 10);
 
-        const validSortBy = ['unit_number', 'floor_number', 'created_at'].includes(sortBy) ? sortBy : 'unit_number';
-        replacements.limit = limit; replacements.offset = offset;
+        const validSortBy = ['unit_number', 'floor_number', 'created_at'].includes(sortBy) ? `bu.${sortBy}` : 'bu.unit_number';
+        replacements.limit = limit; 
+        replacements.offset = offset;
 
-        const rows = await db.query(`SELECT * FROM building_units ${where} ORDER BY ${validSortBy} ASC LIMIT :limit OFFSET :offset`, { replacements, type: QueryTypes.SELECT });
+        const rows = await db.query(`
+          SELECT ${PUBLIC_UNIT_FIELDS} 
+          FROM building_units bu 
+          LEFT JOIN building_floors bf ON bf.id = bu.floor_id
+          LEFT JOIN area_units au ON au.id = bu.area_unit_id
+          ${where} 
+          ORDER BY bu.floor_number ASC, ${validSortBy} ASC 
+          LIMIT :limit OFFSET :offset`, 
+          { replacements, type: QueryTypes.SELECT }
+        );
         return { rows, total };
     }
 
     static async findById(id) {
-        const rows = await db.query('SELECT * FROM building_units WHERE id = :id AND is_deleted = false', { replacements: { id }, type: QueryTypes.SELECT });
+        const rows = await db.query(`
+          SELECT ${PUBLIC_UNIT_FIELDS} 
+          FROM building_units bu 
+          LEFT JOIN building_floors bf ON bf.id = bu.floor_id
+          LEFT JOIN area_units au ON au.id = bu.area_unit_id
+          WHERE bu.id = :id AND bu.is_deleted = false`, 
+          { replacements: { id }, type: QueryTypes.SELECT }
+        );
         return rows[0] || null;
     }
 

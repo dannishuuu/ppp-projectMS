@@ -16,8 +16,14 @@ exports.getBuildingById = async (req, res, next) => {
 };
 
 exports.createBuilding = async (req, res, next) => {
-    try { return res.status(201).json({ success: true, data: await BuildingService.createBuilding(req.body, req.user?.id) }); }
-    catch (error) { next(error); }
+    try {
+        const result = await BuildingService.createBuilding(req.body, req.user?.id);
+        return res.status(201).json({
+            success: true,
+            data: result,
+            message: `Building created with ${result.floorsCreated} floor(s) and ${result.unitsCreated} unit(s).`,
+        });
+    } catch (error) { next(error); }
 };
 
 exports.updateBuilding = async (req, res, next) => {

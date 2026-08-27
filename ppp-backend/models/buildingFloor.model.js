@@ -1,28 +1,60 @@
 const db = require('../config/database');
 const { QueryTypes } = require('sequelize');
 
+const PUBLIC_FLOOR_FIELDS = `
+  bf.id,
+  bf.building_id,
+  bf.floor_number,
+  bf.name,
+  bf.expected_unit_count,
+  bf.floor_type_id,
+  bf.is_active,
+  bf.created_at,
+  bf.updated_at,
+  bf.created_by,
+  bf.updated_by,
+  ft.name AS floor_type_name,
+  ft.code AS floor_type_code,
+  (SELECT COUNT(*)::int FROM building_units bu WHERE bu.floor_id = bf.id AND bu.is_deleted = false) AS units_count
+`;
+
 class BuildingFloorModel {
     static async findAll(options = {}) {
         const { limit = 100, offset = 0, search = '', isActive = null, buildingId = null, sortBy = 'floor_number' } = options;
-        let where = 'WHERE is_deleted = false';
+        let where = 'WHERE bf.is_deleted = false';
         const replacements = {};
 
-        if (isActive !== null && isActive !== undefined) { where += ` AND is_active = :isActive`; replacements.isActive = isActive; }
-        if (buildingId) { where += ` AND building_id = :buildingId`; replacements.buildingId = buildingId; }
-        if (search && search.trim()) { where += ` AND name ILIKE :search`; replacements.search = `%${search.trim()}%`; }
+        if (isActive !== null && isActive !== undefined) { where += ` AND bf.is_active = :isActive`; replacements.isActive = isActive; }
+        if (buildingId) { where += ` AND bf.building_id = :buildingId`; replacements.buildingId = buildingId; }
+        if (search && search.trim()) { where += ` AND bf.name ILIKE :search`; replacements.search = `%${search.trim()}%`; }
 
-        const countResult = await db.query(`SELECT COUNT(*) as total FROM building_floors ${where}`, { replacements, type: QueryTypes.SELECT });
+        const countResult = await db.query(`SELECT COUNT(*) as total FROM building_floors bf ${where}`, { replacements, type: QueryTypes.SELECT });
         const total = parseInt(countResult[0]?.total || 0, 10);
 
-        const validSortBy = ['floor_number', 'name', 'created_at'].includes(sortBy) ? sortBy : 'floor_number';
-        replacements.limit = limit; replacements.offset = offset;
+        const validSortBy = ['floor_number', 'name', 'created_at'].includes(sortBy) ? `bf.${sortBy}` : 'bf.floor_number';
+        replacements.limit = limit; 
+        replacements.offset = offset;
 
-        const rows = await db.query(`SELECT * FROM building_floors ${where} ORDER BY ${validSortBy} ASC LIMIT :limit OFFSET :offset`, { replacements, type: QueryTypes.SELECT });
+        const rows = await db.query(`
+          SELECT ${PUBLIC_FLOOR_FIELDS} 
+          FROM building_floors bf 
+          LEFT JOIN floor_types ft ON ft.id = bf.floor_type_id
+          ${where} 
+          ORDER BY ${validSortBy} ASC 
+          LIMIT :limit OFFSET :offset`, 
+          { replacements, type: QueryTypes.SELECT }
+        );
         return { rows, total };
     }
 
     static async findById(id) {
-        const rows = await db.query('SELECT * FROM building_floors WHERE id = :id AND is_deleted = false', { replacements: { id }, type: QueryTypes.SELECT });
+        const rows = await db.query(`
+          SELECT ${PUBLIC_FLOOR_FIELDS} 
+          FROM building_floors bf 
+          LEFT JOIN floor_types ft ON ft.id = bf.floor_type_id
+          WHERE bf.id = :id AND bf.is_deleted = false`, 
+          { replacements: { id }, type: QueryTypes.SELECT }
+        );
         return rows[0] || null;
     }
 

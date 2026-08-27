@@ -35,6 +35,7 @@ import {
   FilterList as FilterIcon,
   LocationOn as LocationIcon,
   Layers as FloorIcon,
+  MeetingRoom as UnitIcon,
   SquareFoot as AreaIcon,
   RestartAlt as ResetIcon,
 } from '@mui/icons-material';
@@ -453,7 +454,7 @@ export const BuildingIndexPage = () => {
                   LOCATION
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5, textAlign: 'center' }}>
-                  FLOORS
+                  FLOORS & UNITS
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
                   TOTAL AREA
@@ -573,22 +574,40 @@ export const BuildingIndexPage = () => {
                       </Box>
                     </TableCell>
 
-                    {/* Floors */}
+                    {/* Floors & Units */}
                     <TableCell sx={{ py: 1.5, textAlign: 'center' }}>
-                      <Chip
-                        icon={<FloorIcon sx={{ fontSize: '13px !important', color: '#64748b !important' }} />}
-                        label={`${building.total_floors || 0} Flr`}
-                        size="small"
-                        sx={{
-                          height: 22,
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                          backgroundColor: '#f8fafc',
-                          color: '#475569',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: 1.5,
-                        }}
-                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                        <Tooltip title="Floors created" arrow placement="top">
+                          <Chip
+                            icon={<FloorIcon sx={{ fontSize: '12px !important' }} />}
+                            label={`${building.floors_count ?? building.total_floors ?? 0}F`}
+                            size="small"
+                            sx={{
+                              height: 22,
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              backgroundColor: '#eef2ff',
+                              color: '#4f46e5',
+                              borderRadius: 1.5,
+                            }}
+                          />
+                        </Tooltip>
+                        <Tooltip title="Units created" arrow placement="top">
+                          <Chip
+                            icon={<UnitIcon sx={{ fontSize: '12px !important' }} />}
+                            label={`${building.units_count ?? 0}U`}
+                            size="small"
+                            sx={{
+                              height: 22,
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              backgroundColor: '#f0fdf4',
+                              color: '#16a34a',
+                              borderRadius: 1.5,
+                            }}
+                          />
+                        </Tooltip>
+                      </Box>
                     </TableCell>
 
                     {/* Total Area */}
