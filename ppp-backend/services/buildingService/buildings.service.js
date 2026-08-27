@@ -143,16 +143,17 @@ class BuildingService {
     }
 
     static async updateBuilding(id, payload, actorId) {
-        await this.getBuildingById(id);
-        const { name, totalFloors } = payload;
+        const building = await this.getBuildingById(id);
+        const { name, totalFloors, floors } = payload;
 
         if (name && name.trim()) {
             const existing = await BuildingModel.findByName(name.trim(), id);
             if (existing) { const err = new Error(`Building "${name.trim()}" already exists.`); err.status = 409; throw err; }
         }
 
+        let numFloors = building.total_floors;
         if (totalFloors !== undefined && totalFloors !== null && totalFloors !== '') {
-            const numFloors = Number(totalFloors);
+            numFloors = Number(totalFloors);
             if (isNaN(numFloors) || numFloors < 1 || !Number.isInteger(numFloors)) {
                 const err = new Error('Total floors must be a whole number greater than 0.');
                 err.status = 400;
@@ -160,9 +161,191 @@ class BuildingService {
             }
         }
 
-        const updated = await BuildingModel.update(id, { ...payload, updatedBy: actorId });
-        if (!updated) { const err = new Error('No changes were applied.'); err.status = 400; throw err; }
-        return this.getBuildingById(id);
+        const transaction = await db.transaction();
+        try {
+            // 1. Update building details
+            await db.query(`
+                UPDATE buildings SET
+                    name = COALESCE(:name, name),
+                    name_amharic = :nameAmharic,
+                    name_afaan_oromo = :nameAfaanOromo,
+                    description = :description,
+                    region_id = :regionId,
+                    zone_id = :zoneId,
+                    woreda_id = :woredaId,
+                    address = :address,
+                    building_type_id = COALESCE(:buildingTypeId, building_type_id),
+                    total_floors = :totalFloors,
+                    total_area_value = :totalAreaValue,
+                    area_unit_id = :areaUnitId,
+                    year_built = :yearBuilt,
+                    updated_by = :updatedBy,
+                    updated_at = NOW()
+                WHERE id = :id AND is_deleted = false`,
+                {
+                    replacements: {
+                        id,
+                        name: name ? name.trim() : null,
+                        nameAmharic: payload.nameAmharic !== undefined ? (payload.nameAmharic ? payload.nameAmharic.trim() : null) : building.name_amharic,
+                        nameAfaanOromo: payload.nameAfaanOromo !== undefined ? (payload.nameAfaanOromo ? payload.nameAfaanOromo.trim() : null) : building.name_afaan_oromo,
+                        description: payload.description !== undefined ? (payload.description ? payload.description.trim() : null) : building.description,
+                        regionId: payload.regionId !== undefined ? (payload.regionId || null) : building.region_id,
+                        zoneId: payload.zoneId !== undefined ? (payload.zoneId || null) : building.zone_id,
+                        woredaId: payload.woredaId !== undefined ? (payload.woredaId || null) : building.woreda_id,
+                        address: payload.address !== undefined ? (payload.address ? payload.address.trim() : null) : building.address,
+                        buildingTypeId: payload.buildingTypeId || null,
+                        totalFloors: numFloors,
+                        totalAreaValue: payload.totalAreaValue !== undefined ? (payload.totalAreaValue ? parseFloat(payload.totalAreaValue) : null) : building.total_area_value,
+                        areaUnitId: payload.areaUnitId !== undefined ? (payload.areaUnitId || null) : building.area_unit_id,
+                        yearBuilt: payload.yearBuilt !== undefined ? (payload.yearBuilt ? parseInt(payload.yearBuilt, 10) : null) : building.year_built,
+                        updatedBy: actorId || null,
+                    },
+                    type: QueryTypes.UPDATE,
+                    transaction,
+                }
+            );
+
+            // 2. Synchronize floor and unit line items if provided
+            if (Array.isArray(floors)) {
+                const retainedFloorIds = [];
+
+                for (const f of floors) {
+                    const floorNum = parseInt(f.floorNumber, 10);
+                    const floorName = (f.name && f.name.trim()) || `Floor ${floorNum}`;
+                    const expectedUnits = parseInt(f.expectedUnitCount, 10) || 0;
+                    const floorTypeId = f.floorTypeId || null;
+                    let floorId = f.id;
+
+                    if (floorId) {
+                        await db.query(`
+                            UPDATE building_floors SET
+                                floor_number = :floorNumber,
+                                name = :name,
+                                expected_unit_count = :expectedUnitCount,
+                                floor_type_id = :floorTypeId,
+                                updated_by = :updatedBy,
+                                updated_at = NOW()
+                            WHERE id = :floorId AND is_deleted = false`,
+                            {
+                                replacements: { floorId, floorNumber: floorNum, name: floorName, expectedUnitCount: expectedUnits, floorTypeId, updatedBy: actorId || null },
+                                type: QueryTypes.UPDATE,
+                                transaction,
+                            }
+                        );
+                        retainedFloorIds.push(floorId);
+                    } else {
+                        const newFloorRows = await db.query(`
+                            INSERT INTO building_floors (building_id, floor_number, name, expected_unit_count, floor_type_id, created_by, updated_by)
+                            VALUES (:buildingId, :floorNumber, :name, :expectedUnitCount, :floorTypeId, :createdBy, :createdBy)
+                            RETURNING id`,
+                            {
+                                replacements: {
+                                    buildingId: id,
+                                    floorNumber: floorNum,
+                                    name: floorName,
+                                    expectedUnitCount: expectedUnits,
+                                    floorTypeId,
+                                    createdBy: actorId || null,
+                                },
+                                type: QueryTypes.SELECT,
+                                transaction,
+                            }
+                        );
+                        floorId = newFloorRows[0]?.id;
+                        if (floorId) retainedFloorIds.push(floorId);
+                    }
+
+                    // Synchronize units for this floor
+                    if (floorId && Array.isArray(f.units)) {
+                        const retainedUnitIds = [];
+                        for (const u of f.units) {
+                            const unitNum = u.unitNumber && u.unitNumber.trim();
+                            if (unitNum) {
+                                if (u.id) {
+                                    await db.query(`
+                                        UPDATE building_units SET
+                                            floor_number = :floorNumber,
+                                            unit_number = :unitNumber,
+                                            area_value = :areaValue,
+                                            area_unit_id = :areaUnitId,
+                                            unit_use_type = :unitUseType,
+                                            updated_by = :updatedBy,
+                                            updated_at = NOW()
+                                        WHERE id = :unitId AND is_deleted = false`,
+                                        {
+                                            replacements: {
+                                                unitId: u.id,
+                                                floorNumber: floorNum,
+                                                unitNumber: unitNum,
+                                                areaValue: u.areaValue ? parseFloat(u.areaValue) : null,
+                                                areaUnitId: u.areaUnitId || payload.areaUnitId || null,
+                                                unitUseType: u.unitUseType || 'Commercial',
+                                                updatedBy: actorId || null,
+                                            },
+                                            type: QueryTypes.UPDATE,
+                                            transaction,
+                                        }
+                                    );
+                                    retainedUnitIds.push(u.id);
+                                } else {
+                                    const newUnitRows = await db.query(`
+                                        INSERT INTO building_units (building_id, floor_id, floor_number, unit_number, area_value, area_unit_id, unit_use_type, created_by, updated_by)
+                                        VALUES (:buildingId, :floorId, :floorNumber, :unitNumber, :areaValue, :areaUnitId, :unitUseType, :createdBy, :createdBy)
+                                        RETURNING id`,
+                                        {
+                                            replacements: {
+                                                buildingId: id,
+                                                floorId,
+                                                floorNumber: floorNum,
+                                                unitNumber: unitNum,
+                                                areaValue: u.areaValue ? parseFloat(u.areaValue) : null,
+                                                areaUnitId: u.areaUnitId || payload.areaUnitId || null,
+                                                unitUseType: u.unitUseType || 'Commercial',
+                                                createdBy: actorId || null,
+                                            },
+                                            type: QueryTypes.INSERT,
+                                            transaction,
+                                        }
+                                    );
+                                }
+                            }
+                        }
+
+                        // Soft-delete units of this floor that were removed
+                        if (retainedUnitIds.length > 0) {
+                            await db.query(`
+                                UPDATE building_units SET is_deleted = true, is_active = false, deleted_at = NOW(), deleted_by = :deletedBy
+                                WHERE floor_id = :floorId AND id NOT IN (:retainedUnitIds) AND is_deleted = false`,
+                                {
+                                    replacements: { floorId, retainedUnitIds, deletedBy: actorId || null },
+                                    type: QueryTypes.UPDATE,
+                                    transaction,
+                                }
+                            );
+                        }
+                    }
+                }
+
+                // Soft-delete floors of this building that were removed
+                if (retainedFloorIds.length > 0) {
+                    await db.query(`
+                        UPDATE building_floors SET is_deleted = true, is_active = false, deleted_at = NOW(), deleted_by = :deletedBy
+                        WHERE building_id = :buildingId AND id NOT IN (:retainedFloorIds) AND is_deleted = false`,
+                        {
+                            replacements: { buildingId: id, retainedFloorIds, deletedBy: actorId || null },
+                            type: QueryTypes.UPDATE,
+                            transaction,
+                        }
+                    );
+                }
+            }
+
+            await transaction.commit();
+            return this.getBuildingById(id);
+        } catch (err) {
+            await transaction.rollback();
+            throw err;
+        }
     }
 
     static async toggleBuildingStatus(id, actorId) {
