@@ -279,155 +279,234 @@ export const BuildingIndexPage = () => {
               size="small"
               startIcon={<ResetIcon sx={{ fontSize: 15 }} />}
               onClick={handleResetFilters}
-              sx={{ fontSize: '0.75rem', textTransform: 'none', color: '#64748b', py: 0 }}
+              sx={{ fontSize: '0.75rem', textTransform: 'none', color: '#64748b', py: 0, fontWeight: 600 }}
             >
               Reset Filters
             </Button>
           )}
         </Box>
 
-        <Grid container spacing={1.5}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 1.5,
+          }}
+        >
           {/* Search Input */}
-          <Grid item xs={12} sm={6} md={3.5}>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Search by name, address, description..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <Box component="span" sx={{ mr: 0.5, display: 'flex', alignItems: 'center' }}>
-                    <SearchIcon sx={{ fontSize: 16, color: '#94a3b8' }} />
-                  </Box>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                  fontSize: '0.8rem',
-                  backgroundColor: '#f8fafc',
-                  '& fieldset': { borderColor: '#e2e8f0' },
-                  '&:hover fieldset': { borderColor: '#cbd5e1' },
-                  '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
-                },
-              }}
-            />
-          </Grid>
+          <TextField
+            size="small"
+            placeholder="Search by name, address..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <Box component="span" sx={{ mr: 0.75, display: 'flex', alignItems: 'center' }}>
+                  <SearchIcon sx={{ fontSize: 16, color: '#94a3b8' }} />
+                </Box>
+              ),
+            }}
+            sx={{
+              flex: { xs: '1 1 100%', sm: '1 1 240px' },
+              minWidth: { sm: 220 },
+              maxWidth: { md: 300 },
+              '& .MuiOutlinedInput-root': {
+                height: 38,
+                borderRadius: 2,
+                fontSize: '0.8rem',
+                backgroundColor: '#f8fafc',
+                '& fieldset': { borderColor: '#e2e8f0' },
+                '&:hover fieldset': { borderColor: '#cbd5e1' },
+                '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+              },
+              '& .MuiInputBase-input': {
+                py: 0,
+                height: 38,
+                boxSizing: 'border-box',
+                fontSize: '0.8rem',
+              },
+            }}
+          />
 
           {/* Building Type Filter */}
-          <Grid item xs={12} sm={6} md={2}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              displayEmpty
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                  fontSize: '0.8rem',
-                  backgroundColor: '#f8fafc',
-                  '& fieldset': { borderColor: '#e2e8f0' },
-                  '&:hover fieldset': { borderColor: '#cbd5e1' },
-                  '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
-                },
-              }}
-            >
-              <MenuItem value="" sx={{ fontSize: '0.8rem' }}>All Building Types</MenuItem>
-              {buildingTypes.map((type) => (
-                <MenuItem key={type.id} value={type.id} sx={{ fontSize: '0.8rem' }}>
-                  {type.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
+          <TextField
+            select
+            size="small"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            displayEmpty
+            sx={{
+              width: { xs: '100%', sm: 170 },
+              flexShrink: 0,
+              '& .MuiOutlinedInput-root': {
+                height: 38,
+                borderRadius: 2,
+                fontSize: '0.8rem',
+                backgroundColor: '#f8fafc',
+                '& fieldset': { borderColor: '#e2e8f0' },
+                '&:hover fieldset': { borderColor: '#cbd5e1' },
+                '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+              },
+              '& .MuiSelect-select': {
+                py: 0,
+                height: '38px !important',
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '0.8rem',
+              },
+            }}
+          >
+            <MenuItem value="" sx={{ fontSize: '0.8rem' }}>All Building Types</MenuItem>
+            {buildingTypes.map((type) => (
+              <MenuItem key={type.id} value={type.id} sx={{ fontSize: '0.8rem' }}>
+                {type.name}
+              </MenuItem>
+            ))}
+          </TextField>
 
           {/* Region Filter */}
-          <Grid item xs={12} sm={6} md={2}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              value={regionFilter}
-              onChange={(e) => setRegionFilter(e.target.value)}
-              displayEmpty
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                  fontSize: '0.8rem',
-                  backgroundColor: '#f8fafc',
-                  '& fieldset': { borderColor: '#e2e8f0' },
-                  '&:hover fieldset': { borderColor: '#cbd5e1' },
-                  '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
-                },
-              }}
-            >
-              <MenuItem value="" sx={{ fontSize: '0.8rem' }}>All Regions</MenuItem>
-              {regions.map((reg) => (
-                <MenuItem key={reg.id} value={reg.id} sx={{ fontSize: '0.8rem' }}>
-                  {reg.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
+          <TextField
+            select
+            size="small"
+            value={regionFilter}
+            onChange={(e) => setRegionFilter(e.target.value)}
+            displayEmpty
+            sx={{
+              width: { xs: '100%', sm: 155 },
+              flexShrink: 0,
+              '& .MuiOutlinedInput-root': {
+                height: 38,
+                borderRadius: 2,
+                fontSize: '0.8rem',
+                backgroundColor: '#f8fafc',
+                '& fieldset': { borderColor: '#e2e8f0' },
+                '&:hover fieldset': { borderColor: '#cbd5e1' },
+                '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+              },
+              '& .MuiSelect-select': {
+                py: 0,
+                height: '38px !important',
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '0.8rem',
+              },
+            }}
+          >
+            <MenuItem value="" sx={{ fontSize: '0.8rem' }}>All Regions</MenuItem>
+            {regions.map((reg) => (
+              <MenuItem key={reg.id} value={reg.id} sx={{ fontSize: '0.8rem' }}>
+                {reg.name}
+              </MenuItem>
+            ))}
+          </TextField>
 
           {/* Zone Filter */}
-          <Grid item xs={12} sm={6} md={1.75}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              value={zoneFilter}
-              onChange={(e) => setZoneFilter(e.target.value)}
-              disabled={!regionFilter}
-              displayEmpty
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                  fontSize: '0.8rem',
-                  backgroundColor: '#f8fafc',
-                  '& fieldset': { borderColor: '#e2e8f0' },
-                  '&:hover fieldset': { borderColor: '#cbd5e1' },
-                  '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
-                },
-              }}
-            >
-              <MenuItem value="" sx={{ fontSize: '0.8rem' }}>All Zones</MenuItem>
-              {zones.map((zone) => (
-                <MenuItem key={zone.id} value={zone.id} sx={{ fontSize: '0.8rem' }}>
-                  {zone.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Grid>
+          <TextField
+            select
+            size="small"
+            value={zoneFilter}
+            onChange={(e) => setZoneFilter(e.target.value)}
+            disabled={!regionFilter}
+            displayEmpty
+            sx={{
+              width: { xs: '100%', sm: 155 },
+              flexShrink: 0,
+              '& .MuiOutlinedInput-root': {
+                height: 38,
+                borderRadius: 2,
+                fontSize: '0.8rem',
+                backgroundColor: '#f8fafc',
+                '& fieldset': { borderColor: '#e2e8f0' },
+                '&:hover fieldset': { borderColor: '#cbd5e1' },
+                '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+              },
+              '& .MuiSelect-select': {
+                py: 0,
+                height: '38px !important',
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '0.8rem',
+              },
+            }}
+          >
+            <MenuItem value="" sx={{ fontSize: '0.8rem' }}>All Zones</MenuItem>
+            {zones.map((zone) => (
+              <MenuItem key={zone.id} value={zone.id} sx={{ fontSize: '0.8rem' }}>
+                {zone.name}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          {/* Woreda Filter */}
+          <TextField
+            select
+            size="small"
+            value={woredaFilter}
+            onChange={(e) => setWoredaFilter(e.target.value)}
+            disabled={!zoneFilter}
+            displayEmpty
+            sx={{
+              width: { xs: '100%', sm: 155 },
+              flexShrink: 0,
+              '& .MuiOutlinedInput-root': {
+                height: 38,
+                borderRadius: 2,
+                fontSize: '0.8rem',
+                backgroundColor: '#f8fafc',
+                '& fieldset': { borderColor: '#e2e8f0' },
+                '&:hover fieldset': { borderColor: '#cbd5e1' },
+                '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+              },
+              '& .MuiSelect-select': {
+                py: 0,
+                height: '38px !important',
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '0.8rem',
+              },
+            }}
+          >
+            <MenuItem value="" sx={{ fontSize: '0.8rem' }}>All Woredas</MenuItem>
+            {woredas.map((woreda) => (
+              <MenuItem key={woreda.id} value={woreda.id} sx={{ fontSize: '0.8rem' }}>
+                {woreda.name}
+              </MenuItem>
+            ))}
+          </TextField>
 
           {/* Status Filter */}
-          <Grid item xs={12} sm={6} md={1.5}>
-            <TextField
-              select
-              fullWidth
-              size="small"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                  fontSize: '0.8rem',
-                  backgroundColor: '#f8fafc',
-                  '& fieldset': { borderColor: '#e2e8f0' },
-                  '&:hover fieldset': { borderColor: '#cbd5e1' },
-                  '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
-                },
-              }}
-            >
-              <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>All Status</MenuItem>
-              <MenuItem value="active" sx={{ fontSize: '0.8rem' }}>Active</MenuItem>
-              <MenuItem value="inactive" sx={{ fontSize: '0.8rem' }}>Inactive</MenuItem>
-            </TextField>
-          </Grid>
-        </Grid>
+          <TextField
+            select
+            size="small"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            sx={{
+              width: { xs: '100%', sm: 130 },
+              flexShrink: 0,
+              '& .MuiOutlinedInput-root': {
+                height: 38,
+                borderRadius: 2,
+                fontSize: '0.8rem',
+                backgroundColor: '#f8fafc',
+                '& fieldset': { borderColor: '#e2e8f0' },
+                '&:hover fieldset': { borderColor: '#cbd5e1' },
+                '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+              },
+              '& .MuiSelect-select': {
+                py: 0,
+                height: '38px !important',
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '0.8rem',
+              },
+            }}
+          >
+            <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>All Status</MenuItem>
+            <MenuItem value="active" sx={{ fontSize: '0.8rem' }}>Active</MenuItem>
+            <MenuItem value="inactive" sx={{ fontSize: '0.8rem' }}>Inactive</MenuItem>
+          </TextField>
+        </Box>
       </Paper>
 
       {/* Buildings Table */}
