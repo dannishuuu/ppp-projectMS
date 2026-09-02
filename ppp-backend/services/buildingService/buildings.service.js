@@ -110,8 +110,14 @@ class BuildingService {
                             const unitNum = u.unitNumber && u.unitNumber.trim();
                             if (unitNum) {
                                 await db.query(`
-                                    INSERT INTO building_units (building_id, floor_id, floor_number, unit_number, area_value, area_unit_id, unit_use_type, created_by, updated_by)
-                                    VALUES (:buildingId, :floorId, :floorNumber, :unitNumber, :areaValue, :areaUnitId, :unitUseType, :createdBy, :createdBy)`,
+                                    INSERT INTO building_units (
+                                        building_id, floor_id, floor_number, unit_number, area_value, area_unit_id, unit_use_type,
+                                        is_rented, is_for_rent, created_by, updated_by
+                                    )
+                                    VALUES (
+                                        :buildingId, :floorId, :floorNumber, :unitNumber, :areaValue, :areaUnitId, :unitUseType,
+                                        :isRented, :isForRent, :createdBy, :createdBy
+                                    )`,
                                     {
                                         replacements: {
                                             buildingId: building.id,
@@ -121,6 +127,8 @@ class BuildingService {
                                             areaValue: u.areaValue ? parseFloat(u.areaValue) : null,
                                             areaUnitId: u.areaUnitId || payload.areaUnitId || null,
                                             unitUseType: u.unitUseType || 'Commercial',
+                                            isRented: u.isRented !== undefined ? Boolean(u.isRented) : false,
+                                            isForRent: u.isForRent !== undefined ? Boolean(u.isForRent) : true,
                                             createdBy: actorId || null,
                                         },
                                         type: QueryTypes.INSERT,
@@ -269,6 +277,8 @@ class BuildingService {
                                             area_value = :areaValue,
                                             area_unit_id = :areaUnitId,
                                             unit_use_type = :unitUseType,
+                                            is_rented = COALESCE(:isRented, is_rented),
+                                            is_for_rent = COALESCE(:isForRent, is_for_rent),
                                             updated_by = :updatedBy,
                                             updated_at = NOW()
                                         WHERE id = :unitId AND is_deleted = false`,
@@ -280,6 +290,8 @@ class BuildingService {
                                                 areaValue: u.areaValue ? parseFloat(u.areaValue) : null,
                                                 areaUnitId: u.areaUnitId || payload.areaUnitId || null,
                                                 unitUseType: u.unitUseType || 'Commercial',
+                                                isRented: u.isRented !== undefined ? Boolean(u.isRented) : null,
+                                                isForRent: u.isForRent !== undefined ? Boolean(u.isForRent) : null,
                                                 updatedBy: actorId || null,
                                             },
                                             type: QueryTypes.UPDATE,
@@ -289,8 +301,14 @@ class BuildingService {
                                     retainedUnitIds.push(u.id);
                                 } else {
                                     const newUnitRows = await db.query(`
-                                        INSERT INTO building_units (building_id, floor_id, floor_number, unit_number, area_value, area_unit_id, unit_use_type, created_by, updated_by)
-                                        VALUES (:buildingId, :floorId, :floorNumber, :unitNumber, :areaValue, :areaUnitId, :unitUseType, :createdBy, :createdBy)
+                                        INSERT INTO building_units (
+                                            building_id, floor_id, floor_number, unit_number, area_value, area_unit_id, unit_use_type,
+                                            is_rented, is_for_rent, created_by, updated_by
+                                        )
+                                        VALUES (
+                                            :buildingId, :floorId, :floorNumber, :unitNumber, :areaValue, :areaUnitId, :unitUseType,
+                                            :isRented, :isForRent, :createdBy, :createdBy
+                                        )
                                         RETURNING id`,
                                         {
                                             replacements: {
@@ -301,6 +319,8 @@ class BuildingService {
                                                 areaValue: u.areaValue ? parseFloat(u.areaValue) : null,
                                                 areaUnitId: u.areaUnitId || payload.areaUnitId || null,
                                                 unitUseType: u.unitUseType || 'Commercial',
+                                                isRented: u.isRented !== undefined ? Boolean(u.isRented) : false,
+                                                isForRent: u.isForRent !== undefined ? Boolean(u.isForRent) : true,
                                                 createdBy: actorId || null,
                                             },
                                             type: QueryTypes.INSERT,

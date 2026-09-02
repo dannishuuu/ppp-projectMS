@@ -3,13 +3,22 @@ const BuildingFloorModel = require('../../models/buildingFloor.model');
 
 class BuildingUnitService {
     static async getUnits(options = {}) {
-        const { page = 1, limit = 10, search = '', status = 'all', buildingId, floorId } = options;
+        const { page = 1, limit = 10, search = '', status = 'all', isRented = null, isForRent = null, buildingId, floorId } = options;
         const offset = (page - 1) * limit;
         let isActive = null;
         if (status === 'active') isActive = true;
         if (status === 'inactive') isActive = false;
 
-        const { rows, total } = await BuildingUnitModel.findAll({ limit, offset, search, isActive, buildingId, floorId });
+        const { rows, total } = await BuildingUnitModel.findAll({
+            limit,
+            offset,
+            search,
+            isActive,
+            isRented,
+            isForRent,
+            buildingId,
+            floorId
+        });
         return { units: rows, pagination: { total, page, limit, totalPages: Math.ceil(total / limit) } };
     }
 
@@ -20,7 +29,7 @@ class BuildingUnitService {
     }
 
     static async createUnit(payload, actorId) {
-        const { buildingId, floorId, floorNumber, unitNumber } = payload;
+        const { buildingId, floorId, floorNumber, unitNumber, isRented, isForRent } = payload;
 
         if (!buildingId) { const err = new Error('Building ID is required.'); err.status = 400; throw err; }
         if (!floorId) { const err = new Error('Floor ID is required.'); err.status = 400; throw err; }
@@ -38,7 +47,13 @@ class BuildingUnitService {
             throw err;
         }
 
-        return BuildingUnitModel.create({ ...payload, unitNumber: unitNumber.trim(), createdBy: actorId });
+        return BuildingUnitModel.create({
+            ...payload,
+            unitNumber: unitNumber.trim(),
+            isRented: isRented !== undefined ? Boolean(isRented) : false,
+            isForRent: isForRent !== undefined ? Boolean(isForRent) : true,
+            createdBy: actorId
+        });
     }
 
     static async updateUnit(id, payload, actorId) {
@@ -53,6 +68,28 @@ class BuildingUnitService {
         const result = await BuildingUnitModel.update(id, { isActive: !unit.is_active, updatedBy: actorId });
         if (!result) { const err = new Error('Failed to toggle status.'); err.status = 500; throw err; }
         return { message: `Unit "${unit.unit_number}" has been ${result.is_active ? 'activated' : 'deactivated'} successfully.`, is_active: result.is_active };
+    }
+
+    static async toggleUnitRented(id, actorId) {
+        const unit = await this.getUnitById(id);
+        const newRented = !unit.is_rented;
+        const result = await BuildingUnitModel.update(id, { isRented: newRented, updatedBy: actorId });
+        if (!result) { const err = new Error('Failed to update rented status.'); err.status = 500; throw err; }
+        return {
+            message: `Unit "${unit.unit_number}" marked as ${newRented ? 'Rented' : 'Vacant / Not Rented'}.`,
+            is_rented: result.is_rented
+        };
+    }
+
+    static async toggleUnitForRent(id, actorId) {
+        const unit = await this.getUnitById(id);
+        const newForRent = !unit.is_for_rent;
+        const result = await BuildingUnitModel.update(id, { isForRent: newForRent, updatedBy: actorId });
+        if (!result) { const err = new Error('Failed to update for-rent status.'); err.status = 500; throw err; }
+        return {
+            message: `Unit "${unit.unit_number}" is now ${newForRent ? 'Available for rent' : 'Not for rent'}.`,
+            is_for_rent: result.is_for_rent
+        };
     }
 
     static async deleteUnit(id, actorId) {

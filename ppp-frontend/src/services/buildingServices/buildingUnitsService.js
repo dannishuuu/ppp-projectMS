@@ -4,10 +4,12 @@ const BASE = '/building-units';
 
 export const buildingUnitsService = {
     async getUnits(options = {}) {
-        const { page = 1, limit = 10, search = '', status = 'all', buildingId, floorId } = options;
+        const { page = 1, limit = 10, search = '', status = 'all', isRented, isForRent, buildingId, floorId } = options;
         const params = new URLSearchParams({ page: page.toString(), limit: limit.toString(), search, status });
         if (buildingId) params.append('buildingId', buildingId);
         if (floorId) params.append('floorId', floorId);
+        if (isRented !== undefined && isRented !== null && isRented !== '') params.append('isRented', isRented.toString());
+        if (isForRent !== undefined && isForRent !== null && isForRent !== '') params.append('isForRent', isForRent.toString());
 
         const response = await apiClient.get(`${BASE}?${params.toString()}`);
         return response.data;
@@ -30,6 +32,16 @@ export const buildingUnitsService = {
 
     async toggleUnitStatus(id) {
         const response = await apiClient.patch(`${BASE}/${id}/toggle-status`, {});
+        return response.data;
+    },
+
+    async toggleUnitRented(id) {
+        const response = await apiClient.patch(`${BASE}/${id}/toggle-rented`, {});
+        return response.data;
+    },
+
+    async toggleUnitForRent(id) {
+        const response = await apiClient.patch(`${BASE}/${id}/toggle-for-rent`, {});
         return response.data;
     },
 

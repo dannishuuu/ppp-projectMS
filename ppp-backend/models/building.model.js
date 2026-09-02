@@ -30,7 +30,9 @@ const PUBLIC_BUILDING_FIELDS = `
   creator.first_name || ' ' || creator.last_name AS created_by_name,
   updater.first_name || ' ' || updater.last_name AS updated_by_name,
   (SELECT COUNT(*)::int FROM building_floors bf WHERE bf.building_id = b.id AND bf.is_deleted = false) AS floors_count,
-  (SELECT COUNT(*)::int FROM building_units bu WHERE bu.building_id = b.id AND bu.is_deleted = false) AS units_count
+  (SELECT COUNT(*)::int FROM building_units bu WHERE bu.building_id = b.id AND bu.is_deleted = false) AS units_count,
+  (SELECT COUNT(*)::int FROM building_units bu WHERE bu.building_id = b.id AND bu.is_deleted = false AND bu.is_rented = true) AS rented_units_count,
+  (SELECT COUNT(*)::int FROM building_units bu WHERE bu.building_id = b.id AND bu.is_deleted = false AND bu.is_for_rent = true AND bu.is_rented = false) AS available_units_count
 `;
 
 const BUILDING_JOINS = `

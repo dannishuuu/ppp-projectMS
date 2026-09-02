@@ -163,6 +163,8 @@ export const BuildingEditPage = () => {
                 unitNumber: u.unit_number || '',
                 unitUseType: u.unit_use_type || 'Commercial',
                 areaValue: u.area_value !== null && u.area_value !== undefined ? u.area_value.toString() : '',
+                isRented: Boolean(u.is_rented),
+                isForRent: u.is_for_rent !== undefined ? Boolean(u.is_for_rent) : true,
               }));
 
               // If unit items are fewer than expectedCount, add remaining unit templates
@@ -173,6 +175,8 @@ export const BuildingEditPage = () => {
                     unitNumber: `${f.floor_number}-${String(u).padStart(2, '0')}`,
                     unitUseType: 'Commercial',
                     areaValue: '',
+                    isRented: false,
+                    isForRent: true,
                   });
                 }
               }
@@ -199,6 +203,8 @@ export const BuildingEditPage = () => {
                   unitNumber: `${i}-${String(u).padStart(2, '0')}`,
                   unitUseType: 'Commercial',
                   areaValue: '',
+                  isRented: false,
+                  isForRent: true,
                 });
               }
               genFloors.push({
@@ -373,6 +379,8 @@ export const BuildingEditPage = () => {
         unitNumber: `${floor.floorNumber}-${String(nextIdx).padStart(2, '0')}`,
         unitUseType: 'Commercial',
         areaValue: '',
+        isRented: false,
+        isForRent: true,
       });
       floor.units = units;
       floor.expectedUnitCount = units.length;
@@ -447,6 +455,8 @@ export const BuildingEditPage = () => {
           unitUseType: u.unitUseType || 'Commercial',
           areaValue: u.areaValue ? parseFloat(u.areaValue) : null,
           areaUnitId: formData.areaUnitId || null,
+          isRented: u.isRented !== undefined ? Boolean(u.isRented) : false,
+          isForRent: u.isForRent !== undefined ? Boolean(u.isForRent) : true,
         })),
       })),
     };
@@ -928,10 +938,12 @@ export const BuildingEditPage = () => {
                                       <Table size="small">
                                         <TableHead sx={{ backgroundColor: '#f1f5f9' }}>
                                           <TableRow>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 60 }}>#</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', minWidth: 160 }}>UNIT NUMBER</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', minWidth: 180 }}>USE / SPACE TYPE</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 140 }}>AREA VALUE</TableCell>
+                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 50 }}>#</TableCell>
+                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', minWidth: 140 }}>UNIT NUMBER</TableCell>
+                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', minWidth: 160 }}>USE / SPACE TYPE</TableCell>
+                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 120 }}>AREA VALUE</TableCell>
+                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 110 }}>FOR RENT?</TableCell>
+                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 110 }}>RENTED?</TableCell>
                                             <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 60, textAlign: 'center' }}>ACTION</TableCell>
                                           </TableRow>
                                         </TableHead>
@@ -985,6 +997,41 @@ export const BuildingEditPage = () => {
                                                   inputProps={{ min: 0, step: 'any' }}
                                                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem' } }}
                                                 />
+                                              </TableCell>
+
+                                              <TableCell>
+                                                <TextField
+                                                  select
+                                                  size="small"
+                                                  fullWidth
+                                                  value={unit.isForRent !== false ? 'true' : 'false'}
+                                                  onChange={(e) => {
+                                                    const isForRent = e.target.value === 'true';
+                                                    handleUnitFieldChange(floorIndex, unitIndex, 'isForRent', isForRent);
+                                                    if (!isForRent) {
+                                                      handleUnitFieldChange(floorIndex, unitIndex, 'isRented', false);
+                                                    }
+                                                  }}
+                                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem' } }}
+                                                >
+                                                  <MenuItem value="true">Yes</MenuItem>
+                                                  <MenuItem value="false">No</MenuItem>
+                                                </TextField>
+                                              </TableCell>
+
+                                              <TableCell>
+                                                <TextField
+                                                  select
+                                                  size="small"
+                                                  fullWidth
+                                                  disabled={unit.isForRent === false}
+                                                  value={unit.isRented ? 'true' : 'false'}
+                                                  onChange={(e) => handleUnitFieldChange(floorIndex, unitIndex, 'isRented', e.target.value === 'true')}
+                                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem' } }}
+                                                >
+                                                  <MenuItem value="false">Vacant</MenuItem>
+                                                  <MenuItem value="true">Rented</MenuItem>
+                                                </TextField>
                                               </TableCell>
 
                                               <TableCell sx={{ textAlign: 'center' }}>

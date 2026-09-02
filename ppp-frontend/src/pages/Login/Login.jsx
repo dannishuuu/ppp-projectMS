@@ -110,7 +110,7 @@ export const Login = () => {
                 AA
               </Typography>
               <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.72rem', fontWeight: 500, letterSpacing: 1.2 }}>
-                PPP & CBR MANAGEMENT SYSTEM
+                CBR MANAGEMENT SYSTEM
               </Typography>
             </Box>
           </Box>
@@ -122,7 +122,7 @@ export const Login = () => {
               variant="h4"
               sx={{ color: '#fff', fontWeight: 800, lineHeight: 1.2, mb: 2, maxWidth: 420 }}
               >
-                PPP Projects & Corridor
+                Corridor
                 <br />
                 Building & Rental
                 <br />
@@ -130,14 +130,14 @@ export const Login = () => {
             </Typography>
 
             <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', lineHeight: 1.7, maxWidth: 380 }}>
-                Unified platform for Addis Ababa  PPP project management and
-                Corridor Development building & office rental operations.
+                Unified platform for Addis Ababa Corridor Development building 
+                & office rental operations.
             </Typography>
           </Box>
 
           {/* Feature pills */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
-            {['PPP project tracking', 'Building & office rental management', 'Multi-department operations'].map((item) => (
+            {['Building & office rental management', 'Multi-department operations'].map((item) => (
               <Box
                 key={item}
                 sx={{

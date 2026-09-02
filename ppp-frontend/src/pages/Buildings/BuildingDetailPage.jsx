@@ -30,6 +30,8 @@ import {
   TextField,
   MenuItem,
   LinearProgress,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -47,6 +49,8 @@ import {
   KeyboardArrowDown as ExpandIcon,
   KeyboardArrowUp as CollapseIcon,
   Info as InfoIcon,
+  VpnKey as KeyIcon,
+  HomeWork as RentalIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -98,6 +102,8 @@ export const BuildingDetailPage = () => {
     areaValue: '',
     areaUnitId: '',
     unitUseType: 'Commercial',
+    isRented: false,
+    isForRent: true,
   });
   const [unitModalSaving, setUnitModalSaving] = useState(false);
   const [unitModalError, setUnitModalError] = useState('');
@@ -252,6 +258,8 @@ export const BuildingDetailPage = () => {
       areaValue: '',
       areaUnitId: building.area_unit_id || (areaUnits.length > 0 ? areaUnits[0].id : ''),
       unitUseType: 'Commercial',
+      isRented: false,
+      isForRent: true,
     });
     setUnitModalOpen(true);
   };
@@ -266,6 +274,8 @@ export const BuildingDetailPage = () => {
       areaValue: unit.area_value !== null && unit.area_value !== undefined ? unit.area_value.toString() : '',
       areaUnitId: unit.area_unit_id || '',
       unitUseType: unit.unit_use_type || 'Commercial',
+      isRented: Boolean(unit.is_rented),
+      isForRent: unit.is_for_rent !== undefined ? Boolean(unit.is_for_rent) : true,
     });
     setUnitModalOpen(true);
   };
@@ -287,6 +297,8 @@ export const BuildingDetailPage = () => {
           areaValue: unitFormData.areaValue ? parseFloat(unitFormData.areaValue) : null,
           areaUnitId: unitFormData.areaUnitId || null,
           unitUseType: unitFormData.unitUseType || null,
+          isRented: unitFormData.isRented,
+          isForRent: unitFormData.isForRent,
         });
         enqueueSnackbar('Unit updated successfully', { variant: 'success' });
       } else {
@@ -298,6 +310,8 @@ export const BuildingDetailPage = () => {
           areaValue: unitFormData.areaValue ? parseFloat(unitFormData.areaValue) : null,
           areaUnitId: unitFormData.areaUnitId || null,
           unitUseType: unitFormData.unitUseType || null,
+          isRented: unitFormData.isRented,
+          isForRent: unitFormData.isForRent,
         });
         enqueueSnackbar('Unit created successfully', { variant: 'success' });
       }
@@ -307,6 +321,28 @@ export const BuildingDetailPage = () => {
       setUnitModalError(err.message || 'Failed to save unit');
     } finally {
       setUnitModalSaving(false);
+    }
+  };
+
+  const handleToggleUnitRented = async (unit, e) => {
+    e?.stopPropagation();
+    try {
+      const res = await buildingUnitsService.toggleUnitRented(unit.id);
+      enqueueSnackbar(res?.message || 'Rental status updated', { variant: 'success' });
+      fetchBuildingData();
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Failed to update rental status', { variant: 'error' });
+    }
+  };
+
+  const handleToggleUnitForRent = async (unit, e) => {
+    e?.stopPropagation();
+    try {
+      const res = await buildingUnitsService.toggleUnitForRent(unit.id);
+      enqueueSnackbar(res?.message || 'For-rent status updated', { variant: 'success' });
+      fetchBuildingData();
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Failed to update for-rent status', { variant: 'error' });
     }
   };
 
@@ -577,8 +613,14 @@ export const BuildingDetailPage = () => {
             <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a' }}>
               {units.length}
             </Typography>
-            <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-              Space units generated
+            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600, display: 'block' }}>
+              <Box component="span" sx={{ color: '#16a34a' }}>
+                {units.filter((u) => u.is_for_rent && !u.is_rented).length} Available
+              </Box>
+              {' • '}
+              <Box component="span" sx={{ color: '#4f46e5' }}>
+                {units.filter((u) => u.is_rented).length} Rented
+              </Box>
             </Typography>
           </Paper>
         </Grid>
@@ -626,160 +668,163 @@ export const BuildingDetailPage = () => {
 
         {/* TAB 0: General Overview */}
         {activeTab === 0 && (
-          <Box sx={{ p: 3 }}>
-            <Grid container spacing={3}>
-              {/* Left Column: Specifications & Location */}
-              <Grid item xs={12} md={7}>
-                <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 2, border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', mb: 1.5, textTransform: 'uppercase', fontSize: '0.8rem' }}>
-                    Architectural & Structural Details
+          <Box sx={{ p: 3, width: '100%' }}>
+            {/* Architectural & Structural Details */}
+            <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 2, border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', width: '100%' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', mb: 1.5, textTransform: 'uppercase', fontSize: '0.8rem' }}>
+                Architectural & Structural Details
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              <Grid container spacing={2}>
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    Building Type
                   </Typography>
-                  <Divider sx={{ mb: 2 }} />
-
-                  <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Building Type
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {building.building_type_name || '—'}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={6}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Year Built / Commissioned
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {building.year_built || '—'}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={6}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Total Floors
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {building.total_floors ? `${building.total_floors} Floor Levels` : '—'}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={6}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Total Construction Area
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {building.total_area_value ? `${building.total_area_value} ${building.area_unit_name || building.area_unit_code || ''}` : '—'}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Description & Notes
-                      </Typography>
-                      <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#ffffff', border: '1px solid #e2e8f0', minHeight: 60 }}>
-                        <Typography variant="body2" sx={{ color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
-                          {building.description || 'No description or remarks provided for this building.'}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  </Grid>
-                </Paper>
-
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', mb: 1.5, textTransform: 'uppercase', fontSize: '0.8rem' }}>
-                    Location & Jurisdiction
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                    {building.building_type_name || '—'}
                   </Typography>
-                  <Divider sx={{ mb: 2 }} />
+                </Grid>
 
-                  <Grid container spacing={2}>
-                    <Grid item xs={4}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Region
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {building.region_name || '—'}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={4}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Zone / Sub-city
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {building.zone_name || '—'}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={4}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Woreda
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {building.woreda_name || '—'}
-                      </Typography>
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Specific Address
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 500, color: '#334155' }}>
-                        {building.address || '—'}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </Paper>
-              </Grid>
-
-              {/* Right Column: Audit Trail */}
-              <Grid item xs={12} md={5}>
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', mb: 1.5, textTransform: 'uppercase', fontSize: '0.8rem' }}>
-                    Audit & Record History
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    Year Built / Commissioned
                   </Typography>
-                  <Divider sx={{ mb: 2 }} />
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                    {building.year_built || '—'}
+                  </Typography>
+                </Grid>
 
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Created By
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {building.created_by_name || 'System Admin'}
-                      </Typography>
-                    </Box>
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    Total Floors
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                    {building.total_floors ? `${building.total_floors} Floor Levels` : '—'}
+                  </Typography>
+                </Grid>
 
-                    <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Created At
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {formatDate(building.created_at)}
-                      </Typography>
-                    </Box>
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    Total Construction Area
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                    {building.total_area_value ? `${building.total_area_value} ${building.area_unit_name || building.area_unit_code || ''}` : '—'}
+                  </Typography>
+                </Grid>
 
-                    <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Last Updated By
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {building.updated_by_name || 'System Admin'}
-                      </Typography>
-                    </Box>
-
-                    <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
-                        Last Updated At
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
-                        {formatDate(building.updated_at)}
-                      </Typography>
-                    </Box>
+                <Grid item xs={12}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    Description & Notes
+                  </Typography>
+                  <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#ffffff', border: '1px solid #e2e8f0', minHeight: 60 }}>
+                    <Typography variant="body2" sx={{ color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                      {building.description || 'No description or remarks provided for this building.'}
+                    </Typography>
                   </Box>
-                </Paper>
+                </Grid>
               </Grid>
-            </Grid>
+            </Paper>
+
+            {/* Location & Jurisdiction */}
+            <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 2, border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', width: '100%' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', mb: 1.5, textTransform: 'uppercase', fontSize: '0.8rem' }}>
+                Location & Jurisdiction
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              <Grid container spacing={2}>
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    Region
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                    {building.region_name || '—'}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    Zone / Sub-city
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                    {building.zone_name || '—'}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    Woreda
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                    {building.woreda_name || '—'}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={6} sm={3}>
+                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    Specific Address
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500, color: '#334155' }}>
+                    {building.address || '—'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Audit & Record History */}
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', width: '100%' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', mb: 1.5, textTransform: 'uppercase', fontSize: '0.8rem' }}>
+                Audit & Record History
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+
+              <Grid container spacing={2}>
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#ffffff', border: '1px solid #e2e8f0', height: '100%' }}>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                      Created By
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                      {building.created_by_name || 'System Admin'}
+                    </Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#ffffff', border: '1px solid #e2e8f0', height: '100%' }}>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                      Created At
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                      {formatDate(building.created_at)}
+                    </Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#ffffff', border: '1px solid #e2e8f0', height: '100%' }}>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                      Last Updated By
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                      {building.updated_by_name || 'System Admin'}
+                    </Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#ffffff', border: '1px solid #e2e8f0', height: '100%' }}>
+                    <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                      Last Updated At
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#334155' }}>
+                      {formatDate(building.updated_at)}
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
           </Box>
         )}
 
@@ -796,11 +841,21 @@ export const BuildingDetailPage = () => {
                 </Typography>
               </Box>
 
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 <Chip
                   label={`${floors.length} Floors • ${units.length} Units`}
                   size="small"
                   sx={{ backgroundColor: '#eef2ff', color: '#4f46e5', fontWeight: 700, fontSize: '0.75rem' }}
+                />
+                <Chip
+                  label={`${units.filter((u) => u.is_for_rent && !u.is_rented).length} Available for Rent`}
+                  size="small"
+                  sx={{ backgroundColor: '#f0fdf4', color: '#16a34a', fontWeight: 700, fontSize: '0.75rem', border: '1px solid #bbf7d0' }}
+                />
+                <Chip
+                  label={`${units.filter((u) => u.is_rented).length} Currently Rented`}
+                  size="small"
+                  sx={{ backgroundColor: '#ede9fe', color: '#6d28d9', fontWeight: 700, fontSize: '0.75rem', border: '1px solid #ddd6fe' }}
                 />
                 <Button
                   variant="contained"
@@ -1042,6 +1097,60 @@ export const BuildingDetailPage = () => {
                                             </Box>
 
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                              {/* Rental Status Chip */}
+                                              {unit.is_rented ? (
+                                                <Tooltip title="Unit is currently occupied / rented out. Click to mark vacant.">
+                                                  <Chip
+                                                    label="Rented"
+                                                    size="small"
+                                                    onClick={(e) => handleToggleUnitRented(unit, e)}
+                                                    sx={{
+                                                      height: 18,
+                                                      fontSize: '0.62rem',
+                                                      fontWeight: 700,
+                                                      backgroundColor: '#ede9fe',
+                                                      color: '#6d28d9',
+                                                      border: '1px solid #ddd6fe',
+                                                      cursor: 'pointer',
+                                                    }}
+                                                  />
+                                                </Tooltip>
+                                              ) : !unit.is_for_rent ? (
+                                                <Tooltip title="Unit is not available for rental. Click to enable for rent.">
+                                                  <Chip
+                                                    label="Not For Rent"
+                                                    size="small"
+                                                    onClick={(e) => handleToggleUnitForRent(unit, e)}
+                                                    sx={{
+                                                      height: 18,
+                                                      fontSize: '0.62rem',
+                                                      fontWeight: 700,
+                                                      backgroundColor: '#f1f5f9',
+                                                      color: '#64748b',
+                                                      border: '1px solid #cbd5e1',
+                                                      cursor: 'pointer',
+                                                    }}
+                                                  />
+                                                </Tooltip>
+                                              ) : (
+                                                <Tooltip title="Unit is available for rent. Click to mark rented.">
+                                                  <Chip
+                                                    label="Available"
+                                                    size="small"
+                                                    onClick={(e) => handleToggleUnitRented(unit, e)}
+                                                    sx={{
+                                                      height: 18,
+                                                      fontSize: '0.62rem',
+                                                      fontWeight: 700,
+                                                      backgroundColor: '#f0fdf4',
+                                                      color: '#16a34a',
+                                                      border: '1px solid #bbf7d0',
+                                                      cursor: 'pointer',
+                                                    }}
+                                                  />
+                                                </Tooltip>
+                                              )}
+
                                               <Chip
                                                 label={unit.is_active ? 'Active' : 'Inactive'}
                                                 size="small"
@@ -1053,6 +1162,15 @@ export const BuildingDetailPage = () => {
                                                   color: unit.is_active ? '#15803d' : '#b91c1c',
                                                 }}
                                               />
+                                              <Tooltip title={unit.is_rented ? 'Mark as Vacant' : 'Mark as Rented'}>
+                                                <IconButton
+                                                  size="small"
+                                                  onClick={(e) => handleToggleUnitRented(unit, e)}
+                                                  sx={{ color: unit.is_rented ? '#6d28d9' : '#94a3b8', p: 0.5 }}
+                                                >
+                                                  <KeyIcon sx={{ fontSize: 14 }} />
+                                                </IconButton>
+                                              </Tooltip>
                                               <Tooltip title="Edit Unit">
                                                 <IconButton size="small" onClick={(e) => handleOpenEditUnit(unit, floor, e)} sx={{ color: '#64748b', p: 0.5 }}>
                                                   <EditIcon sx={{ fontSize: 14 }} />
@@ -1268,6 +1386,63 @@ export const BuildingDetailPage = () => {
                 </TextField>
               </Grid>
             </Grid>
+
+            {/* Rental & Leasing Status Options */}
+            <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Typography variant="caption" sx={{ fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Leasing & Availability Configuration
+              </Typography>
+              
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={unitFormData.isForRent}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setUnitFormData((p) => ({
+                        ...p,
+                        isForRent: checked,
+                        isRented: checked ? p.isRented : false,
+                      }));
+                    }}
+                    color="primary"
+                    size="small"
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.82rem', color: '#1e293b' }}>
+                      Available for Rent
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.72rem', display: 'block' }}>
+                      Designates whether this unit is open to be leased or rented out.
+                    </Typography>
+                  </Box>
+                }
+              />
+
+              <FormControlLabel
+                disabled={!unitFormData.isForRent}
+                control={
+                  <Switch
+                    checked={unitFormData.isRented}
+                    onChange={(e) => setUnitFormData((p) => ({ ...p, isRented: e.target.checked }))}
+                    color="secondary"
+                    size="small"
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.82rem', color: !unitFormData.isForRent ? '#94a3b8' : '#1e293b' }}>
+                      Currently Rented
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.72rem', display: 'block' }}>
+                      Indicates that this unit is currently occupied by an active tenant.
+                    </Typography>
+                  </Box>
+                }
+              />
+            </Box>
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>
             <Button onClick={() => setUnitModalOpen(false)} disabled={unitModalSaving} sx={{ textTransform: 'none' }}>

@@ -15,7 +15,9 @@ const PUBLIC_FLOOR_FIELDS = `
   bf.updated_by,
   ft.name AS floor_type_name,
   ft.code AS floor_type_code,
-  (SELECT COUNT(*)::int FROM building_units bu WHERE bu.floor_id = bf.id AND bu.is_deleted = false) AS units_count
+  (SELECT COUNT(*)::int FROM building_units bu WHERE bu.floor_id = bf.id AND bu.is_deleted = false) AS units_count,
+  (SELECT COUNT(*)::int FROM building_units bu WHERE bu.floor_id = bf.id AND bu.is_deleted = false AND bu.is_rented = true) AS rented_units_count,
+  (SELECT COUNT(*)::int FROM building_units bu WHERE bu.floor_id = bf.id AND bu.is_deleted = false AND bu.is_for_rent = true AND bu.is_rented = false) AS available_units_count
 `;
 
 class BuildingFloorModel {

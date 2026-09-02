@@ -10,6 +10,8 @@ const PUBLIC_UNIT_FIELDS = `
   bu.area_value,
   bu.area_unit_id,
   bu.unit_use_type,
+  bu.is_rented,
+  bu.is_for_rent,
   bu.is_active,
   bu.created_at,
   bu.updated_at,
@@ -22,11 +24,13 @@ const PUBLIC_UNIT_FIELDS = `
 
 class BuildingUnitModel {
     static async findAll(options = {}) {
-        const { limit = 100, offset = 0, search = '', isActive = null, buildingId = null, floorId = null, sortBy = 'unit_number' } = options;
+        const { limit = 100, offset = 0, search = '', isActive = null, isRented = null, isForRent = null, buildingId = null, floorId = null, sortBy = 'unit_number' } = options;
         let where = 'WHERE bu.is_deleted = false';
         const replacements = {};
 
         if (isActive !== null && isActive !== undefined) { where += ` AND bu.is_active = :isActive`; replacements.isActive = isActive; }
+        if (isRented !== null && isRented !== undefined) { where += ` AND bu.is_rented = :isRented`; replacements.isRented = isRented; }
+        if (isForRent !== null && isForRent !== undefined) { where += ` AND bu.is_for_rent = :isForRent`; replacements.isForRent = isForRent; }
         if (buildingId) { where += ` AND bu.building_id = :buildingId`; replacements.buildingId = buildingId; }
         if (floorId) { where += ` AND bu.floor_id = :floorId`; replacements.floorId = floorId; }
         if (search && search.trim()) { where += ` AND (bu.unit_number ILIKE :search OR bu.unit_use_type ILIKE :search)`; replacements.search = `%${search.trim()}%`; }
@@ -64,16 +68,34 @@ class BuildingUnitModel {
     }
 
     static async create(data) {
-        const { buildingId, floorId, floorNumber, unitNumber, areaValue, areaUnitId, unitUseType, createdBy } = data;
+        const { buildingId, floorId, floorNumber, unitNumber, areaValue, areaUnitId, unitUseType, isRented = false, isForRent = true, createdBy } = data;
         const rows = await db.query(`
-      INSERT INTO building_units (building_id, floor_id, floor_number, unit_number, area_value, area_unit_id, unit_use_type, created_by) 
-      VALUES (:buildingId, :floorId, :floorNumber, :unitNumber, :areaValue, :areaUnitId, :unitUseType, :createdBy) RETURNING *`,
-            { replacements: { buildingId, floorId, floorNumber, unitNumber, areaValue: areaValue || null, areaUnitId: areaUnitId || null, unitUseType: unitUseType || null, createdBy: createdBy || null }, type: QueryTypes.SELECT });
+      INSERT INTO building_units (
+        building_id, floor_id, floor_number, unit_number, area_value, area_unit_id, unit_use_type, is_rented, is_for_rent, created_by
+      ) 
+      VALUES (
+        :buildingId, :floorId, :floorNumber, :unitNumber, :areaValue, :areaUnitId, :unitUseType, :isRented, :isForRent, :createdBy
+      ) RETURNING *`,
+            {
+                replacements: {
+                    buildingId,
+                    floorId,
+                    floorNumber,
+                    unitNumber,
+                    areaValue: areaValue || null,
+                    areaUnitId: areaUnitId || null,
+                    unitUseType: unitUseType || null,
+                    isRented: Boolean(isRented),
+                    isForRent: isForRent !== undefined ? Boolean(isForRent) : true,
+                    createdBy: createdBy || null,
+                },
+                type: QueryTypes.SELECT,
+            });
         return rows[0];
     }
 
     static async update(id, data) {
-        const { floorId, floorNumber, unitNumber, areaValue, areaUnitId, unitUseType, isActive, updatedBy } = data;
+        const { floorId, floorNumber, unitNumber, areaValue, areaUnitId, unitUseType, isRented, isForRent, isActive, updatedBy } = data;
         const setClauses = []; const replacements = { id };
 
         if (floorId !== undefined) { setClauses.push('floor_id = :floorId'); replacements.floorId = floorId; }
@@ -82,6 +104,8 @@ class BuildingUnitModel {
         if (areaValue !== undefined) { setClauses.push('area_value = :areaValue'); replacements.areaValue = areaValue; }
         if (areaUnitId !== undefined) { setClauses.push('area_unit_id = :areaUnitId'); replacements.areaUnitId = areaUnitId; }
         if (unitUseType !== undefined) { setClauses.push('unit_use_type = :unitUseType'); replacements.unitUseType = unitUseType; }
+        if (isRented !== undefined) { setClauses.push('is_rented = :isRented'); replacements.isRented = Boolean(isRented); }
+        if (isForRent !== undefined) { setClauses.push('is_for_rent = :isForRent'); replacements.isForRent = Boolean(isForRent); }
         if (isActive !== undefined) { setClauses.push('is_active = :isActive'); replacements.isActive = isActive; }
         if (updatedBy !== undefined) { setClauses.push('updated_by = :updatedBy'); replacements.updatedBy = updatedBy; }
 
