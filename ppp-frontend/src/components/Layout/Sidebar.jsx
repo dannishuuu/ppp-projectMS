@@ -205,7 +205,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
               fontSize: '0.95rem',
             }}
           >
-            PPP & CBR Portal
+            CBR Portal
           </Typography>
           <Typography
             variant="caption"

@@ -52,13 +52,15 @@ class BuildingUnitService {
             unitNumber: unitNumber.trim(),
             isRented: isRented !== undefined ? Boolean(isRented) : false,
             isForRent: isForRent !== undefined ? Boolean(isForRent) : true,
+            isActive: payload.isActive !== undefined ? Boolean(payload.isActive) : true,
             createdBy: actorId
         });
     }
 
     static async updateUnit(id, payload, actorId) {
         await this.getUnitById(id);
-        const updated = await BuildingUnitModel.update(id, { ...payload, updatedBy: actorId });
+        const isActive = payload.isActive !== undefined ? Boolean(payload.isActive) : (payload.is_active !== undefined ? Boolean(payload.is_active) : undefined);
+        const updated = await BuildingUnitModel.update(id, { ...payload, isActive, updatedBy: actorId });
         if (!updated) { const err = new Error('No changes were applied.'); err.status = 400; throw err; }
         return this.getUnitById(id);
     }

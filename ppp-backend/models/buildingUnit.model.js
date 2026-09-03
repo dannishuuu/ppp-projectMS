@@ -68,13 +68,13 @@ class BuildingUnitModel {
     }
 
     static async create(data) {
-        const { buildingId, floorId, floorNumber, unitNumber, areaValue, areaUnitId, unitUseType, isRented = false, isForRent = true, createdBy } = data;
+        const { buildingId, floorId, floorNumber, unitNumber, areaValue, areaUnitId, unitUseType, isRented = false, isForRent = true, isActive = true, createdBy } = data;
         const rows = await db.query(`
       INSERT INTO building_units (
-        building_id, floor_id, floor_number, unit_number, area_value, area_unit_id, unit_use_type, is_rented, is_for_rent, created_by
+        building_id, floor_id, floor_number, unit_number, area_value, area_unit_id, unit_use_type, is_rented, is_for_rent, is_active, is_deleted, created_by
       ) 
       VALUES (
-        :buildingId, :floorId, :floorNumber, :unitNumber, :areaValue, :areaUnitId, :unitUseType, :isRented, :isForRent, :createdBy
+        :buildingId, :floorId, :floorNumber, :unitNumber, :areaValue, :areaUnitId, :unitUseType, :isRented, :isForRent, :isActive, false, :createdBy
       ) RETURNING *`,
             {
                 replacements: {
@@ -87,6 +87,7 @@ class BuildingUnitModel {
                     unitUseType: unitUseType || null,
                     isRented: Boolean(isRented),
                     isForRent: isForRent !== undefined ? Boolean(isForRent) : true,
+                    isActive: isActive !== undefined ? Boolean(isActive) : true,
                     createdBy: createdBy || null,
                 },
                 type: QueryTypes.SELECT,
@@ -106,13 +107,15 @@ class BuildingUnitModel {
         if (unitUseType !== undefined) { setClauses.push('unit_use_type = :unitUseType'); replacements.unitUseType = unitUseType; }
         if (isRented !== undefined) { setClauses.push('is_rented = :isRented'); replacements.isRented = Boolean(isRented); }
         if (isForRent !== undefined) { setClauses.push('is_for_rent = :isForRent'); replacements.isForRent = Boolean(isForRent); }
-        if (isActive !== undefined) { setClauses.push('is_active = :isActive'); replacements.isActive = isActive; }
+        if (isActive !== undefined) { setClauses.push('is_active = :isActive'); replacements.isActive = Boolean(isActive); }
         if (updatedBy !== undefined) { setClauses.push('updated_by = :updatedBy'); replacements.updatedBy = updatedBy; }
 
+        setClauses.push('is_deleted = false');
+        setClauses.push('deleted_at = NULL');
+        setClauses.push('deleted_by = NULL');
         setClauses.push('updated_at = NOW()');
-        if (setClauses.length === 1) return null;
 
-        const rows = await db.query(`UPDATE building_units SET ${setClauses.join(', ')} WHERE id = :id AND is_deleted = false RETURNING *`, { replacements, type: QueryTypes.SELECT });
+        const rows = await db.query(`UPDATE building_units SET ${setClauses.join(', ')} WHERE id = :id RETURNING *`, { replacements, type: QueryTypes.SELECT });
         return rows[0] || null;
     }
 

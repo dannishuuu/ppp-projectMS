@@ -104,6 +104,7 @@ export const BuildingDetailPage = () => {
     unitUseType: 'Commercial',
     isRented: false,
     isForRent: true,
+    isActive: true,
   });
   const [unitModalSaving, setUnitModalSaving] = useState(false);
   const [unitModalError, setUnitModalError] = useState('');
@@ -260,6 +261,7 @@ export const BuildingDetailPage = () => {
       unitUseType: 'Commercial',
       isRented: false,
       isForRent: true,
+      isActive: true,
     });
     setUnitModalOpen(true);
   };
@@ -276,8 +278,20 @@ export const BuildingDetailPage = () => {
       unitUseType: unit.unit_use_type || 'Commercial',
       isRented: Boolean(unit.is_rented),
       isForRent: unit.is_for_rent !== undefined ? Boolean(unit.is_for_rent) : true,
+      isActive: unit.is_active !== undefined ? Boolean(unit.is_active) : true,
     });
     setUnitModalOpen(true);
+  };
+
+  const handleToggleUnitStatus = async (unit, e) => {
+    e?.stopPropagation();
+    try {
+      const res = await buildingUnitsService.toggleUnitStatus(unit.id);
+      enqueueSnackbar(res?.message || 'Unit status updated successfully', { variant: 'success' });
+      fetchBuildingData();
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Failed to update unit status', { variant: 'error' });
+    }
   };
 
   const handleSaveUnit = async (e) => {
@@ -299,6 +313,7 @@ export const BuildingDetailPage = () => {
           unitUseType: unitFormData.unitUseType || null,
           isRented: unitFormData.isRented,
           isForRent: unitFormData.isForRent,
+          isActive: unitFormData.isActive !== undefined ? Boolean(unitFormData.isActive) : true,
         });
         enqueueSnackbar('Unit updated successfully', { variant: 'success' });
       } else {
@@ -312,6 +327,7 @@ export const BuildingDetailPage = () => {
           unitUseType: unitFormData.unitUseType || null,
           isRented: unitFormData.isRented,
           isForRent: unitFormData.isForRent,
+          isActive: unitFormData.isActive !== undefined ? Boolean(unitFormData.isActive) : true,
         });
         enqueueSnackbar('Unit created successfully', { variant: 'success' });
       }
@@ -1151,17 +1167,21 @@ export const BuildingDetailPage = () => {
                                                 </Tooltip>
                                               )}
 
-                                              <Chip
-                                                label={unit.is_active ? 'Active' : 'Inactive'}
-                                                size="small"
-                                                sx={{
-                                                  height: 18,
-                                                  fontSize: '0.62rem',
-                                                  fontWeight: 700,
-                                                  backgroundColor: unit.is_active ? '#dcfce7' : '#fee2e2',
-                                                  color: unit.is_active ? '#15803d' : '#b91c1c',
-                                                }}
-                                              />
+                                              <Tooltip title="Click to toggle Active / Inactive status">
+                                                <Chip
+                                                  label={unit.is_active ? 'Active' : 'Inactive'}
+                                                  size="small"
+                                                  onClick={(e) => handleToggleUnitStatus(unit, e)}
+                                                  sx={{
+                                                    height: 18,
+                                                    fontSize: '0.62rem',
+                                                    fontWeight: 700,
+                                                    backgroundColor: unit.is_active ? '#dcfce7' : '#fee2e2',
+                                                    color: unit.is_active ? '#15803d' : '#b91c1c',
+                                                    cursor: 'pointer',
+                                                  }}
+                                                />
+                                              </Tooltip>
                                               <Tooltip title={unit.is_rented ? 'Mark as Vacant' : 'Mark as Rented'}>
                                                 <IconButton
                                                   size="small"

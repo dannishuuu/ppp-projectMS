@@ -142,6 +142,15 @@ class BuildingService {
                 }
             }
 
+            // Ensure total_floors in buildings matches the count of active floors
+            await db.query(`
+                UPDATE buildings SET
+                    total_floors = (SELECT COUNT(*)::int FROM building_floors WHERE building_id = :buildingId AND is_deleted = false),
+                    updated_at = NOW()
+                WHERE id = :buildingId`,
+                { replacements: { buildingId: building.id }, type: QueryTypes.UPDATE, transaction }
+            );
+
             await transaction.commit();
             return { building, floorsCreated, unitsCreated };
         } catch (err) {
@@ -279,9 +288,13 @@ class BuildingService {
                                             unit_use_type = :unitUseType,
                                             is_rented = COALESCE(:isRented, is_rented),
                                             is_for_rent = COALESCE(:isForRent, is_for_rent),
+                                            is_active = COALESCE(:isActive, is_active),
+                                            is_deleted = false,
+                                            deleted_at = NULL,
+                                            deleted_by = NULL,
                                             updated_by = :updatedBy,
                                             updated_at = NOW()
-                                        WHERE id = :unitId AND is_deleted = false`,
+                                        WHERE id = :unitId`,
                                         {
                                             replacements: {
                                                 unitId: u.id,
@@ -292,6 +305,7 @@ class BuildingService {
                                                 unitUseType: u.unitUseType || 'Commercial',
                                                 isRented: u.isRented !== undefined ? Boolean(u.isRented) : null,
                                                 isForRent: u.isForRent !== undefined ? Boolean(u.isForRent) : null,
+                                                isActive: u.isActive !== undefined ? Boolean(u.isActive) : null,
                                                 updatedBy: actorId || null,
                                             },
                                             type: QueryTypes.UPDATE,
@@ -303,11 +317,11 @@ class BuildingService {
                                     const newUnitRows = await db.query(`
                                         INSERT INTO building_units (
                                             building_id, floor_id, floor_number, unit_number, area_value, area_unit_id, unit_use_type,
-                                            is_rented, is_for_rent, created_by, updated_by
+                                            is_rented, is_for_rent, is_active, is_deleted, created_by, updated_by
                                         )
                                         VALUES (
                                             :buildingId, :floorId, :floorNumber, :unitNumber, :areaValue, :areaUnitId, :unitUseType,
-                                            :isRented, :isForRent, :createdBy, :createdBy
+                                            :isRented, :isForRent, COALESCE(:isActive, true), false, :createdBy, :createdBy
                                         )
                                         RETURNING id`,
                                         {
@@ -321,12 +335,17 @@ class BuildingService {
                                                 unitUseType: u.unitUseType || 'Commercial',
                                                 isRented: u.isRented !== undefined ? Boolean(u.isRented) : false,
                                                 isForRent: u.isForRent !== undefined ? Boolean(u.isForRent) : true,
+                                                isActive: u.isActive !== undefined ? Boolean(u.isActive) : true,
                                                 createdBy: actorId || null,
                                             },
-                                            type: QueryTypes.INSERT,
+                                            type: QueryTypes.SELECT,
                                             transaction,
                                         }
                                     );
+                                    const insertedId = newUnitRows[0]?.id;
+                                    if (insertedId) {
+                                        retainedUnitIds.push(insertedId);
+                                    }
                                 }
                             }
                         }
@@ -359,6 +378,15 @@ class BuildingService {
                     );
                 }
             }
+
+            // Ensure total_floors in buildings matches the count of active floors
+            await db.query(`
+                UPDATE buildings SET
+                    total_floors = (SELECT COUNT(*)::int FROM building_floors WHERE building_id = :buildingId AND is_deleted = false),
+                    updated_at = NOW()
+                WHERE id = :buildingId`,
+                { replacements: { buildingId: id }, type: QueryTypes.UPDATE, transaction }
+            );
 
             await transaction.commit();
             return this.getBuildingById(id);
