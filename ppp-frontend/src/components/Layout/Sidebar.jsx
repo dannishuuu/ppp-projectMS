@@ -41,6 +41,8 @@ import {
   Straighten as AreaUnitIcon,
   Layers as FloorTypeIcon,
   Domain as BuildingNavIcon,
+  Description as ContractNavIcon,
+  PostAdd as NewContractIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProjects } from '../../context/ProjectContext';
@@ -65,6 +67,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types') ? 'organizations' :
     location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/foundation/') ? 'foundation' :
     location.pathname.startsWith('/document-sequences') ? 'docmgmt' :
+    location.pathname.startsWith('/contracts') ? 'contracts' :
     null
   );
 
@@ -101,6 +104,11 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     { text: 'New Building', icon: <AddIcon />, path: '/buildings/new' },
   ];
 
+  const contractSubItems = [
+    { text: 'Contracts List', icon: <ContractNavIcon />, path: '/contracts' },
+    { text: 'New Contract', icon: <NewContractIcon />, path: '/contracts/new' },
+  ];
+
   const foundationSubItems = [
     { text: 'Organization Types', icon: <CategoryIcon />, path: '/organization-types' },
     { text: 'Tracking Types', icon: <CategoryIcon />, path: '/projects/tracking-types' },
@@ -127,6 +135,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const isUsersGroupActive = location.pathname.startsWith('/users');
   const isOrgGroupActive = location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types');
   const isBuildingsGroupActive = location.pathname.startsWith('/buildings');
+  const isContractsGroupActive = location.pathname.startsWith('/contracts');
   const isFoundationGroupActive = location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/payment-timings') || location.pathname.startsWith('/rental-payment-types') || location.pathname.startsWith('/area-units') || location.pathname.startsWith('/floor-types') || location.pathname.startsWith('/foundation/');
   const isDocMgmtGroupActive = location.pathname.startsWith('/document-sequences');
 
@@ -563,6 +572,93 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
                 }}
               >
                 {filterSubItems(buildingSubItems).map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <ListItem key={item.text} disablePadding>
+                      <ListItemButton
+                        onClick={() => handleNavigate(item.path)}
+                        sx={{
+                          borderRadius: '10px',
+                          py: 0.85,
+                          px: 1.5,
+                          backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+                          color: isActive ? '#a5b4fc' : '#94a3b8',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                            color: '#ffffff',
+                            transform: 'translateX(4px)',
+                          },
+                        }}
+                      >
+                        <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
+                          {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.text}
+                          primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </Collapse>
+          </ListItem>
+
+          {/* Rental Contracts Group */}
+          <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+            <ListItemButton
+              onClick={() => handleMenuToggle('contracts')}
+              sx={{
+                borderRadius: '12px',
+                py: 1.1,
+                px: 1.75,
+                backgroundColor: isContractsGroupActive && !isMenuOpen('contracts') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                color: isContractsGroupActive ? '#ffffff' : '#cbd5e1',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                borderLeft: isContractsGroupActive ? '3px solid #818cf8' : '3px solid transparent',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                  color: '#ffffff',
+                  transform: 'translateX(3px)',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: isContractsGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
+                <ContractNavIcon sx={{ fontSize: 20 }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Rental Contracts"
+                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isContractsGroupActive ? 700 : 500 }}
+              />
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  transition: 'transform 0.2s ease',
+                  transform: isMenuOpen('contracts') ? 'rotate(180deg)' : 'rotate(0deg)',
+                }}
+              >
+                <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
+              </Box>
+            </ListItemButton>
+
+            <Collapse in={isMenuOpen('contracts')} timeout="auto" unmountOnExit>
+              <List
+                disablePadding
+                sx={{
+                  ml: 2.2,
+                  pl: 1.5,
+                  pt: 0.6,
+                  pb: 0.6,
+                  borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0.4,
+                }}
+              >
+                {filterSubItems(contractSubItems).map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
                     <ListItem key={item.text} disablePadding>
