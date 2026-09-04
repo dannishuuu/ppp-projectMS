@@ -8,6 +8,7 @@ class DocumentSequenceService {
   static DEFAULTS = {
     project_proposal: { prefix: 'PROP-', paddingLength: 4, resetYearly: true },
     ppp_project:      { prefix: 'PROJ-', paddingLength: 4, resetYearly: true },
+    contract_number:  { prefix: 'RC-',   paddingLength: 4, resetYearly: true },
   };
 
   /**

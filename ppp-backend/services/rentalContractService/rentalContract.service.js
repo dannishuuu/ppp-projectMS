@@ -4,6 +4,7 @@ const RentalContractModel = require('../../models/rentalContract.model');
 const BuildingUnitModel = require('../../models/buildingUnit.model');
 const RentalPaymentTypeModel = require('../../models/rentalPaymentType.model');
 const RentalPaymentsModel = require('../../models/rentalPayments.model');
+const DocumentSequenceService = require('../projectService/documentSequence.service');
 
 class RentalContractService {
   static async getContracts(options = {}) {
@@ -60,7 +61,6 @@ class RentalContractService {
       tenantOrganizationId,
       rentalPaymentTypeId,
       paymentTimingId,
-      contractNumber,
       contractStartDate,
       contractEndDate,
       rentAmountTotalPerMonth,
@@ -76,7 +76,6 @@ class RentalContractService {
     if (!unitId) throw this._validationError('unitId is required');
     if (!rentalPaymentTypeId) throw this._validationError('rentalPaymentTypeId is required');
     if (!paymentTimingId) throw this._validationError('paymentTimingId is required');
-    if (!contractNumber || !contractNumber.trim()) throw this._validationError('contractNumber is required');
     if (!contractStartDate) throw this._validationError('contractStartDate is required');
     if (!contractEndDate) throw this._validationError('contractEndDate is required');
     if (new Date(contractEndDate) < new Date(contractStartDate)) {
@@ -86,13 +85,8 @@ class RentalContractService {
       throw this._validationError('rentAmountTotalPerMonth must be a valid positive number');
     }
 
-    // 2. Uniqueness check for contract number
-    const existing = await RentalContractModel.findByContractNumber(contractNumber.trim());
-    if (existing) {
-      const err = new Error(`Contract with number "${contractNumber.trim()}" already exists`);
-      err.status = 409;
-      throw err;
-    }
+    // 2. Auto-generate contract number via document sequences
+    const contractNumber = await DocumentSequenceService.generateNextNumber('contract_number', actorId);
 
     // 3. Unit validation & snapshot
     const unit = await BuildingUnitModel.findById(unitId);
@@ -360,13 +354,15 @@ class RentalContractService {
   }
 
   static async _generateScheduleForContract(contract, transaction, actorId) {
-    const paymentType = await RentalPaymentTypeModel.findById(contract.rental_payment_type_id);
-    const durationDays = paymentType?.duration_days ? parseInt(paymentType.duration_days, 10) : 30;
+    if (!contract) return;
+    const paymentTypeId = contract.rental_payment_type_id || contract.rentalPaymentTypeId;
+    const paymentType = paymentTypeId ? await RentalPaymentTypeModel.findById(paymentTypeId) : null;
+    const durationDays = paymentType?.duration_days ? parseInt(paymentType.duration_days, 10) : (contract.payment_duration_days || 30);
     const intervalDays = durationDays > 0 ? durationDays : 30;
 
-    const startDate = new Date(contract.contract_start_date);
-    const endDate = new Date(contract.contract_end_date);
-    const monthlyRent = parseFloat(contract.rent_amount_total_per_month) || 0;
+    const startDate = new Date(contract.contract_start_date || contract.contractStartDate);
+    const endDate = new Date(contract.contract_end_date || contract.contractEndDate);
+    const monthlyRent = parseFloat(contract.rent_amount_total_per_month || contract.rentAmountTotalPerMonth) || 0;
     // Amount per cycle based on duration ratio (assuming monthly rent = 30 days)
     const amountPerCycle = parseFloat(((monthlyRent / 30) * intervalDays).toFixed(2));
 

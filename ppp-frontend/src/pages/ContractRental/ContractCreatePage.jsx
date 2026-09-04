@@ -118,7 +118,6 @@ export const ContractCreatePage = () => {
     floorId: queryFloorId,
     unitId: queryUnitId,
     tenantOrganizationId: queryTenantId,
-    contractNumber: '',
     contractStartDate: new Date().toISOString().split('T')[0],
     contractEndDate: '',
     rentalPaymentTypeId: '',
@@ -129,6 +128,10 @@ export const ContractCreatePage = () => {
     isActive: true,
     generateSchedule: true,
   };
+
+  // Lease duration inputs (year + month fields)
+  const [leaseDurationYears, setLeaseDurationYears] = useState('');
+  const [leaseDurationMonths, setLeaseDurationMonths] = useState('');
 
   const [formData, setFormData] = useState(initialFormState);
 
@@ -183,16 +186,6 @@ export const ContractCreatePage = () => {
           if (!next.paymentTimingId && pTimings.length > 0) {
             const advance = pTimings.find((p) => p.name.toLowerCase().includes('advance')) || pTimings[0];
             next.paymentTimingId = advance.id;
-          }
-          if (!next.contractNumber) {
-            const randomNum = Math.floor(1000 + Math.random() * 9000);
-            next.contractNumber = `RC-${new Date().getFullYear()}-${randomNum}`;
-          }
-          // Default 1 year duration
-          if (!next.contractEndDate) {
-            const end = new Date();
-            end.setFullYear(end.getFullYear() + 1);
-            next.contractEndDate = end.toISOString().split('T')[0];
           }
           return next;
         });
@@ -278,7 +271,7 @@ export const ContractCreatePage = () => {
     }
   }, [formData.unitId, units]);
 
-  // Handle auto-calculating Rent per m² vs Total Monthly Rent
+  // Handle auto-calculating Total Monthly Rent from Rent per m² × unit area
   const handlePerSqmChange = (val) => {
     setFormData((p) => {
       const next = { ...p, rentAmountPerSquareMeter: val };
@@ -287,21 +280,11 @@ export const ContractCreatePage = () => {
         const rate = parseFloat(val);
         if (!isNaN(area) && !isNaN(rate) && area > 0) {
           next.rentAmountTotalPerMonth = (area * rate).toFixed(2);
+        } else {
+          next.rentAmountTotalPerMonth = '';
         }
-      }
-      return next;
-    });
-  };
-
-  const handleTotalMonthlyChange = (val) => {
-    setFormData((p) => {
-      const next = { ...p, rentAmountTotalPerMonth: val };
-      if (selectedUnit?.area_value && val !== '') {
-        const area = parseFloat(selectedUnit.area_value);
-        const total = parseFloat(val);
-        if (!isNaN(area) && !isNaN(total) && area > 0) {
-          next.rentAmountPerSquareMeter = (total / area).toFixed(2);
-        }
+      } else {
+        next.rentAmountTotalPerMonth = '';
       }
       return next;
     });
@@ -311,31 +294,52 @@ export const ContractCreatePage = () => {
     const val = e.target.value;
     if (field === 'rentAmountPerSquareMeter') {
       handlePerSqmChange(val);
-    } else if (field === 'rentAmountTotalPerMonth') {
-      handleTotalMonthlyChange(val);
     } else {
       setFormData((p) => ({ ...p, [field]: val }));
     }
     if (errorMsg) setErrorMsg('');
   };
 
-  // Quick Duration Preset click handler
-  const handleApplyDuration = (months) => {
-    const startDate = formData.contractStartDate ? new Date(formData.contractStartDate) : new Date();
-    const endDate = new Date(startDate);
-    endDate.setMonth(endDate.getMonth() + months);
-    endDate.setDate(endDate.getDate() - 1); // standard end of term
-    setFormData((p) => ({
-      ...p,
-      contractEndDate: endDate.toISOString().split('T')[0],
-    }));
+  // Recalculate end date from start + years + months fields
+  const recalcEndDate = (startDate, years, months) => {
+    const y = parseInt(years, 10) || 0;
+    const m = parseInt(months, 10) || 0;
+    if (!startDate || (y === 0 && m === 0)) return '';
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setFullYear(end.getFullYear() + y);
+    end.setMonth(end.getMonth() + m);
+    end.setDate(end.getDate() - 1); // day before = standard end
+    return end.toISOString().split('T')[0];
   };
 
-  // Generate a new contract number
-  const handleGenerateContractNumber = () => {
-    const randomCode = Math.floor(1000 + Math.random() * 9000);
-    const yr = new Date().getFullYear();
-    setFormData((p) => ({ ...p, contractNumber: `RC-${yr}-${randomCode}` }));
+  const handleDurationYearChange = (e) => {
+    const raw = e.target.value;
+    // Only allow positive integers
+    if (raw !== '' && (!/^\d+$/.test(raw) || parseInt(raw, 10) < 1)) return;
+    setLeaseDurationYears(raw);
+    const newEnd = recalcEndDate(formData.contractStartDate, raw, leaseDurationMonths);
+    setFormData((p) => ({ ...p, contractEndDate: newEnd }));
+    if (errorMsg) setErrorMsg('');
+  };
+
+  const handleDurationMonthChange = (e) => {
+    const raw = e.target.value;
+    // Only allow positive integers, max 12
+    if (raw !== '' && (!/^\d+$/.test(raw) || parseInt(raw, 10) < 1 || parseInt(raw, 10) > 12)) return;
+    setLeaseDurationMonths(raw);
+    const newEnd = recalcEndDate(formData.contractStartDate, leaseDurationYears, raw);
+    setFormData((p) => ({ ...p, contractEndDate: newEnd }));
+    if (errorMsg) setErrorMsg('');
+  };
+
+  const handleStartDateChange = (e) => {
+    const newStart = e.target.value;
+    setFormData((p) => {
+      const newEnd = recalcEndDate(newStart, leaseDurationYears, leaseDurationMonths);
+      return { ...p, contractStartDate: newStart, contractEndDate: newEnd };
+    });
+    if (errorMsg) setErrorMsg('');
   };
 
   // Calculate lease term duration in months and days
@@ -433,16 +437,19 @@ export const ContractCreatePage = () => {
     if (!formData.floorId) return 'Please select a floor level.';
     if (!formData.unitId) return 'Please select a specific unit.';
     if (selectedUnit?.is_rented) return 'The selected unit is already leased under an active contract.';
-    if (!formData.contractNumber.trim()) return 'Contract reference number is required.';
     if (!formData.contractStartDate) return 'Contract start date is required.';
-    if (!formData.contractEndDate) return 'Contract end date is required.';
+    if (!leaseDurationYears && !leaseDurationMonths) return 'Please enter at least years or months for the lease term.';
+    if (!formData.contractEndDate) return 'Lease end date could not be calculated.';
     if (new Date(formData.contractEndDate) <= new Date(formData.contractStartDate)) {
       return 'Contract end date must be strictly after the start date.';
     }
     if (!formData.rentalPaymentTypeId) return 'Please select a payment frequency (Rental Payment Type).';
     if (!formData.paymentTimingId) return 'Please select payment timing (e.g. In Advance).';
+    if (!formData.rentAmountPerSquareMeter || parseFloat(formData.rentAmountPerSquareMeter) <= 0) {
+      return 'Please specify a valid rent per square meter greater than 0.';
+    }
     if (!formData.rentAmountTotalPerMonth || parseFloat(formData.rentAmountTotalPerMonth) <= 0) {
-      return 'Please specify a valid monthly rent amount greater than 0.';
+      return 'Total monthly rent could not be calculated. Please ensure a unit with area is selected.';
     }
     return null;
   };
@@ -470,7 +477,6 @@ export const ContractCreatePage = () => {
         unitNumber: selectedUnit?.unit_number ?? null,
         areaValue: selectedUnit?.area_value ? parseFloat(selectedUnit.area_value) : null,
         tenantOrganizationId: formData.tenantOrganizationId || null,
-        contractNumber: formData.contractNumber.trim(),
         contractStartDate: formData.contractStartDate,
         contractEndDate: formData.contractEndDate,
         rentalPaymentTypeId: formData.rentalPaymentTypeId,
@@ -506,12 +512,16 @@ export const ContractCreatePage = () => {
     if (organizations.length > 0 && !formData.tenantOrganizationId) {
       setFormData((p) => ({ ...p, tenantOrganizationId: organizations[0].id }));
     }
-    handleGenerateContractNumber();
-    handleApplyDuration(12);
+    const newYears = '1';
+    const newMonths = '';
+    setLeaseDurationYears(newYears);
+    setLeaseDurationMonths(newMonths);
+    const newEnd = recalcEndDate(formData.contractStartDate, newYears, newMonths);
     setFormData((p) => ({
       ...p,
+      contractEndDate: newEnd,
       rentAmountPerSquareMeter: '200.00',
-      rentAmountTotalPerMonth: '20000.00',
+      rentAmountTotalPerMonth: '',
       remarks: 'Standard Commercial Lease Agreement. Includes access to shared facilities.',
     }));
     enqueueSnackbar('Populated sample lease values for testing', { variant: 'info' });
@@ -651,37 +661,71 @@ export const ContractCreatePage = () => {
                 />
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
-                  {/* Building Selection */}
+                  {/* Building Selection — searchable Autocomplete */}
                   <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Target Building <span style={{ color: '#dc2626' }}>*</span>
                     </Typography>
-                    <TextField
-                      select
+                    <Autocomplete
                       fullWidth
                       size="small"
-                      value={formData.buildingId}
-                      onChange={handleChange('buildingId')}
                       disabled={saving || loadingLookups}
-                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
-                    >
-                      <MenuItem value="" disabled>
-                        Select Building...
-                      </MenuItem>
-                      {buildings.map((b) => (
-                        <MenuItem key={b.id} value={b.id}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <BuildingIcon sx={{ fontSize: 16, color: '#6366f1' }} />
-                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{b.name}</Typography>
-                            {b.address && (
-                              <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                                • {b.address}
+                      options={buildings}
+                      getOptionLabel={(option) => {
+                        if (typeof option === 'string') return option;
+                        return option?.name || '';
+                      }}
+                      isOptionEqualToValue={(option, val) => option?.id === (val?.id || val)}
+                      value={selectedBuilding}
+                      onChange={(event, newValue) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          buildingId: newValue ? newValue.id : '',
+                          floorId: '',
+                          unitId: '',
+                        }));
+                        setFloors([]);
+                        setUnits([]);
+                        setSelectedUnit(null);
+                        if (errorMsg) setErrorMsg('');
+                      }}
+                      renderOption={(props, option) => {
+                        const { key, ...restProps } = props;
+                        return (
+                          <Box component="li" key={option.id || key} {...restProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.25, py: 1 }}>
+                            <BuildingIcon sx={{ fontSize: 18, color: '#4f46e5', flexShrink: 0 }} />
+                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>
+                                {option.name}
                               </Typography>
-                            )}
+                              {option.address && (
+                                <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
+                                  {option.address}
+                                </Typography>
+                              )}
+                            </Box>
                           </Box>
-                        </MenuItem>
-                      ))}
-                    </TextField>
+                        );
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder="Search & select building..."
+                          sx={{
+                            width: '100%',
+                            '& .MuiOutlinedInput-root': {
+                              width: '100%',
+                              borderRadius: 2,
+                              backgroundColor: '#ffffff',
+                            },
+                          }}
+                        />
+                      )}
+                      sx={{
+                        width: '100%',
+                        '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 },
+                      }}
+                    />
                   </Box>
 
                   {/* Floor Level Selection */}
@@ -1029,49 +1073,33 @@ export const ContractCreatePage = () => {
                 />
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
-                  {/* Contract Number */}
-                  <Box sx={{ width: '100%' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
-                      <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155' }}>
-                        Contract Reference Number <span style={{ color: '#dc2626' }}>*</span>
-                      </Typography>
-                      <Button
-                        size="small"
-                        startIcon={<AutoIcon sx={{ fontSize: 14 }} />}
-                        onClick={handleGenerateContractNumber}
-                        sx={{ fontSize: '0.72rem', textTransform: 'none', color: '#4f46e5', fontWeight: 700, p: 0 }}
-                      >
-                        Auto-Generate Ref
-                      </Button>
-                    </Box>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      placeholder="e.g. RC-2026-0042"
-                      value={formData.contractNumber}
-                      onChange={handleChange('contractNumber')}
-                      disabled={saving}
-                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
-                    />
-                  </Box>
-
-                  {/* Quick Duration Term Chip */}
-                  <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                  {/* Contract Reference Number — backend-generated, display only */}
+                  <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Calculated Duration
+                      Contract Reference Number
                     </Typography>
-                    <Box sx={{ height: 40, width: '100%', borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', px: 2, backgroundColor: '#f8fafc', justifyContent: 'space-between' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ScheduleIcon sx={{ fontSize: 16, color: '#4f46e5' }} />
-                        <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>
-                          {termCalculations.totalMonths > 0 && termCalculations.isValidRange
-                            ? `${termCalculations.totalMonths} Months (${termCalculations.totalDays} Days)`
-                            : 'Set start & end dates'}
-                        </Typography>
-                      </Box>
-                      {termCalculations.totalMonths > 0 && (
-                        <Chip label="Valid" size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#dcfce7', color: '#15803d' }} />
-                      )}
+                    <Box
+                      sx={{
+                        height: 40,
+                        width: '100%',
+                        borderRadius: 2,
+                        border: '1px dashed #c7d2fe',
+                        backgroundColor: '#f8faff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        px: 2,
+                        gap: 1,
+                      }}
+                    >
+                      <AutoIcon sx={{ fontSize: 15, color: '#6366f1' }} />
+                      <Typography sx={{ fontSize: '0.78rem', color: '#6366f1', fontWeight: 700 }}>
+                        Auto-generated by system on contract creation
+                      </Typography>
+                      <Chip
+                        label="RC-YYYY-XXXX"
+                        size="small"
+                        sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#e0e7ff', color: '#4338ca', ml: 'auto' }}
+                      />
                     </Box>
                   </Box>
 
@@ -1085,58 +1113,109 @@ export const ContractCreatePage = () => {
                       size="small"
                       type="date"
                       value={formData.contractStartDate}
-                      onChange={handleChange('contractStartDate')}
+                      onChange={handleStartDateChange}
                       disabled={saving}
                       sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                     />
                   </Box>
 
-                  {/* End Date */}
+                  {/* Quick Term: Year + Month integer inputs */}
+                  <Box sx={{ width: '100%' }}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
+                      Quick Term <span style={{ color: '#dc2626' }}>*</span>
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <TextField
+                        size="small"
+                        type="number"
+                        placeholder="Years"
+                        value={leaseDurationYears}
+                        onChange={handleDurationYearChange}
+                        disabled={saving}
+                        inputProps={{ min: 1, step: 1 }}
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <Typography sx={{ fontSize: '0.72rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>yr</Typography>
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{ width: '50%', '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      />
+                      <TextField
+                        size="small"
+                        type="number"
+                        placeholder="Months"
+                        value={leaseDurationMonths}
+                        onChange={handleDurationMonthChange}
+                        disabled={saving}
+                        inputProps={{ min: 1, max: 12, step: 1 }}
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <Typography sx={{ fontSize: '0.72rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>mo</Typography>
+                            </InputAdornment>
+                          ),
+                        }}
+                        sx={{ width: '50%', '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      />
+                    </Box>
+                  </Box>
+
+                  {/* Contract End Date — read-only, auto-calculated */}
                   <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Contract End Date <span style={{ color: '#dc2626' }}>*</span>
                     </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="date"
-                      value={formData.contractEndDate}
-                      onChange={handleChange('contractEndDate')}
-                      disabled={saving}
-                      error={!termCalculations.isValidRange}
-                      helperText={!termCalculations.isValidRange ? 'End date must be after start date' : ''}
-                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
-                    />
+                    <Box
+                      sx={{
+                        height: 40,
+                        width: '100%',
+                        borderRadius: 2,
+                        border: formData.contractEndDate && termCalculations.isValidRange ? '1px solid #bbf7d0' : '1px dashed #cbd5e1',
+                        backgroundColor: formData.contractEndDate && termCalculations.isValidRange ? '#f0fdf4' : '#f8fafc',
+                        display: 'flex',
+                        alignItems: 'center',
+                        px: 2,
+                        gap: 1,
+                      }}
+                    >
+                      <CalendarIcon sx={{ fontSize: 15, color: formData.contractEndDate ? '#16a34a' : '#94a3b8' }} />
+                      <Typography
+                        sx={{
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          color: formData.contractEndDate && termCalculations.isValidRange ? '#15803d' : '#94a3b8',
+                        }}
+                      >
+                        {formData.contractEndDate || 'Enter years/months above'}
+                      </Typography>
+                      {termCalculations.totalMonths > 0 && termCalculations.isValidRange && (
+                        <Chip
+                          label={`${termCalculations.totalMonths} mo`}
+                          size="small"
+                          sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, backgroundColor: '#dcfce7', color: '#15803d', ml: 'auto' }}
+                        />
+                      )}
+                    </Box>
                   </Box>
 
-                  {/* Quick Duration Presets */}
-                  <Box sx={{ gridColumn: '1 / -1', width: '100%', display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
-                    <Typography sx={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
-                      Quick Term:
-                    </Typography>
-                    {[
-                      { label: '6 Months', months: 6 },
-                      { label: '1 Year', months: 12 },
-                      { label: '2 Years', months: 24 },
-                      { label: '3 Years', months: 36 },
-                      { label: '5 Years', months: 60 },
-                    ].map((preset) => (
-                      <Chip
-                        key={preset.months}
-                        label={preset.label}
-                        size="small"
-                        onClick={() => handleApplyDuration(preset.months)}
-                        sx={{
-                          height: 24,
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          backgroundColor: '#f1f5f9',
-                          color: '#334155',
-                          '&:hover': { backgroundColor: '#e2e8f0' },
-                        }}
-                      />
-                    ))}
+                  {/* Calculated Duration info row */}
+                  <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75, opacity: 0 }}>spacer</Typography>
+                    <Box sx={{ height: 40, width: '100%', borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', px: 2, backgroundColor: '#f8fafc', justifyContent: 'space-between' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <ScheduleIcon sx={{ fontSize: 16, color: '#4f46e5' }} />
+                        <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>
+                          {termCalculations.totalMonths > 0 && termCalculations.isValidRange
+                            ? `${termCalculations.totalMonths} Months (${termCalculations.totalDays} Days)`
+                            : 'Enter term above'}
+                        </Typography>
+                      </Box>
+                      {termCalculations.totalMonths > 0 && (
+                        <Chip label="Valid" size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#dcfce7', color: '#15803d' }} />
+                      )}
+                    </Box>
                   </Box>
 
                   <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
@@ -1214,11 +1293,11 @@ export const ContractCreatePage = () => {
                 />
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
-                  {/* Rent per Square Meter */}
+                  {/* Rent per Square Meter — user enters this */}
                   <Box sx={{ width: '100%' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
                       <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155' }}>
-                        Rent per Square Meter
+                        Rent per Square Meter <span style={{ color: '#dc2626' }}>*</span>
                       </Typography>
                       {selectedUnit?.area_value && (
                         <Typography sx={{ fontSize: '0.7rem', color: '#64748b' }}>
@@ -1251,34 +1330,58 @@ export const ContractCreatePage = () => {
                     />
                   </Box>
 
-                  {/* Total Monthly Rent */}
+                  {/* Total Monthly Rent — auto-calculated, read-only */}
                   <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Total Monthly Rent <span style={{ color: '#dc2626' }}>*</span>
                     </Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="number"
-                      placeholder="e.g. 25000.00"
-                      value={formData.rentAmountTotalPerMonth}
-                      onChange={handleChange('rentAmountTotalPerMonth')}
-                      disabled={saving}
-                      inputProps={{ min: 0, step: 'any' }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>ETB</Typography>
-                          </InputAdornment>
-                        ),
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>/ month</Typography>
-                          </InputAdornment>
-                        ),
+                    <Box
+                      sx={{
+                        height: 40,
+                        width: '100%',
+                        borderRadius: 2,
+                        border: formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0
+                          ? '1px solid #bbf7d0'
+                          : '1px dashed #cbd5e1',
+                        backgroundColor: formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0
+                          ? '#f0fdf4'
+                          : '#f8fafc',
+                        display: 'flex',
+                        alignItems: 'center',
+                        px: 2,
+                        gap: 1,
                       }}
-                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
-                    />
+                    >
+                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>ETB</Typography>
+                      <Typography
+                        sx={{
+                          fontSize: '0.9rem',
+                          fontWeight: 800,
+                          color: formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0
+                            ? '#15803d'
+                            : '#94a3b8',
+                          flexGrow: 1,
+                        }}
+                      >
+                        {formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0
+                          ? formatCurrency(formData.rentAmountTotalPerMonth)
+                          : selectedUnit?.area_value
+                            ? 'Enter rate per m² to calculate'
+                            : 'Select a unit first'}
+                      </Typography>
+                      {formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0 && (
+                        <Chip
+                          label="Auto"
+                          size="small"
+                          sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#dcfce7', color: '#15803d' }}
+                        />
+                      )}
+                    </Box>
+                    <Typography sx={{ fontSize: '0.68rem', color: '#64748b', mt: 0.5 }}>
+                      {selectedUnit?.area_value
+                        ? `${selectedUnit.area_value} m² × rate per m²`
+                        : 'Auto-calculated from unit area × rate'}
+                    </Typography>
                   </Box>
 
                   {/* Live Financial Projection Card */}
@@ -1487,7 +1590,7 @@ export const ContractCreatePage = () => {
                   </Box>
 
                   <Typography sx={{ fontSize: '1.4rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.01em', fontFamily: 'monospace', lineHeight: 1.2, mb: 0.5 }}>
-                    {formData.contractNumber || 'RC-PENDING'}
+                    RC-PENDING
                   </Typography>
 
                   <Typography sx={{ fontSize: '0.78rem', color: '#94a3b8' }}>
@@ -1563,7 +1666,7 @@ export const ContractCreatePage = () => {
                       { done: !!(formData.buildingId && formData.floorId && formData.unitId), label: 'Premises & unit selected' },
                       { done: !!(formData.contractStartDate && formData.contractEndDate && termCalculations.isValidRange), label: 'Valid lease duration set' },
                       { done: !!(formData.rentalPaymentTypeId && formData.paymentTimingId), label: 'Payment terms configured' },
-                      { done: !!(formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0), label: 'Monthly rent specified' },
+                      { done: !!(formData.rentAmountPerSquareMeter && parseFloat(formData.rentAmountPerSquareMeter) > 0 && formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0), label: 'Rent calculated' },
                     ].map((item, i) => (
                       <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{ width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: item.done ? '#dcfce7' : '#fef3c7', border: `1.5px solid ${item.done ? '#86efac' : '#fde68a'}`, flexShrink: 0 }}>

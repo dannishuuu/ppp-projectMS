@@ -136,14 +136,18 @@ class RentalPaymentsModel {
     return { rows, total };
   }
 
-  static async findById(id) {
+  static async findById(id, transaction = null) {
     const rows = await db.query(
       `SELECT ${PUBLIC_RENTAL_PAYMENT_FIELDS}
        FROM rental_payments rp
        ${PAYMENT_JOINS}
        WHERE rp.id = :id AND rp.is_deleted = false
        LIMIT 1`,
-      { replacements: { id }, type: QueryTypes.SELECT }
+      {
+        replacements: { id },
+        type: QueryTypes.SELECT,
+        ...(transaction ? { transaction } : {}),
+      }
     );
     return rows[0] || null;
   }
@@ -190,7 +194,7 @@ class RentalPaymentsModel {
         transaction,
       }
     );
-    return rows[0]?.id ? this.findById(rows[0].id) : null;
+    return rows[0]?.id ? this.findById(rows[0].id, transaction) : null;
   }
 
   static async update(id, data, transaction = null) {
@@ -229,11 +233,11 @@ class RentalPaymentsModel {
         transaction,
       }
     );
-    return this.findById(id);
+    return this.findById(id, transaction);
   }
 
   static async recordPayment(id, data, transaction = null) {
-    const current = await this.findById(id);
+    const current = await this.findById(id, transaction);
     if (!current) throw new Error('Payment schedule not found');
 
     const amountPaid = parseFloat(data.amountPaid !== undefined ? data.amountPaid : current.amount_paid);
@@ -267,7 +271,7 @@ class RentalPaymentsModel {
         transaction,
       }
     );
-    return this.findById(id);
+    return this.findById(id, transaction);
   }
 
   static async softDelete(id, deletedBy = null, transaction = null) {
