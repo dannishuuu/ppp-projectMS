@@ -465,6 +465,9 @@ export const ContractCreatePage = () => {
     if (!formData.rentAmountTotalPerMonth || parseFloat(formData.rentAmountTotalPerMonth) <= 0) {
       return 'Total monthly rent could not be calculated. Please ensure a unit with area is selected.';
     }
+    if (!formData.remarks || !formData.remarks.trim()) {
+      return 'Contract remarks & stipulations are required.';
+    }
     return null;
   };
 
@@ -499,7 +502,7 @@ export const ContractCreatePage = () => {
           ? parseFloat(formData.rentAmountPerSquareMeter)
           : null,
         rentAmountTotalPerMonth: parseFloat(formData.rentAmountTotalPerMonth),
-        remarks: formData.remarks.trim() || null,
+        remarks: formData.remarks.trim(),
         isActive: formData.isActive,
         generateSchedule: formData.generateSchedule,
       };
@@ -1443,16 +1446,19 @@ export const ContractCreatePage = () => {
                   {/* Remarks / Special Stipulations */}
                   <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Contract Remarks & Stipulations
+                      Contract Remarks & Stipulations <Box component="span" sx={{ color: '#ef4444' }}>*</Box>
                     </Typography>
                     <TextField
                       fullWidth
                       multiline
                       rows={3}
+                      required
                       placeholder="Specify special terms, grace periods, utility deposits, or maintenance clauses..."
                       value={formData.remarks}
                       onChange={handleChange('remarks')}
                       disabled={saving}
+                      error={Boolean(errorMsg && !formData.remarks?.trim())}
+                      helperText={errorMsg && !formData.remarks?.trim() ? 'Contract remarks & stipulations are required.' : ''}
                       sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                     />
                     {/* Quick suggestion chips */}
@@ -1681,6 +1687,7 @@ export const ContractCreatePage = () => {
                       { done: !!(formData.contractStartDate && formData.contractEndDate && termCalculations.isValidRange), label: 'Valid lease duration set' },
                       { done: !!(formData.rentalPaymentTypeId && formData.paymentTimingId), label: 'Payment terms configured' },
                       { done: !!(formData.rentAmountPerSquareMeter && parseFloat(formData.rentAmountPerSquareMeter) > 0 && formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0), label: 'Rent calculated' },
+                      { done: !!formData.remarks?.trim(), label: 'Remarks & stipulations provided' },
                     ].map((item, i) => (
                       <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{ width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: item.done ? '#dcfce7' : '#fef3c7', border: `1.5px solid ${item.done ? '#86efac' : '#fde68a'}`, flexShrink: 0 }}>

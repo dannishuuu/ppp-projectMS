@@ -84,6 +84,9 @@ class RentalContractService {
     if (rentAmountTotalPerMonth === undefined || rentAmountTotalPerMonth === null || parseFloat(rentAmountTotalPerMonth) < 0) {
       throw this._validationError('rentAmountTotalPerMonth must be a valid positive number');
     }
+    if (!remarks || !remarks.trim()) {
+      throw this._validationError('Contract remarks & stipulations is required');
+    }
 
     // 2. Auto-generate contract number via document sequences
     const contractNumber = await DocumentSequenceService.generateNextNumber('contract_number', actorId);
@@ -184,6 +187,9 @@ class RentalContractService {
     const endDate = payload.contractEndDate || current.contract_end_date;
     if (new Date(endDate) < new Date(startDate)) {
       throw this._validationError('contractEndDate cannot be earlier than contractStartDate');
+    }
+    if (payload.remarks !== undefined && (!payload.remarks || !payload.remarks.trim())) {
+      throw this._validationError('Contract remarks & stipulations cannot be empty');
     }
 
     const unitId = payload.unitId || current.unit_id;
