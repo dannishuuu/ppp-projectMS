@@ -347,12 +347,14 @@ export const ContractCreatePage = () => {
     if (!formData.contractStartDate || !formData.contractEndDate) {
       return { totalDays: 0, totalMonths: 0, isValidRange: true };
     }
-    const start = new Date(formData.contractStartDate);
-    const end = new Date(formData.contractEndDate);
-    const diffMs = end - start;
+    const [sY, sM, sD] = formData.contractStartDate.split('-').map(Number);
+    const [eY, eM, eD] = formData.contractEndDate.split('-').map(Number);
+    const startUTC = Date.UTC(sY, sM - 1, sD);
+    const endUTC = Date.UTC(eY, eM - 1, eD);
+    const diffMs = endUTC - startUTC;
     const totalDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
     const totalMonths = Math.max(0, Math.round((totalDays / 30.4375) * 10) / 10);
-    const isValidRange = end > start;
+    const isValidRange = endUTC > startUTC;
     return { totalDays, totalMonths, isValidRange };
   }, [formData.contractStartDate, formData.contractEndDate]);
 
@@ -395,23 +397,34 @@ export const ContractCreatePage = () => {
       : 30;
     const intervalDays = durationDays > 0 ? durationDays : 30;
 
-    const startDate = new Date(formData.contractStartDate);
-    const endDate = new Date(formData.contractEndDate);
+    // Round up when decimal is >= 0.5 (e.g. 30.4 -> 30, but 30.5 or 30.6 -> 31)
+    const totalDays = termCalculations.totalDays;
+    const numberOfSchedules = Math.round(totalDays / intervalDays);
+    if (numberOfSchedules <= 0) return [];
+
     const monthlyRent = parseFloat(formData.rentAmountTotalPerMonth) || 0;
     const amountPerCycle = parseFloat(((monthlyRent / 30) * intervalDays).toFixed(2));
 
-    const schedule = [];
-    let currentDue = new Date(startDate);
-    let count = 0;
-    const maxInstallments = 48;
+    const formatYMD = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
-    while (currentDue <= endDate && count < maxInstallments) {
-      count++;
+    const [sY, sM, sD] = formData.contractStartDate.split('-').map(Number);
+    const [eY, eM, eD] = formData.contractEndDate.split('-').map(Number);
+    const endBound = new Date(eY, eM - 1, eD);
+
+    const schedule = [];
+    let currentDue = new Date(sY, sM - 1, sD);
+
+    for (let count = 1; count <= numberOfSchedules; count++) {
       const nextDue = new Date(currentDue);
       nextDue.setDate(nextDue.getDate() + intervalDays);
 
-      const dueDateStr = currentDue.toISOString().split('T')[0];
-      const nextDateStr = nextDue <= endDate ? nextDue.toISOString().split('T')[0] : null;
+      const dueDateStr = formatYMD(currentDue);
+      const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
 
       schedule.push({
         installmentNumber: count,
@@ -426,6 +439,7 @@ export const ContractCreatePage = () => {
   }, [
     formData.contractStartDate,
     formData.contractEndDate,
+    termCalculations.totalDays,
     termCalculations.isValidRange,
     formData.rentAmountTotalPerMonth,
     selectedPaymentType,

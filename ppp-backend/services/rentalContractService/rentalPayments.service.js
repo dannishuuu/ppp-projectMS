@@ -170,10 +170,31 @@ class RentalPaymentsService {
     const durationDays = paymentType?.duration_days ? parseInt(paymentType.duration_days, 10) : 30;
     const intervalDays = durationDays > 0 ? durationDays : 30;
 
-    const startDate = new Date(contract.contract_start_date);
-    const endDate = new Date(contract.contract_end_date);
+    const startDateStr = contract.contract_start_date;
+    const endDateStr = contract.contract_end_date;
+    if (!startDateStr || !endDateStr) return [];
+
+    const [sY, sM, sD] = String(startDateStr).split('T')[0].split('-').map(Number);
+    const [eY, eM, eD] = String(endDateStr).split('T')[0].split('-').map(Number);
+    const startUTC = Date.UTC(sY, sM - 1, sD);
+    const endUTC = Date.UTC(eY, eM - 1, eD);
+    const diffMs = endUTC - startUTC;
+    if (diffMs < 0) return [];
+
+    const totalDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
+    // Round up when decimal is >= 0.5 (e.g. 30.4 -> 30, but 30.5 or 30.6 -> 31)
+    const numberOfSchedules = Math.round(totalDays / intervalDays);
+    if (numberOfSchedules <= 0) return [];
+
     const monthlyRent = parseFloat(contract.rent_amount_total_per_month) || 0;
     const amountPerCycle = parseFloat(((monthlyRent / 30) * intervalDays).toFixed(2));
+
+    const formatYMD = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
     const transaction = await db.transaction();
     try {
@@ -181,20 +202,18 @@ class RentalPaymentsService {
       const existing = await RentalPaymentsModel.findByContractId(contractId);
       const existingDueDates = new Set(existing.map((e) => e.due_date));
 
-      let currentDue = new Date(startDate);
+      let currentDue = new Date(sY, sM - 1, sD);
+      const endBound = new Date(eY, eM - 1, eD);
       let count = existing.length;
-      let generated = 0;
-      const maxSchedules = 60;
 
-      while (currentDue <= endDate && generated < maxSchedules) {
-        const dueDateStr = currentDue.toISOString().split('T')[0];
+      for (let i = 1; i <= numberOfSchedules; i++) {
+        const dueDateStr = formatYMD(currentDue);
         const nextDue = new Date(currentDue);
         nextDue.setDate(nextDue.getDate() + intervalDays);
-        const nextDateStr = nextDue <= endDate ? nextDue.toISOString().split('T')[0] : null;
+        const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
 
         if (!existingDueDates.has(dueDateStr)) {
           count++;
-          generated++;
           await RentalPaymentsModel.create(
             {
               rentalContractId: contract.id,
