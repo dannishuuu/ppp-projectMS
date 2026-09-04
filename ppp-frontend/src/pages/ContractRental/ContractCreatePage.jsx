@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
+  Autocomplete,
   Box,
   Paper,
   Typography,
@@ -614,9 +615,10 @@ export const ContractCreatePage = () => {
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', lg: 'repeat(5, 1fr)' },
-          gridTemplateRows: { xs: 'auto', lg: 'repeat(6, 1fr)' },
-          gap: '8px',
+          gridTemplateRows: { xs: 'auto', lg: 'auto auto 1fr' },
+          gap: '12px',
           width: '100%',
+          alignItems: 'start',
         }}
       >
         {/* DIV 1: The big form area */}
@@ -624,7 +626,7 @@ export const ContractCreatePage = () => {
           className="div1"
           sx={{
             gridColumn: { xs: '1', lg: 'span 4 / span 4' },
-            gridRow: { xs: 'auto', lg: 'span 6 / span 6' },
+            gridRow: { xs: 'auto', lg: '1 / -1' },
             display: 'flex',
             flexDirection: 'column',
             gap: 2.5,
@@ -648,9 +650,9 @@ export const ContractCreatePage = () => {
                   badge="Required"
                 />
 
-                <Grid container spacing={2}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
                   {/* Building Selection */}
-                  <Grid item xs={12} sm={6}>
+                  <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Target Building <span style={{ color: '#dc2626' }}>*</span>
                     </Typography>
@@ -661,7 +663,7 @@ export const ContractCreatePage = () => {
                       value={formData.buildingId}
                       onChange={handleChange('buildingId')}
                       disabled={saving || loadingLookups}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                     >
                       <MenuItem value="" disabled>
                         Select Building...
@@ -680,10 +682,10 @@ export const ContractCreatePage = () => {
                         </MenuItem>
                       ))}
                     </TextField>
-                  </Grid>
+                  </Box>
 
                   {/* Floor Level Selection */}
-                  <Grid item xs={12} sm={6}>
+                  <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Floor Level <span style={{ color: '#dc2626' }}>*</span>
                     </Typography>
@@ -694,7 +696,7 @@ export const ContractCreatePage = () => {
                       value={formData.floorId}
                       onChange={handleChange('floorId')}
                       disabled={saving || !formData.buildingId || loadingFloors}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                       InputProps={{
                         endAdornment: loadingFloors ? <CircularProgress size={16} sx={{ mr: 2 }} /> : null,
                       }}
@@ -713,10 +715,10 @@ export const ContractCreatePage = () => {
                         </MenuItem>
                       ))}
                     </TextField>
-                  </Grid>
+                  </Box>
 
                   {/* Unit Selection */}
-                  <Grid item xs={12}>
+                  <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Building Unit <span style={{ color: '#dc2626' }}>*</span>
                     </Typography>
@@ -727,7 +729,7 @@ export const ContractCreatePage = () => {
                       value={formData.unitId}
                       onChange={handleChange('unitId')}
                       disabled={saving || !formData.floorId || loadingUnits}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                       InputProps={{
                         endAdornment: loadingUnits ? <CircularProgress size={16} sx={{ mr: 2 }} /> : null,
                       }}
@@ -772,11 +774,59 @@ export const ContractCreatePage = () => {
                         );
                       })}
                     </TextField>
-                  </Grid>
+                  </Box>
+
+                  {/* Unit Status Helper / Companion */}
+                  <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75, opacity: 0 }}>
+                      Status
+                    </Typography>
+                    {selectedUnit ? (
+                      <Box
+                        sx={{
+                          height: 40,
+                          width: '100%',
+                          borderRadius: 2,
+                          px: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          backgroundColor: selectedUnit.is_rented ? '#fee2e2' : '#f0fdf4',
+                          border: `1px solid ${selectedUnit.is_rented ? '#fecdd3' : '#bbf7d0'}`,
+                        }}
+                      >
+                        <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: selectedUnit.is_rented ? '#dc2626' : '#15803d' }}>
+                          {selectedUnit.is_rented ? '● Currently Leased' : '● Ready to Lease'}
+                        </Typography>
+                        {selectedUnit.area_value && (
+                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
+                            {selectedUnit.area_value} {selectedUnit.area_unit_name || 'm²'}
+                          </Typography>
+                        )}
+                      </Box>
+                    ) : (
+                      <Box
+                        sx={{
+                          height: 40,
+                          width: '100%',
+                          borderRadius: 2,
+                          border: '1px dashed #cbd5e1',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: '#f8fafc',
+                        }}
+                      >
+                        <Typography sx={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                          Select floor to view unit availability
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
 
                   {/* Selected Unit Snapshot Card */}
                   {selectedUnit && (
-                    <Grid item xs={12}>
+                    <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
                       <Box
                         sx={{
                           p: 2,
@@ -839,9 +889,9 @@ export const ContractCreatePage = () => {
                           />
                         </Box>
                       </Box>
-                    </Grid>
+                    </Box>
                   )}
-                </Grid>
+                </Box>
               </Paper>
 
               {/* SECTION 2: TENANT & LESSEE INFORMATION */}
@@ -861,41 +911,93 @@ export const ContractCreatePage = () => {
                   subtitle="Specify the tenant party legally bound to this lease agreement."
                 />
 
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
+                  <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Tenant Organization
                     </Typography>
-                    <TextField
-                      select
+                    <Autocomplete
                       fullWidth
                       size="small"
-                      value={formData.tenantOrganizationId}
-                      onChange={handleChange('tenantOrganizationId')}
                       disabled={saving || loadingLookups}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                    >
-                      <MenuItem value="">
-                        <em>No Tenant Assigned (Unassigned / Internal Reservation)</em>
-                      </MenuItem>
-                      {organizations.map((org) => (
-                        <MenuItem key={org.id} value={org.id}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <TenantIcon sx={{ fontSize: 16, color: '#4f46e5' }} />
-                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{org.name}</Typography>
-                            {org.organization_type_name && (
-                              <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                                ({org.organization_type_name})
+                      options={organizations}
+                      getOptionLabel={(option) => {
+                        if (typeof option === 'string') return option;
+                        return option?.name || '';
+                      }}
+                      isOptionEqualToValue={(option, val) => option?.id === (val?.id || val)}
+                      value={selectedTenant}
+                      onChange={(event, newValue) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          tenantOrganizationId: newValue ? newValue.id : '',
+                        }));
+                        if (errorMsg) setErrorMsg('');
+                      }}
+                      renderOption={(props, option) => {
+                        const { key, ...restProps } = props;
+                        return (
+                          <Box component="li" key={option.id || key} {...restProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.25, py: 1 }}>
+                            <TenantIcon sx={{ fontSize: 18, color: '#4f46e5', flexShrink: 0 }} />
+                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                              <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>
+                                {option.name}
                               </Typography>
-                            )}
+                              {(option.organization_type_name || option.email) && (
+                                <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
+                                  {option.organization_type_name ? `${option.organization_type_name} • ` : ''}{option.email || option.phone || ''}
+                                </Typography>
+                              )}
+                            </Box>
                           </Box>
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </Grid>
+                        );
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder="Search & select organization..."
+                          sx={{
+                            width: '100%',
+                            '& .MuiOutlinedInput-root': {
+                              width: '100%',
+                              borderRadius: 2,
+                              backgroundColor: '#ffffff',
+                            },
+                          }}
+                        />
+                      )}
+                      sx={{
+                        width: '100%',
+                        '& .MuiOutlinedInput-root': {
+                          width: '100%',
+                          borderRadius: 2,
+                        },
+                      }}
+                    />
+                  </Box>
+
+                  <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75, opacity: 0 }}>
+                      Status
+                    </Typography>
+                    {selectedTenant ? (
+                      <Box sx={{ height: 40, width: '100%', borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', px: 2, backgroundColor: '#f8fafc', gap: 1 }}>
+                        <TenantIcon sx={{ fontSize: 16, color: '#4f46e5' }} />
+                        <Typography sx={{ fontSize: '0.78rem', color: '#334155', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {selectedTenant.name}
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Box sx={{ height: 40, width: '100%', borderRadius: 2, border: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
+                        <Typography sx={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                          Optional: Select tenant or leave unassigned
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
 
                   {selectedTenant && (
-                    <Grid item xs={12}>
+                    <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
                       <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                         <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontWeight: 600 }}>
                           Selected Tenant: <strong>{selectedTenant.name}</strong>
@@ -903,9 +1005,9 @@ export const ContractCreatePage = () => {
                           {selectedTenant.phone ? ` • Tel: ${selectedTenant.phone}` : ''}
                         </Typography>
                       </Box>
-                    </Grid>
+                    </Box>
                   )}
-                </Grid>
+                </Box>
               </Paper>
 
               {/* SECTION 3: CONTRACT PERIOD & PAYMENT TERMS */}
@@ -926,9 +1028,9 @@ export const ContractCreatePage = () => {
                   badge="Required"
                 />
 
-                <Grid container spacing={2}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
                   {/* Contract Number */}
-                  <Grid item xs={12}>
+                  <Box sx={{ width: '100%' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
                       <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155' }}>
                         Contract Reference Number <span style={{ color: '#dc2626' }}>*</span>
@@ -949,12 +1051,32 @@ export const ContractCreatePage = () => {
                       value={formData.contractNumber}
                       onChange={handleChange('contractNumber')}
                       disabled={saving}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                     />
-                  </Grid>
+                  </Box>
+
+                  {/* Quick Duration Term Chip */}
+                  <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
+                      Calculated Duration
+                    </Typography>
+                    <Box sx={{ height: 40, width: '100%', borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', px: 2, backgroundColor: '#f8fafc', justifyContent: 'space-between' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <ScheduleIcon sx={{ fontSize: 16, color: '#4f46e5' }} />
+                        <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>
+                          {termCalculations.totalMonths > 0 && termCalculations.isValidRange
+                            ? `${termCalculations.totalMonths} Months (${termCalculations.totalDays} Days)`
+                            : 'Set start & end dates'}
+                        </Typography>
+                      </Box>
+                      {termCalculations.totalMonths > 0 && (
+                        <Chip label="Valid" size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#dcfce7', color: '#15803d' }} />
+                      )}
+                    </Box>
+                  </Box>
 
                   {/* Start Date */}
-                  <Grid item xs={12} sm={6}>
+                  <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Contract Start Date <span style={{ color: '#dc2626' }}>*</span>
                     </Typography>
@@ -965,12 +1087,12 @@ export const ContractCreatePage = () => {
                       value={formData.contractStartDate}
                       onChange={handleChange('contractStartDate')}
                       disabled={saving}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                     />
-                  </Grid>
+                  </Box>
 
                   {/* End Date */}
-                  <Grid item xs={12} sm={6}>
+                  <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Contract End Date <span style={{ color: '#dc2626' }}>*</span>
                     </Typography>
@@ -983,65 +1105,46 @@ export const ContractCreatePage = () => {
                       disabled={saving}
                       error={!termCalculations.isValidRange}
                       helperText={!termCalculations.isValidRange ? 'End date must be after start date' : ''}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                     />
-                  </Grid>
+                  </Box>
 
                   {/* Quick Duration Presets */}
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mt: 0.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
-                        <Typography sx={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
-                          Quick Term:
-                        </Typography>
-                        {[
-                          { label: '6 Months', months: 6 },
-                          { label: '1 Year', months: 12 },
-                          { label: '2 Years', months: 24 },
-                          { label: '3 Years', months: 36 },
-                          { label: '5 Years', months: 60 },
-                        ].map((preset) => (
-                          <Chip
-                            key={preset.months}
-                            label={preset.label}
-                            size="small"
-                            onClick={() => handleApplyDuration(preset.months)}
-                            sx={{
-                              height: 24,
-                              fontSize: '0.72rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              backgroundColor: '#f1f5f9',
-                              color: '#334155',
-                              '&:hover': { backgroundColor: '#e2e8f0' },
-                            }}
-                          />
-                        ))}
-                      </Box>
+                  <Box sx={{ gridColumn: '1 / -1', width: '100%', display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                    <Typography sx={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Quick Term:
+                    </Typography>
+                    {[
+                      { label: '6 Months', months: 6 },
+                      { label: '1 Year', months: 12 },
+                      { label: '2 Years', months: 24 },
+                      { label: '3 Years', months: 36 },
+                      { label: '5 Years', months: 60 },
+                    ].map((preset) => (
+                      <Chip
+                        key={preset.months}
+                        label={preset.label}
+                        size="small"
+                        onClick={() => handleApplyDuration(preset.months)}
+                        sx={{
+                          height: 24,
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          backgroundColor: '#f1f5f9',
+                          color: '#334155',
+                          '&:hover': { backgroundColor: '#e2e8f0' },
+                        }}
+                      />
+                    ))}
+                  </Box>
 
-                      {termCalculations.totalMonths > 0 && termCalculations.isValidRange && (
-                        <Chip
-                          icon={<ScheduleIcon sx={{ fontSize: '14px !important' }} />}
-                          label={`Duration: ~${termCalculations.totalMonths} Months (${termCalculations.totalDays} Days)`}
-                          size="small"
-                          sx={{
-                            height: 24,
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            backgroundColor: '#eef2ff',
-                            color: '#4f46e5',
-                          }}
-                        />
-                      )}
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Divider sx={{ my: 1 }} />
-                  </Grid>
+                  <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
+                    <Divider sx={{ my: 0.5 }} />
+                  </Box>
 
                   {/* Payment Frequency (Rental Payment Type) */}
-                  <Grid item xs={12} sm={6}>
+                  <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Payment Frequency <span style={{ color: '#dc2626' }}>*</span>
                     </Typography>
@@ -1052,7 +1155,7 @@ export const ContractCreatePage = () => {
                       value={formData.rentalPaymentTypeId}
                       onChange={handleChange('rentalPaymentTypeId')}
                       disabled={saving || loadingLookups}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                     >
                       <MenuItem value="" disabled>
                         Select Payment Frequency...
@@ -1063,10 +1166,10 @@ export const ContractCreatePage = () => {
                         </MenuItem>
                       ))}
                     </TextField>
-                  </Grid>
+                  </Box>
 
                   {/* Payment Timing */}
-                  <Grid item xs={12} sm={6}>
+                  <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Payment Timing <span style={{ color: '#dc2626' }}>*</span>
                     </Typography>
@@ -1077,7 +1180,7 @@ export const ContractCreatePage = () => {
                       value={formData.paymentTimingId}
                       onChange={handleChange('paymentTimingId')}
                       disabled={saving || loadingLookups}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                     >
                       <MenuItem value="" disabled>
                         Select Payment Timing...
@@ -1088,8 +1191,8 @@ export const ContractCreatePage = () => {
                         </MenuItem>
                       ))}
                     </TextField>
-                  </Grid>
-                </Grid>
+                  </Box>
+                </Box>
               </Paper>
 
               {/* SECTION 4: FINANCIAL TERMS & RENT COMPUTATION */}
@@ -1110,9 +1213,9 @@ export const ContractCreatePage = () => {
                   badge="Auto-Calculating"
                 />
 
-                <Grid container spacing={2}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
                   {/* Rent per Square Meter */}
-                  <Grid item xs={12} sm={6}>
+                  <Box sx={{ width: '100%' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
                       <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155' }}>
                         Rent per Square Meter
@@ -1144,12 +1247,12 @@ export const ContractCreatePage = () => {
                           </InputAdornment>
                         ),
                       }}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                     />
-                  </Grid>
+                  </Box>
 
                   {/* Total Monthly Rent */}
-                  <Grid item xs={12} sm={6}>
+                  <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Total Monthly Rent <span style={{ color: '#dc2626' }}>*</span>
                     </Typography>
@@ -1174,13 +1277,13 @@ export const ContractCreatePage = () => {
                           </InputAdornment>
                         ),
                       }}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                     />
-                  </Grid>
+                  </Box>
 
                   {/* Live Financial Projection Card */}
                   {formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0 && (
-                    <Grid item xs={12}>
+                    <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
                       <Box
                         sx={{
                           p: 2,
@@ -1217,11 +1320,11 @@ export const ContractCreatePage = () => {
                           </Typography>
                         </Box>
                       </Box>
-                    </Grid>
+                    </Box>
                   )}
 
                   {/* Remarks / Special Stipulations */}
-                  <Grid item xs={12}>
+                  <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
                       Contract Remarks & Stipulations
                     </Typography>
@@ -1233,7 +1336,7 @@ export const ContractCreatePage = () => {
                       value={formData.remarks}
                       onChange={handleChange('remarks')}
                       disabled={saving}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                     />
                     {/* Quick suggestion chips */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1, flexWrap: 'wrap' }}>
@@ -1265,8 +1368,8 @@ export const ContractCreatePage = () => {
                         />
                       ))}
                     </Box>
-                  </Grid>
-                </Grid>
+                  </Box>
+                </Box>
               </Paper>
 
               {/* SECTION 5: CONTRACT EXECUTION OPTIONS */}
@@ -1286,66 +1389,63 @@ export const ContractCreatePage = () => {
                   subtitle="Control contract status on creation and automated installment generation."
                 />
 
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', height: '100%' }}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={formData.isActive}
-                            onChange={(e) => setFormData((p) => ({ ...p, isActive: e.target.checked }))}
-                            color="primary"
-                          />
-                        }
-                        label={
-                          <Box>
-                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                              Activate Contract Immediately
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
-                              When enabled, marks the leased unit as &quot;Rented&quot; and enables billing immediately.
-                            </Typography>
-                          </Box>
-                        }
-                      />
-                    </Box>
-                  </Grid>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
+                  <Box sx={{ width: '100%', p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', height: '100%' }}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={formData.isActive}
+                          onChange={(e) => setFormData((p) => ({ ...p, isActive: e.target.checked }))}
+                          color="primary"
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                            Activate Contract Immediately
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
+                            When enabled, marks the leased unit as &quot;Rented&quot; and enables billing immediately.
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </Box>
 
-                  <Grid item xs={12} sm={6}>
-                    <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', height: '100%' }}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={formData.generateSchedule}
-                            onChange={(e) => setFormData((p) => ({ ...p, generateSchedule: e.target.checked }))}
-                            color="primary"
-                          />
-                        }
-                        label={
-                          <Box>
-                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                              Auto-Generate Payment Schedule
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
-                              Generates recurring payment installments based on the selected payment frequency.
-                            </Typography>
-                          </Box>
-                        }
-                      />
-                    </Box>
-                  </Grid>
-                </Grid>
+                  <Box sx={{ width: '100%', p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', height: '100%' }}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={formData.generateSchedule}
+                          onChange={(e) => setFormData((p) => ({ ...p, generateSchedule: e.target.checked }))}
+                          color="primary"
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                            Auto-Generate Payment Schedule
+                          </Typography>
+                          <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
+                            Generates recurring payment installments based on the selected payment frequency.
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </Box>
+                </Box>
               </Paper>
-        </Box>
+</Box>
 
         {/* DIV 2: LEASE AGREEMENT PREVIEW */}
         <Paper
           className="div2"
           elevation={0}
           sx={{
-            gridRow: { xs: 'auto', lg: 'span 3 / span 3' },
             gridColumnStart: { xs: '1', lg: 5 },
-            minHeight: 0,
+            gridRow: { xs: 'auto', lg: 1 },
+            height: 'fit-content',
+            alignSelf: 'start',
             borderRadius: 2,
             border: '1px solid #e2e8f0',
             backgroundColor: '#ffffff',
@@ -1527,10 +1627,10 @@ export const ContractCreatePage = () => {
           className="div3"
           elevation={0}
           sx={{
-            gridRow: { xs: 'auto', lg: 'span 3 / span 3' },
             gridColumnStart: { xs: '1', lg: 5 },
-            gridRowStart: { xs: 'auto', lg: 4 },
-            minHeight: 0,
+            gridRow: { xs: 'auto', lg: 2 },
+            height: 'fit-content',
+            alignSelf: 'start',
             borderRadius: 2,
             border: '1px solid #e2e8f0',
             backgroundColor: '#ffffff',
@@ -1604,7 +1704,7 @@ export const ContractCreatePage = () => {
                     </Box>
 
                     {/* Scrollable Schedule Table */}
-                    <TableContainer sx={{ maxHeight: 280, '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-track': { background: '#f1f5f9' }, '&::-webkit-scrollbar-thumb': { background: '#c7d2fe', borderRadius: 4 } }}>
+                    <TableContainer sx={{ maxHeight: 520, '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-track': { background: '#f1f5f9' }, '&::-webkit-scrollbar-thumb': { background: '#c7d2fe', borderRadius: 4 } }}>
                       <Table size="small" stickyHeader>
                         <TableHead>
                           <TableRow sx={{ '& th': { backgroundColor: '#f8fafc', fontSize: '0.68rem', fontWeight: 700, color: '#64748b', py: 0.75, px: 2 } }}>
