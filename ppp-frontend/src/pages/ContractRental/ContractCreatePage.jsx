@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -15,13 +15,15 @@ import {
   Grid,
   InputAdornment,
   Tooltip,
+  IconButton,
+  Switch,
+  FormControlLabel,
   Table,
   TableHead,
   TableBody,
   TableRow,
   TableCell,
   TableContainer,
-  IconButton,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -32,8 +34,18 @@ import {
   Info as InfoIcon,
   CalendarMonth as CalendarIcon,
   BusinessCenter as TenantIcon,
+  Apartment as BuildingIcon,
+  Layers as FloorIcon,
+  MeetingRoom as UnitIcon,
+  SquareFoot as AreaIcon,
+  CheckCircle as CheckCircleIcon,
+  WarningAmber as WarningIcon,
+  Schedule as ScheduleIcon,
+  ReceiptLong as ReceiptIcon,
+  RestartAlt as ResetIcon,
+  FlashOn as QuickIcon,
 } from '@mui/icons-material';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { rentalContractService } from '../../services/rentalContractServices';
 import { buildingsService } from '../../services/buildingServices/buildingsService';
@@ -43,37 +55,83 @@ import { rentalPaymentTypesService } from '../../services/foundationService/rent
 import { paymentTimingsService } from '../../services/foundationService/paymentTimingsService';
 import { organizationService } from '../../services/organizationService/organizationService';
 
-const SectionHeader = ({ icon, title, subtitle }) => (
-  <Box sx={{ mb: 2 }}>
-    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', letterSpacing: '0.5px', fontSize: '0.8rem', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 0.75 }}>
-      {icon}
-      {title}
-    </Typography>
-    {subtitle && <Typography sx={{ fontSize: '0.72rem', color: '#64748b', mt: 0.25 }}>{subtitle}</Typography>}
-    <Divider sx={{ mt: 1 }} />
+// Format currency
+const formatCurrency = (val) => {
+  if (val == null || val === '' || isNaN(val)) return '0.00';
+  return Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+// Section Header Component
+const FormSectionHeader = ({ icon, title, subtitle, badge }) => (
+  <Box sx={{ mb: 2.5 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 28,
+            height: 28,
+            borderRadius: 1.5,
+            backgroundColor: '#eef2ff',
+            color: '#4f46e5',
+          }}
+        >
+          {icon}
+        </Box>
+        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.95rem' }}>
+          {title}
+        </Typography>
+      </Box>
+      {badge && (
+        <Chip
+          label={badge}
+          size="small"
+          sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700, backgroundColor: '#f1f5f9', color: '#475569' }}
+        />
+      )}
+    </Box>
+    {subtitle && (
+      <Typography sx={{ fontSize: '0.78rem', color: '#64748b', ml: 4.5 }}>
+        {subtitle}
+      </Typography>
+    )}
   </Box>
 );
 
 export const ContractCreatePage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { enqueueSnackbar } = useSnackbar();
 
-  const [formData, setFormData] = useState({
-    buildingId: '',
-    floorId: '',
-    unitId: '',
-    tenantOrganizationId: '',
+  // Query parameter extraction for pre-populating form
+  const queryBuildingId = searchParams.get('buildingId') || '';
+  const queryFloorId = searchParams.get('floorId') || '';
+  const queryUnitId = searchParams.get('unitId') || '';
+  const queryTenantId = searchParams.get('tenantId') || '';
+
+  // Initial Form State
+  const initialFormState = {
+    buildingId: queryBuildingId,
+    floorId: queryFloorId,
+    unitId: queryUnitId,
+    tenantOrganizationId: queryTenantId,
     contractNumber: '',
-    contractStartDate: '',
+    contractStartDate: new Date().toISOString().split('T')[0],
     contractEndDate: '',
     rentalPaymentTypeId: '',
     paymentTimingId: '',
     rentAmountPerSquareMeter: '',
     rentAmountTotalPerMonth: '',
     remarks: '',
-  });
+    isActive: true,
+    generateSchedule: true,
+  };
 
-  // Lookup lists
+  const [formData, setFormData] = useState(initialFormState);
+
+  // Lookups
   const [buildings, setBuildings] = useState([]);
   const [floors, setFloors] = useState([]);
   const [units, setUnits] = useState([]);
@@ -81,18 +139,20 @@ export const ContractCreatePage = () => {
   const [paymentTimings, setPaymentTimings] = useState([]);
   const [organizations, setOrganizations] = useState([]);
 
-  // Loading states
+  // Loading and error states
+  const [loadingLookups, setLoadingLookups] = useState(true);
   const [loadingFloors, setLoadingFloors] = useState(false);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Selected unit snapshot preview
+  // Selected unit snapshot
   const [selectedUnit, setSelectedUnit] = useState(null);
 
-  // Fetch base lookups once
+  // Fetch initial lookups
   useEffect(() => {
     const init = async () => {
+      setLoadingLookups(true);
       try {
         const [bRes, ptRes, timRes, orgRes] = await Promise.all([
           buildingsService.getBuildings({ limit: 200, status: 'active' }),
@@ -100,18 +160,52 @@ export const ContractCreatePage = () => {
           paymentTimingsService.getPaymentTimings({ limit: 100, status: 'active' }),
           organizationService.getOrganizations({ limit: 200, status: 'active' }),
         ]);
-        setBuildings(bRes?.buildings || bRes?.rows || []);
-        setPaymentTypes(ptRes?.rentalPaymentTypes || ptRes?.rows || []);
-        setPaymentTimings(timRes?.paymentTimings || timRes?.rows || []);
-        setOrganizations(orgRes?.organizations || orgRes?.rows || []);
+
+        const buildingsList = bRes?.buildings || bRes?.rows || (Array.isArray(bRes) ? bRes : []);
+        const pTypes = ptRes?.rentalPaymentTypes || ptRes?.rows || (Array.isArray(ptRes) ? ptRes : []);
+        const pTimings = timRes?.paymentTimings || timRes?.rows || (Array.isArray(timRes) ? timRes : []);
+        const orgs = orgRes?.organizations || orgRes?.rows || (Array.isArray(orgRes) ? orgRes : []);
+
+        setBuildings(buildingsList);
+        setPaymentTypes(pTypes);
+        setPaymentTimings(pTimings);
+        setOrganizations(orgs);
+
+        // Auto-select standard defaults if available
+        setFormData((prev) => {
+          const next = { ...prev };
+          if (!next.rentalPaymentTypeId && pTypes.length > 0) {
+            // Find "Monthly" or first
+            const monthly = pTypes.find((p) => p.name.toLowerCase().includes('month')) || pTypes[0];
+            next.rentalPaymentTypeId = monthly.id;
+          }
+          if (!next.paymentTimingId && pTimings.length > 0) {
+            const advance = pTimings.find((p) => p.name.toLowerCase().includes('advance')) || pTimings[0];
+            next.paymentTimingId = advance.id;
+          }
+          if (!next.contractNumber) {
+            const randomNum = Math.floor(1000 + Math.random() * 9000);
+            next.contractNumber = `RC-${new Date().getFullYear()}-${randomNum}`;
+          }
+          // Default 1 year duration
+          if (!next.contractEndDate) {
+            const end = new Date();
+            end.setFullYear(end.getFullYear() + 1);
+            next.contractEndDate = end.toISOString().split('T')[0];
+          }
+          return next;
+        });
       } catch (err) {
-        console.error('Failed to load lookups:', err);
+        console.error('Failed to load initial lookups:', err);
+        enqueueSnackbar('Failed to load foundation data', { variant: 'error' });
+      } finally {
+        setLoadingLookups(false);
       }
     };
     init();
-  }, []);
+  }, [enqueueSnackbar]);
 
-  // Cascading: building → floors
+  // Cascading: Building -> Floors
   useEffect(() => {
     if (!formData.buildingId) {
       setFloors([]);
@@ -120,17 +214,25 @@ export const ContractCreatePage = () => {
       setSelectedUnit(null);
       return;
     }
-    setLoadingFloors(true);
-    buildingFloorsService.getFloors({ buildingId: formData.buildingId, limit: 100, status: 'active' })
-      .then((r) => setFloors(r?.floors || r?.rows || []))
-      .catch(() => {})
-      .finally(() => setLoadingFloors(false));
-    setFormData((p) => ({ ...p, floorId: '', unitId: '' }));
-    setUnits([]);
-    setSelectedUnit(null);
-  }, [formData.buildingId]);
 
-  // Cascading: floor → available units
+    setLoadingFloors(true);
+    buildingFloorsService
+      .getFloors({ buildingId: formData.buildingId, limit: 100, status: 'active' })
+      .then((r) => {
+        const floorRows = r?.floors || r?.rows || (Array.isArray(r) ? r : []);
+        setFloors(floorRows);
+        // If there's an active query param floorId, verify and keep it
+        if (queryFloorId && floorRows.some((f) => f.id === queryFloorId)) {
+          setFormData((p) => ({ ...p, floorId: queryFloorId }));
+        }
+      })
+      .catch(() => {
+        enqueueSnackbar('Failed to load building floors', { variant: 'error' });
+      })
+      .finally(() => setLoadingFloors(false));
+  }, [formData.buildingId, queryFloorId, enqueueSnackbar]);
+
+  // Cascading: Floor -> Units
   useEffect(() => {
     if (!formData.floorId) {
       setUnits([]);
@@ -138,452 +240,1464 @@ export const ContractCreatePage = () => {
       setSelectedUnit(null);
       return;
     }
-    setLoadingUnits(true);
-    buildingUnitsService.getUnits({ floorId: formData.floorId, limit: 100, status: 'active' })
-      .then((r) => {
-        const allUnits = r?.units || r?.rows || [];
-        // Show all units but mark rented ones
-        setUnits(allUnits);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingUnits(false));
-    setFormData((p) => ({ ...p, unitId: '' }));
-    setSelectedUnit(null);
-  }, [formData.floorId]);
 
-  // When unit selected, capture snapshot
+    setLoadingUnits(true);
+    buildingUnitsService
+      .getUnits({ floorId: formData.floorId, limit: 100, status: 'active' })
+      .then((r) => {
+        const unitRows = r?.units || r?.rows || (Array.isArray(r) ? r : []);
+        setUnits(unitRows);
+        // If query param unitId matches, select it
+        if (queryUnitId && unitRows.some((u) => u.id === queryUnitId)) {
+          setFormData((p) => ({ ...p, unitId: queryUnitId }));
+        }
+      })
+      .catch(() => {
+        enqueueSnackbar('Failed to load floor units', { variant: 'error' });
+      })
+      .finally(() => setLoadingUnits(false));
+  }, [formData.floorId, queryUnitId, enqueueSnackbar]);
+
+  // Update selectedUnit snapshot and auto-compute rate when unitId changes
   useEffect(() => {
-    if (!formData.unitId) { setSelectedUnit(null); return; }
+    if (!formData.unitId) {
+      setSelectedUnit(null);
+      return;
+    }
     const unit = units.find((u) => u.id === formData.unitId);
     setSelectedUnit(unit || null);
-    // Auto-calculate monthly rent if per sqm and area are available
+
     if (unit?.area_value && formData.rentAmountPerSquareMeter) {
-      const monthly = parseFloat(formData.rentAmountPerSquareMeter) * parseFloat(unit.area_value);
-      setFormData((p) => ({ ...p, rentAmountTotalPerMonth: monthly.toFixed(2) }));
+      const area = parseFloat(unit.area_value);
+      const perSqm = parseFloat(formData.rentAmountPerSquareMeter);
+      if (!isNaN(area) && !isNaN(perSqm) && area > 0) {
+        const total = (area * perSqm).toFixed(2);
+        setFormData((p) => ({ ...p, rentAmountTotalPerMonth: total }));
+      }
     }
   }, [formData.unitId, units]);
 
-  // Auto-calc monthly rent when per-sqm changes
+  // Handle auto-calculating Rent per m² vs Total Monthly Rent
   const handlePerSqmChange = (val) => {
-    setFormData((p) => ({ ...p, rentAmountPerSquareMeter: val }));
-    if (selectedUnit?.area_value && val) {
-      const monthly = parseFloat(val) * parseFloat(selectedUnit.area_value);
-      if (!isNaN(monthly)) {
-        setFormData((p) => ({ ...p, rentAmountPerSquareMeter: val, rentAmountTotalPerMonth: monthly.toFixed(2) }));
-        return;
+    setFormData((p) => {
+      const next = { ...p, rentAmountPerSquareMeter: val };
+      if (selectedUnit?.area_value && val !== '') {
+        const area = parseFloat(selectedUnit.area_value);
+        const rate = parseFloat(val);
+        if (!isNaN(area) && !isNaN(rate) && area > 0) {
+          next.rentAmountTotalPerMonth = (area * rate).toFixed(2);
+        }
       }
-    }
+      return next;
+    });
+  };
+
+  const handleTotalMonthlyChange = (val) => {
+    setFormData((p) => {
+      const next = { ...p, rentAmountTotalPerMonth: val };
+      if (selectedUnit?.area_value && val !== '') {
+        const area = parseFloat(selectedUnit.area_value);
+        const total = parseFloat(val);
+        if (!isNaN(area) && !isNaN(total) && area > 0) {
+          next.rentAmountPerSquareMeter = (total / area).toFixed(2);
+        }
+      }
+      return next;
+    });
   };
 
   const handleChange = (field) => (e) => {
+    const val = e.target.value;
     if (field === 'rentAmountPerSquareMeter') {
-      handlePerSqmChange(e.target.value);
+      handlePerSqmChange(val);
+    } else if (field === 'rentAmountTotalPerMonth') {
+      handleTotalMonthlyChange(val);
     } else {
-      setFormData((p) => ({ ...p, [field]: e.target.value }));
+      setFormData((p) => ({ ...p, [field]: val }));
     }
     if (errorMsg) setErrorMsg('');
   };
 
+  // Quick Duration Preset click handler
+  const handleApplyDuration = (months) => {
+    const startDate = formData.contractStartDate ? new Date(formData.contractStartDate) : new Date();
+    const endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + months);
+    endDate.setDate(endDate.getDate() - 1); // standard end of term
+    setFormData((p) => ({
+      ...p,
+      contractEndDate: endDate.toISOString().split('T')[0],
+    }));
+  };
+
+  // Generate a new contract number
+  const handleGenerateContractNumber = () => {
+    const randomCode = Math.floor(1000 + Math.random() * 9000);
+    const yr = new Date().getFullYear();
+    setFormData((p) => ({ ...p, contractNumber: `RC-${yr}-${randomCode}` }));
+  };
+
+  // Calculate lease term duration in months and days
+  const termCalculations = useMemo(() => {
+    if (!formData.contractStartDate || !formData.contractEndDate) {
+      return { totalDays: 0, totalMonths: 0, isValidRange: true };
+    }
+    const start = new Date(formData.contractStartDate);
+    const end = new Date(formData.contractEndDate);
+    const diffMs = end - start;
+    const totalDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
+    const totalMonths = Math.max(0, Math.round((totalDays / 30.4375) * 10) / 10);
+    const isValidRange = end > start;
+    return { totalDays, totalMonths, isValidRange };
+  }, [formData.contractStartDate, formData.contractEndDate]);
+
+  // Selected payment type object
+  const selectedPaymentType = useMemo(() => {
+    return paymentTypes.find((pt) => pt.id === formData.rentalPaymentTypeId) || null;
+  }, [paymentTypes, formData.rentalPaymentTypeId]);
+
+  // Selected building object
+  const selectedBuilding = useMemo(() => {
+    return buildings.find((b) => b.id === formData.buildingId) || null;
+  }, [buildings, formData.buildingId]);
+
+  // Selected organization object
+  const selectedTenant = useMemo(() => {
+    return organizations.find((o) => o.id === formData.tenantOrganizationId) || null;
+  }, [organizations, formData.tenantOrganizationId]);
+
+  // Compute Total Contract Value
+  const totalContractValue = useMemo(() => {
+    const monthly = parseFloat(formData.rentAmountTotalPerMonth) || 0;
+    if (monthly <= 0 || termCalculations.totalMonths <= 0) return 0;
+    return Math.round(monthly * termCalculations.totalMonths * 100) / 100;
+  }, [formData.rentAmountTotalPerMonth, termCalculations.totalMonths]);
+
+  // Live Payment Schedule Simulator
+  const simulatedSchedule = useMemo(() => {
+    if (
+      !formData.contractStartDate ||
+      !formData.contractEndDate ||
+      !termCalculations.isValidRange ||
+      !formData.rentAmountTotalPerMonth ||
+      parseFloat(formData.rentAmountTotalPerMonth) <= 0
+    ) {
+      return [];
+    }
+
+    const durationDays = selectedPaymentType?.duration_days
+      ? parseInt(selectedPaymentType.duration_days, 10)
+      : 30;
+    const intervalDays = durationDays > 0 ? durationDays : 30;
+
+    const startDate = new Date(formData.contractStartDate);
+    const endDate = new Date(formData.contractEndDate);
+    const monthlyRent = parseFloat(formData.rentAmountTotalPerMonth) || 0;
+    const amountPerCycle = parseFloat(((monthlyRent / 30) * intervalDays).toFixed(2));
+
+    const schedule = [];
+    let currentDue = new Date(startDate);
+    let count = 0;
+    const maxInstallments = 48;
+
+    while (currentDue <= endDate && count < maxInstallments) {
+      count++;
+      const nextDue = new Date(currentDue);
+      nextDue.setDate(nextDue.getDate() + intervalDays);
+
+      const dueDateStr = currentDue.toISOString().split('T')[0];
+      const nextDateStr = nextDue <= endDate ? nextDue.toISOString().split('T')[0] : null;
+
+      schedule.push({
+        installmentNumber: count,
+        dueDate: dueDateStr,
+        nextDate: nextDateStr,
+        amount: amountPerCycle > 0 ? amountPerCycle : monthlyRent,
+      });
+
+      currentDue = nextDue;
+    }
+    return schedule;
+  }, [
+    formData.contractStartDate,
+    formData.contractEndDate,
+    termCalculations.isValidRange,
+    formData.rentAmountTotalPerMonth,
+    selectedPaymentType,
+  ]);
+
+  // Validation
   const validate = () => {
     if (!formData.buildingId) return 'Please select a building.';
-    if (!formData.floorId) return 'Please select a floor.';
-    if (!formData.unitId) return 'Please select a unit.';
-    if (!formData.contractNumber.trim()) return 'Contract number is required.';
+    if (!formData.floorId) return 'Please select a floor level.';
+    if (!formData.unitId) return 'Please select a specific unit.';
+    if (selectedUnit?.is_rented) return 'The selected unit is already leased under an active contract.';
+    if (!formData.contractNumber.trim()) return 'Contract reference number is required.';
     if (!formData.contractStartDate) return 'Contract start date is required.';
     if (!formData.contractEndDate) return 'Contract end date is required.';
     if (new Date(formData.contractEndDate) <= new Date(formData.contractStartDate)) {
-      return 'Contract end date must be after start date.';
+      return 'Contract end date must be strictly after the start date.';
     }
-    if (!formData.rentalPaymentTypeId) return 'Payment type is required.';
-    if (!formData.paymentTimingId) return 'Payment timing is required.';
-    if (!formData.rentAmountTotalPerMonth) return 'Monthly rent amount is required.';
-    if (parseFloat(formData.rentAmountTotalPerMonth) <= 0) return 'Monthly rent must be greater than 0.';
+    if (!formData.rentalPaymentTypeId) return 'Please select a payment frequency (Rental Payment Type).';
+    if (!formData.paymentTimingId) return 'Please select payment timing (e.g. In Advance).';
+    if (!formData.rentAmountTotalPerMonth || parseFloat(formData.rentAmountTotalPerMonth) <= 0) {
+      return 'Please specify a valid monthly rent amount greater than 0.';
+    }
     return null;
   };
 
+  // Form Submission
   const handleSubmit = async (e) => {
     e?.preventDefault();
     const err = validate();
-    if (err) { setErrorMsg(err); return; }
+    if (err) {
+      setErrorMsg(err);
+      enqueueSnackbar(err, { variant: 'error' });
+      return;
+    }
 
     setSaving(true);
     setErrorMsg('');
+
     try {
       const floor = floors.find((f) => f.id === formData.floorId);
       const payload = {
         buildingId: formData.buildingId,
         floorId: formData.floorId,
         unitId: formData.unitId,
-        floorNumber: floor?.floor_number ?? null,
+        floorNumber: floor?.floor_number ?? selectedUnit?.floor_number ?? null,
+        unitNumber: selectedUnit?.unit_number ?? null,
+        areaValue: selectedUnit?.area_value ? parseFloat(selectedUnit.area_value) : null,
         tenantOrganizationId: formData.tenantOrganizationId || null,
         contractNumber: formData.contractNumber.trim(),
         contractStartDate: formData.contractStartDate,
         contractEndDate: formData.contractEndDate,
         rentalPaymentTypeId: formData.rentalPaymentTypeId,
         paymentTimingId: formData.paymentTimingId,
-        rentAmountPerSquareMeter: formData.rentAmountPerSquareMeter ? parseFloat(formData.rentAmountPerSquareMeter) : null,
+        rentAmountPerSquareMeter: formData.rentAmountPerSquareMeter
+          ? parseFloat(formData.rentAmountPerSquareMeter)
+          : null,
         rentAmountTotalPerMonth: parseFloat(formData.rentAmountTotalPerMonth),
         remarks: formData.remarks.trim() || null,
+        isActive: formData.isActive,
+        generateSchedule: formData.generateSchedule,
       };
 
-      const result = await rentalContractService.createContract(payload);
-      const contractId = result?.contract?.id || result?.id;
-      enqueueSnackbar(result?.message || 'Rental contract created successfully!', { variant: 'success' });
+      const res = await rentalContractService.createContract(payload);
+      const contractId = res?.contract?.id || res?.id;
+
+      enqueueSnackbar(res?.message || 'Rental contract created successfully!', { variant: 'success' });
       navigate(contractId ? `/contracts/${contractId}` : '/contracts');
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to create rental contract.');
+      const message = err?.response?.data?.message || err.message || 'Failed to create rental contract.';
+      setErrorMsg(message);
+      enqueueSnackbar(message, { variant: 'error' });
     } finally {
       setSaving(false);
     }
   };
 
+  // Quick autofill demo handler
+  const handleAutofillDemo = () => {
+    if (buildings.length > 0 && !formData.buildingId) {
+      setFormData((p) => ({ ...p, buildingId: buildings[0].id }));
+    }
+    if (organizations.length > 0 && !formData.tenantOrganizationId) {
+      setFormData((p) => ({ ...p, tenantOrganizationId: organizations[0].id }));
+    }
+    handleGenerateContractNumber();
+    handleApplyDuration(12);
+    setFormData((p) => ({
+      ...p,
+      rentAmountPerSquareMeter: '200.00',
+      rentAmountTotalPerMonth: '20000.00',
+      remarks: 'Standard Commercial Lease Agreement. Includes access to shared facilities.',
+    }));
+    enqueueSnackbar('Populated sample lease values for testing', { variant: 'info' });
+  };
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, width: '100%' }}>
-      {/* Page Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5, flexWrap: 'wrap', gap: 1.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+      {/* Top Header & Breadcrumbs */}
+      <Box sx={{ mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 1.5 }}>
           <Breadcrumbs aria-label="breadcrumb" sx={{ fontSize: '0.78rem' }}>
-            <Link underline="hover" color="inherit" component={RouterLink} to="/" sx={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
+            <Link underline="hover" color="inherit" component={RouterLink} to="/dashboard" sx={{ color: '#94a3b8', fontWeight: 500 }}>
               Dashboard
             </Link>
-            <Link underline="hover" color="inherit" component={RouterLink} to="/contracts" sx={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
+            <Link underline="hover" color="inherit" component={RouterLink} to="/contracts" sx={{ color: '#94a3b8', fontWeight: 500 }}>
               Rental Contracts
             </Link>
-            <Typography sx={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
-              New Contract
+            <Typography sx={{ color: '#475569', fontWeight: 600 }}>
+              New Lease Agreement
             </Typography>
           </Breadcrumbs>
-          <Box sx={{ width: '1px', height: 16, backgroundColor: '#cbd5e1' }} />
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem' }}>
-            Create Rental Contract
-          </Typography>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<QuickIcon sx={{ fontSize: 16 }} />}
+              onClick={handleAutofillDemo}
+              sx={{
+                borderRadius: 2,
+                fontSize: '0.78rem',
+                textTransform: 'none',
+                color: '#6366f1',
+                borderColor: '#c7d2fe',
+                backgroundColor: '#eef2ff',
+                '&:hover': { borderColor: '#818cf8', backgroundColor: '#e0e7ff' },
+              }}
+            >
+              Autofill Sample
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
+              onClick={() => navigate('/contracts')}
+              sx={{
+                borderRadius: 2,
+                fontSize: '0.78rem',
+                textTransform: 'none',
+                color: '#64748b',
+                borderColor: '#cbd5e1',
+                '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
+              }}
+            >
+              Back to Contracts
+            </Button>
+          </Box>
         </Box>
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/contracts')}
-          sx={{ borderRadius: 2, borderColor: '#cbd5e1', color: '#475569', fontWeight: 600, fontSize: '0.82rem' }}
-        >
-          Back to Contracts
-        </Button>
+
+        {/* Hero Title */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 3,
+              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)',
+            }}
+          >
+            <ContractIcon sx={{ fontSize: 26 }} />
+          </Box>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', fontSize: { xs: '1.25rem', sm: '1.45rem' } }}>
+              Create Rental Contract
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#64748b', fontSize: '0.85rem' }}>
+              Draft a formal commercial lease agreement with real-time rent computation and automated schedule generation.
+            </Typography>
+          </Box>
+        </Box>
       </Box>
 
+      {/* Global Error Alert */}
       {errorMsg && (
         <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setErrorMsg('')}>
           {errorMsg}
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit} noValidate>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 3 }}>
-
-          {/* Column 1: Property Selection */}
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-            <SectionHeader
-              icon={<ContractIcon sx={{ fontSize: 16, color: '#1a237e' }} />}
-              title="Property Selection"
-              subtitle="Select the building, floor, and specific unit to lease."
-            />
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField
-                required
-                select
-                fullWidth
-                size="small"
-                label="Building"
-                value={formData.buildingId}
-                onChange={handleChange('buildingId')}
-                disabled={saving}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+      {/* Main Workspace: 2-Column Split */}
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        noValidate
+        className="parent"
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', lg: 'repeat(5, 1fr)' },
+          gridTemplateRows: { xs: 'auto', lg: 'repeat(6, 1fr)' },
+          gap: '8px',
+          width: '100%',
+        }}
+      >
+        {/* DIV 1: The big form area */}
+        <Box
+          className="div1"
+          sx={{
+            gridColumn: { xs: '1', lg: 'span 4 / span 4' },
+            gridRow: { xs: 'auto', lg: 'span 6 / span 6' },
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2.5,
+          }}
+        >
+              {/* SECTION 1: PROPERTY & PREMISES */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                }}
               >
-                <MenuItem value="" disabled>Select Building</MenuItem>
-                {buildings.map((b) => <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>)}
-              </TextField>
+                <FormSectionHeader
+                  icon={<BuildingIcon sx={{ fontSize: 18 }} />}
+                  title="Premises & Space Selection"
+                  subtitle="Select the specific building, floor level, and unit to be leased."
+                  badge="Required"
+                />
 
-              <TextField
-                required
-                select
-                fullWidth
-                size="small"
-                label="Floor"
-                value={formData.floorId}
-                onChange={handleChange('floorId')}
-                disabled={saving || !formData.buildingId || loadingFloors}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                InputProps={{ endAdornment: loadingFloors ? <CircularProgress size={14} /> : null }}
+                <Grid container spacing={2}>
+                  {/* Building Selection */}
+                  <Grid item xs={12} sm={6}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
+                      Target Building <span style={{ color: '#dc2626' }}>*</span>
+                    </Typography>
+                    <TextField
+                      select
+                      fullWidth
+                      size="small"
+                      value={formData.buildingId}
+                      onChange={handleChange('buildingId')}
+                      disabled={saving || loadingLookups}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    >
+                      <MenuItem value="" disabled>
+                        Select Building...
+                      </MenuItem>
+                      {buildings.map((b) => (
+                        <MenuItem key={b.id} value={b.id}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <BuildingIcon sx={{ fontSize: 16, color: '#6366f1' }} />
+                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{b.name}</Typography>
+                            {b.address && (
+                              <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                • {b.address}
+                              </Typography>
+                            )}
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+
+                  {/* Floor Level Selection */}
+                  <Grid item xs={12} sm={6}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
+                      Floor Level <span style={{ color: '#dc2626' }}>*</span>
+                    </Typography>
+                    <TextField
+                      select
+                      fullWidth
+                      size="small"
+                      value={formData.floorId}
+                      onChange={handleChange('floorId')}
+                      disabled={saving || !formData.buildingId || loadingFloors}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      InputProps={{
+                        endAdornment: loadingFloors ? <CircularProgress size={16} sx={{ mr: 2 }} /> : null,
+                      }}
+                    >
+                      <MenuItem value="" disabled>
+                        {!formData.buildingId ? 'Select a building first' : 'Select Floor Level...'}
+                      </MenuItem>
+                      {floors.map((f) => (
+                        <MenuItem key={f.id} value={f.id}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <FloorIcon sx={{ fontSize: 16, color: '#4f46e5' }} />
+                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                              {f.name} (Level {f.floor_number})
+                            </Typography>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+
+                  {/* Unit Selection */}
+                  <Grid item xs={12}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
+                      Building Unit <span style={{ color: '#dc2626' }}>*</span>
+                    </Typography>
+                    <TextField
+                      select
+                      fullWidth
+                      size="small"
+                      value={formData.unitId}
+                      onChange={handleChange('unitId')}
+                      disabled={saving || !formData.floorId || loadingUnits}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      InputProps={{
+                        endAdornment: loadingUnits ? <CircularProgress size={16} sx={{ mr: 2 }} /> : null,
+                      }}
+                    >
+                      <MenuItem value="" disabled>
+                        {!formData.floorId ? 'Select a floor level first' : 'Select Unit...'}
+                      </MenuItem>
+                      {units.map((u) => {
+                        const isRented = u.is_rented;
+                        return (
+                          <MenuItem key={u.id} value={u.id} disabled={isRented}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', py: 0.25 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <UnitIcon sx={{ fontSize: 16, color: isRented ? '#cbd5e1' : '#10b981' }} />
+                                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: isRented ? '#94a3b8' : '#0f172a' }}>
+                                  Unit {u.unit_number}
+                                </Typography>
+                                <Typography sx={{ fontSize: '0.78rem', color: '#64748b' }}>
+                                  • {u.unit_use_type || 'General Use'}
+                                </Typography>
+                                {u.area_value && (
+                                  <Typography sx={{ fontSize: '0.78rem', color: '#64748b' }}>
+                                    • {u.area_value} {u.area_unit_name || u.area_unit_code || 'm²'}
+                                  </Typography>
+                                )}
+                              </Box>
+                              {isRented ? (
+                                <Chip
+                                  label="Already Rented"
+                                  size="small"
+                                  sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#fee2e2', color: '#dc2626' }}
+                                />
+                              ) : (
+                                <Chip
+                                  label="Available"
+                                  size="small"
+                                  sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#f0fdf4', color: '#16a34a' }}
+                                />
+                              )}
+                            </Box>
+                          </MenuItem>
+                        );
+                      })}
+                    </TextField>
+                  </Grid>
+
+                  {/* Selected Unit Snapshot Card */}
+                  {selectedUnit && (
+                    <Grid item xs={12}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 2.5,
+                          backgroundColor: selectedUnit.is_rented ? '#fff1f2' : '#f0fdf4',
+                          border: selectedUnit.is_rented ? '1px solid #fecdd3' : '1px solid #bbf7d0',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: 2,
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box
+                            sx={{
+                              width: 42,
+                              height: 42,
+                              borderRadius: 2,
+                              backgroundColor: selectedUnit.is_rented ? '#ffe4e6' : '#dcfce7',
+                              color: selectedUnit.is_rented ? '#e11d48' : '#16a34a',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <UnitIcon sx={{ fontSize: 22 }} />
+                          </Box>
+                          <Box>
+                            <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>
+                              Unit {selectedUnit.unit_number} Snapshot
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
+                              Floor {selectedUnit.floor_number} • Use Type: <strong>{selectedUnit.unit_use_type || 'General'}</strong>
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          {selectedUnit.area_value && (
+                            <Box sx={{ textAlign: 'right' }}>
+                              <Typography sx={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>
+                                FLOOR AREA
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: '#0f172a' }}>
+                                {selectedUnit.area_value} {selectedUnit.area_unit_name || selectedUnit.area_unit_code || 'm²'}
+                              </Typography>
+                            </Box>
+                          )}
+                          <Chip
+                            label={selectedUnit.is_rented ? 'Leased / Occupied' : 'Ready to Lease'}
+                            size="small"
+                            sx={{
+                              height: 24,
+                              fontWeight: 700,
+                              fontSize: '0.72rem',
+                              backgroundColor: selectedUnit.is_rented ? '#fee2e2' : '#dcfce7',
+                              color: selectedUnit.is_rented ? '#dc2626' : '#15803d',
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    </Grid>
+                  )}
+                </Grid>
+              </Paper>
+
+              {/* SECTION 2: TENANT & LESSEE INFORMATION */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                }}
               >
-                <MenuItem value="">Select Floor</MenuItem>
-                {floors.map((f) => (
-                  <MenuItem key={f.id} value={f.id}>
-                    {f.name} (Floor {f.floor_number})
-                  </MenuItem>
-                ))}
-              </TextField>
+                <FormSectionHeader
+                  icon={<TenantIcon sx={{ fontSize: 18 }} />}
+                  title="Tenant / Lessee Organization"
+                  subtitle="Specify the tenant party legally bound to this lease agreement."
+                />
 
-              <TextField
-                required
-                select
-                fullWidth
-                size="small"
-                label="Unit"
-                value={formData.unitId}
-                onChange={handleChange('unitId')}
-                disabled={saving || !formData.floorId || loadingUnits}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                InputProps={{ endAdornment: loadingUnits ? <CircularProgress size={14} /> : null }}
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
+                      Tenant Organization
+                    </Typography>
+                    <TextField
+                      select
+                      fullWidth
+                      size="small"
+                      value={formData.tenantOrganizationId}
+                      onChange={handleChange('tenantOrganizationId')}
+                      disabled={saving || loadingLookups}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    >
+                      <MenuItem value="">
+                        <em>No Tenant Assigned (Unassigned / Internal Reservation)</em>
+                      </MenuItem>
+                      {organizations.map((org) => (
+                        <MenuItem key={org.id} value={org.id}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <TenantIcon sx={{ fontSize: 16, color: '#4f46e5' }} />
+                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>{org.name}</Typography>
+                            {org.organization_type_name && (
+                              <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                ({org.organization_type_name})
+                              </Typography>
+                            )}
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+
+                  {selectedTenant && (
+                    <Grid item xs={12}>
+                      <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                        <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontWeight: 600 }}>
+                          Selected Tenant: <strong>{selectedTenant.name}</strong>
+                          {selectedTenant.email ? ` • Email: ${selectedTenant.email}` : ''}
+                          {selectedTenant.phone ? ` • Tel: ${selectedTenant.phone}` : ''}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
+                </Grid>
+              </Paper>
+
+              {/* SECTION 3: CONTRACT PERIOD & PAYMENT TERMS */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                }}
               >
-                <MenuItem value="">Select Unit</MenuItem>
-                {units.map((u) => (
-                  <MenuItem key={u.id} value={u.id} disabled={u.is_rented}>
-                    {u.unit_number} — {u.unit_use_type}
-                    {u.is_rented ? ' (Already Rented)' : ''}
-                    {u.area_value ? ` — ${u.area_value} m²` : ''}
-                  </MenuItem>
-                ))}
-              </TextField>
+                <FormSectionHeader
+                  icon={<CalendarIcon sx={{ fontSize: 18 }} />}
+                  title="Lease Term & Agreement Schedule"
+                  subtitle="Define contract reference number, validity dates, and payment cycles."
+                  badge="Required"
+                />
 
-              {/* Unit snapshot preview */}
-              {selectedUnit && (
-                <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                  <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#16a34a', mb: 0.5 }}>
-                    UNIT SNAPSHOT (saved with contract)
+                <Grid container spacing={2}>
+                  {/* Contract Number */}
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                      <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155' }}>
+                        Contract Reference Number <span style={{ color: '#dc2626' }}>*</span>
+                      </Typography>
+                      <Button
+                        size="small"
+                        startIcon={<AutoIcon sx={{ fontSize: 14 }} />}
+                        onClick={handleGenerateContractNumber}
+                        sx={{ fontSize: '0.72rem', textTransform: 'none', color: '#4f46e5', fontWeight: 700, p: 0 }}
+                      >
+                        Auto-Generate Ref
+                      </Button>
+                    </Box>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      placeholder="e.g. RC-2026-0042"
+                      value={formData.contractNumber}
+                      onChange={handleChange('contractNumber')}
+                      disabled={saving}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    />
+                  </Grid>
+
+                  {/* Start Date */}
+                  <Grid item xs={12} sm={6}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
+                      Contract Start Date <span style={{ color: '#dc2626' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="date"
+                      value={formData.contractStartDate}
+                      onChange={handleChange('contractStartDate')}
+                      disabled={saving}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    />
+                  </Grid>
+
+                  {/* End Date */}
+                  <Grid item xs={12} sm={6}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
+                      Contract End Date <span style={{ color: '#dc2626' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="date"
+                      value={formData.contractEndDate}
+                      onChange={handleChange('contractEndDate')}
+                      disabled={saving}
+                      error={!termCalculations.isValidRange}
+                      helperText={!termCalculations.isValidRange ? 'End date must be after start date' : ''}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    />
+                  </Grid>
+
+                  {/* Quick Duration Presets */}
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mt: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                        <Typography sx={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
+                          Quick Term:
+                        </Typography>
+                        {[
+                          { label: '6 Months', months: 6 },
+                          { label: '1 Year', months: 12 },
+                          { label: '2 Years', months: 24 },
+                          { label: '3 Years', months: 36 },
+                          { label: '5 Years', months: 60 },
+                        ].map((preset) => (
+                          <Chip
+                            key={preset.months}
+                            label={preset.label}
+                            size="small"
+                            onClick={() => handleApplyDuration(preset.months)}
+                            sx={{
+                              height: 24,
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              backgroundColor: '#f1f5f9',
+                              color: '#334155',
+                              '&:hover': { backgroundColor: '#e2e8f0' },
+                            }}
+                          />
+                        ))}
+                      </Box>
+
+                      {termCalculations.totalMonths > 0 && termCalculations.isValidRange && (
+                        <Chip
+                          icon={<ScheduleIcon sx={{ fontSize: '14px !important' }} />}
+                          label={`Duration: ~${termCalculations.totalMonths} Months (${termCalculations.totalDays} Days)`}
+                          size="small"
+                          sx={{
+                            height: 24,
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            backgroundColor: '#eef2ff',
+                            color: '#4f46e5',
+                          }}
+                        />
+                      )}
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Divider sx={{ my: 1 }} />
+                  </Grid>
+
+                  {/* Payment Frequency (Rental Payment Type) */}
+                  <Grid item xs={12} sm={6}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
+                      Payment Frequency <span style={{ color: '#dc2626' }}>*</span>
+                    </Typography>
+                    <TextField
+                      select
+                      fullWidth
+                      size="small"
+                      value={formData.rentalPaymentTypeId}
+                      onChange={handleChange('rentalPaymentTypeId')}
+                      disabled={saving || loadingLookups}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    >
+                      <MenuItem value="" disabled>
+                        Select Payment Frequency...
+                      </MenuItem>
+                      {paymentTypes.map((pt) => (
+                        <MenuItem key={pt.id} value={pt.id}>
+                          {pt.name} {pt.duration_days ? `(${pt.duration_days} days)` : ''}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+
+                  {/* Payment Timing */}
+                  <Grid item xs={12} sm={6}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
+                      Payment Timing <span style={{ color: '#dc2626' }}>*</span>
+                    </Typography>
+                    <TextField
+                      select
+                      fullWidth
+                      size="small"
+                      value={formData.paymentTimingId}
+                      onChange={handleChange('paymentTimingId')}
+                      disabled={saving || loadingLookups}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    >
+                      <MenuItem value="" disabled>
+                        Select Payment Timing...
+                      </MenuItem>
+                      {paymentTimings.map((tim) => (
+                        <MenuItem key={tim.id} value={tim.id}>
+                          {tim.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* SECTION 4: FINANCIAL TERMS & RENT COMPUTATION */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                }}
+              >
+                <FormSectionHeader
+                  icon={<PaymentIcon sx={{ fontSize: 18 }} />}
+                  title="Financial Terms & Rent Calculator"
+                  subtitle="Specify monthly rent directly, or set the rate per square meter to auto-calculate."
+                  badge="Auto-Calculating"
+                />
+
+                <Grid container spacing={2}>
+                  {/* Rent per Square Meter */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                      <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155' }}>
+                        Rent per Square Meter
+                      </Typography>
+                      {selectedUnit?.area_value && (
+                        <Typography sx={{ fontSize: '0.7rem', color: '#64748b' }}>
+                          Unit Area: {selectedUnit.area_value} m²
+                        </Typography>
+                      )}
+                    </Box>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="number"
+                      placeholder="e.g. 250.00"
+                      value={formData.rentAmountPerSquareMeter}
+                      onChange={handleChange('rentAmountPerSquareMeter')}
+                      disabled={saving}
+                      inputProps={{ min: 0, step: 'any' }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>ETB</Typography>
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>/ m²</Typography>
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    />
+                  </Grid>
+
+                  {/* Total Monthly Rent */}
+                  <Grid item xs={12} sm={6}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
+                      Total Monthly Rent <span style={{ color: '#dc2626' }}>*</span>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="number"
+                      placeholder="e.g. 25000.00"
+                      value={formData.rentAmountTotalPerMonth}
+                      onChange={handleChange('rentAmountTotalPerMonth')}
+                      disabled={saving}
+                      inputProps={{ min: 0, step: 'any' }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>ETB</Typography>
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>/ month</Typography>
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    />
+                  </Grid>
+
+                  {/* Live Financial Projection Card */}
+                  {formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0 && (
+                    <Grid item xs={12}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 2.5,
+                          backgroundColor: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          display: 'grid',
+                          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
+                          gap: 2,
+                        }}
+                      >
+                        <Box>
+                          <Typography sx={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>
+                            MONTHLY RENT
+                          </Typography>
+                          <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
+                            ETB {formatCurrency(formData.rentAmountTotalPerMonth)}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography sx={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>
+                            ANNUAL EQUIVALENT (12 MO)
+                          </Typography>
+                          <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: '#4f46e5' }}>
+                            ETB {formatCurrency(parseFloat(formData.rentAmountTotalPerMonth) * 12)}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography sx={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>
+                            ESTIMATED CONTRACT TOTAL
+                          </Typography>
+                          <Typography sx={{ fontSize: '1rem', fontWeight: 800, color: '#16a34a' }}>
+                            ETB {formatCurrency(totalContractValue)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Grid>
+                  )}
+
+                  {/* Remarks / Special Stipulations */}
+                  <Grid item xs={12}>
+                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
+                      Contract Remarks & Stipulations
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={3}
+                      placeholder="Specify special terms, grace periods, utility deposits, or maintenance clauses..."
+                      value={formData.remarks}
+                      onChange={handleChange('remarks')}
+                      disabled={saving}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    />
+                    {/* Quick suggestion chips */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1, flexWrap: 'wrap' }}>
+                      <Typography sx={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>Suggestions:</Typography>
+                      {[
+                        'Standard commercial lease terms apply',
+                        'Utilities & service charges billed separately',
+                        'Includes 2-month refundable security deposit',
+                        '5% annual rent escalation clause',
+                      ].map((sug, i) => (
+                        <Chip
+                          key={i}
+                          label={sug}
+                          size="small"
+                          onClick={() => {
+                            setFormData((p) => ({
+                              ...p,
+                              remarks: p.remarks ? `${p.remarks}. ${sug}.` : `${sug}.`,
+                            }));
+                          }}
+                          sx={{
+                            height: 22,
+                            fontSize: '0.68rem',
+                            backgroundColor: '#f1f5f9',
+                            color: '#475569',
+                            cursor: 'pointer',
+                            '&:hover': { backgroundColor: '#e2e8f0' },
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* SECTION 5: CONTRACT EXECUTION OPTIONS */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  border: '1px solid #e2e8f0',
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                }}
+              >
+                <FormSectionHeader
+                  icon={<ReceiptIcon sx={{ fontSize: 18 }} />}
+                  title="Execution & Schedule Settings"
+                  subtitle="Control contract status on creation and automated installment generation."
+                />
+
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', height: '100%' }}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={formData.isActive}
+                            onChange={(e) => setFormData((p) => ({ ...p, isActive: e.target.checked }))}
+                            color="primary"
+                          />
+                        }
+                        label={
+                          <Box>
+                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                              Activate Contract Immediately
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
+                              When enabled, marks the leased unit as &quot;Rented&quot; and enables billing immediately.
+                            </Typography>
+                          </Box>
+                        }
+                      />
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', height: '100%' }}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={formData.generateSchedule}
+                            onChange={(e) => setFormData((p) => ({ ...p, generateSchedule: e.target.checked }))}
+                            color="primary"
+                          />
+                        }
+                        label={
+                          <Box>
+                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                              Auto-Generate Payment Schedule
+                            </Typography>
+                            <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
+                              Generates recurring payment installments based on the selected payment frequency.
+                            </Typography>
+                          </Box>
+                        }
+                      />
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
+        </Box>
+
+        {/* DIV 2: LEASE AGREEMENT PREVIEW */}
+        <Paper
+          className="div2"
+          elevation={0}
+          sx={{
+            gridRow: { xs: 'auto', lg: 'span 3 / span 3' },
+            gridColumnStart: { xs: '1', lg: 5 },
+            minHeight: 0,
+            borderRadius: 2,
+            border: '1px solid #e2e8f0',
+            backgroundColor: '#ffffff',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+                {/* Header Banner */}
+                <Box
+                  sx={{
+                    px: 3,
+                    pt: 2.5,
+                    pb: 2.5,
+                    background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #334155 100%)',
+                    color: '#ffffff',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ReceiptIcon sx={{ fontSize: 18, color: '#818cf8' }} />
+                      <Typography sx={{ fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.12em', color: '#cbd5e1', textTransform: 'uppercase' }}>
+                        LEASE AGREEMENT PREVIEW
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={formData.isActive ? '● Active' : '○ Draft'}
+                      size="small"
+                      sx={{
+                        height: 22,
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        backgroundColor: formData.isActive ? 'rgba(52,211,153,0.15)' : 'rgba(148,163,184,0.15)',
+                        color: formData.isActive ? '#34d399' : '#94a3b8',
+                        border: `1px solid ${formData.isActive ? 'rgba(52,211,153,0.3)' : 'rgba(148,163,184,0.25)'}`,
+                      }}
+                    />
+                  </Box>
+
+                  <Typography sx={{ fontSize: '1.4rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.01em', fontFamily: 'monospace', lineHeight: 1.2, mb: 0.5 }}>
+                    {formData.contractNumber || 'RC-PENDING'}
                   </Typography>
-                  <Typography sx={{ fontSize: '0.75rem', color: '#334155' }}>
-                    Unit: <strong>{selectedUnit.unit_number}</strong> • Type: <strong>{selectedUnit.unit_use_type}</strong>
+
+                  <Typography sx={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                    {selectedBuilding?.name || 'No Building Selected'}
+                    {selectedUnit ? ` • Unit ${selectedUnit.unit_number} (Floor ${selectedUnit.floor_number})` : ''}
                   </Typography>
-                  {selectedUnit.area_value && (
-                    <Typography sx={{ fontSize: '0.75rem', color: '#334155' }}>
-                      Area: <strong>{selectedUnit.area_value} m²</strong>
+
+                  {formData.contractStartDate && formData.contractEndDate && termCalculations.isValidRange && (
+                    <Box sx={{ mt: 1.75, px: 1.5, py: 0.6, borderRadius: 1.5, backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+                      <CalendarIcon sx={{ fontSize: 13, color: '#818cf8' }} />
+                      <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>
+                        {formData.contractStartDate} → {formData.contractEndDate}
+                      </Typography>
+                      <Box sx={{ width: '1px', height: 11, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                      <Typography sx={{ fontSize: '0.72rem', color: '#818cf8', fontWeight: 800 }}>
+                        {termCalculations.totalMonths} mo
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+
+                {/* Property Detail Rows */}
+                <Box sx={{ px: 3, pt: 2, pb: 0.5 }}>
+                  {[
+                    { label: 'Lessee / Tenant', value: selectedTenant?.name || '— Unassigned' },
+                    { label: 'Premises', value: selectedUnit ? `Unit ${selectedUnit.unit_number} (Level ${selectedUnit.floor_number})` : '—' },
+                    { label: 'Space Use Type', value: selectedUnit?.unit_use_type || '—' },
+                    { label: 'Floor Area', value: selectedUnit?.area_value ? `${selectedUnit.area_value} ${selectedUnit.area_unit_name || 'm²'}` : '—' },
+                    { label: 'Rate per m²', value: formData.rentAmountPerSquareMeter ? `ETB ${formatCurrency(formData.rentAmountPerSquareMeter)}` : '—' },
+                    { label: 'Payment Cycle', value: selectedPaymentType?.name || '—' },
+                  ].map((row, i, arr) => (
+                    <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.85, borderBottom: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                      <Typography sx={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 500 }}>{row.label}</Typography>
+                      <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', textAlign: 'right', maxWidth: '60%' }}>{row.value}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+
+                {/* Financial Summary Highlight */}
+                <Box sx={{ mx: 3, my: 2, p: 2, borderRadius: 2.5, background: 'linear-gradient(135deg, #f8faff 0%, #eef2ff 100%)', border: '1px solid #e0e7ff' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                    <Box>
+                      <Typography sx={{ fontSize: '0.64rem', color: '#6366f1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.25 }}>
+                        Monthly Rent
+                      </Typography>
+                      <Typography sx={{ fontSize: '1.05rem', fontWeight: 900, color: '#312e81' }}>
+                        ETB {formatCurrency(formData.rentAmountTotalPerMonth)}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ textAlign: 'right' }}>
+                      <Typography sx={{ fontSize: '0.64rem', color: '#16a34a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.25 }}>
+                        Total Contract Value
+                      </Typography>
+                      <Typography sx={{ fontSize: '1.05rem', fontWeight: 900, color: '#15803d' }}>
+                        ETB {formatCurrency(totalContractValue)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  {termCalculations.totalMonths > 0 && formData.rentAmountTotalPerMonth && (
+                    <Typography sx={{ fontSize: '0.7rem', color: '#6366f1', textAlign: 'center', mt: 0.75, fontWeight: 500 }}>
+                      {termCalculations.totalMonths} months × ETB {formatCurrency(formData.rentAmountTotalPerMonth)}
                     </Typography>
                   )}
-                  {selectedUnit.is_rented && (
-                    <Chip label="Already Rented" size="small" sx={{ mt: 0.5, backgroundColor: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: '0.68rem' }} />
-                  )}
                 </Box>
-              )}
 
-              <TextField
-                select
-                fullWidth
-                size="small"
-                label="Tenant Organization"
-                value={formData.tenantOrganizationId}
-                onChange={handleChange('tenantOrganizationId')}
-                disabled={saving}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              >
-                <MenuItem value="">No Tenant Assigned</MenuItem>
-                {organizations.map((o) => <MenuItem key={o.id} value={o.id}>{o.name}</MenuItem>)}
-              </TextField>
-            </Box>
-          </Paper>
-
-          {/* Column 2: Contract Details */}
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-            <SectionHeader
-              icon={<CalendarIcon sx={{ fontSize: 16, color: '#1a237e' }} />}
-              title="Contract Details"
-              subtitle="Contract reference number and lease duration."
-            />
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField
-                required
-                fullWidth
-                size="small"
-                label="Contract Number"
-                placeholder="e.g. RC-2026-0001"
-                value={formData.contractNumber}
-                onChange={handleChange('contractNumber')}
-                disabled={saving}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-              <Box>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>
-                  Contract Start Date <span style={{ color: '#dc2626' }}>*</span>
-                </Typography>
-                <TextField
-                  required
-                  fullWidth
-                  size="small"
-                  type="date"
-                  value={formData.contractStartDate}
-                  onChange={handleChange('contractStartDate')}
-                  disabled={saving}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                />
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>
-                  Contract End Date <span style={{ color: '#dc2626' }}>*</span>
-                </Typography>
-                <TextField
-                  required
-                  fullWidth
-                  size="small"
-                  type="date"
-                  value={formData.contractEndDate}
-                  onChange={handleChange('contractEndDate')}
-                  disabled={saving}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                />
-              </Box>
-
-              <TextField
-                required
-                select
-                fullWidth
-                size="small"
-                label="Payment Type (Frequency)"
-                value={formData.rentalPaymentTypeId}
-                onChange={handleChange('rentalPaymentTypeId')}
-                disabled={saving}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              >
-                <MenuItem value="" disabled>Select Payment Type</MenuItem>
-                {paymentTypes.map((pt) => (
-                  <MenuItem key={pt.id} value={pt.id}>
-                    {pt.name}{pt.duration_days ? ` (${pt.duration_days} days)` : ''}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                required
-                select
-                fullWidth
-                size="small"
-                label="Payment Timing"
-                value={formData.paymentTimingId}
-                onChange={handleChange('paymentTimingId')}
-                disabled={saving}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              >
-                <MenuItem value="" disabled>Select Payment Timing</MenuItem>
-                {paymentTimings.map((pt) => (
-                  <MenuItem key={pt.id} value={pt.id}>{pt.name}</MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                fullWidth
-                size="small"
-                multiline
-                rows={3}
-                label="Remarks / Notes"
-                placeholder="Special terms, conditions, or notes..."
-                value={formData.remarks}
-                onChange={handleChange('remarks')}
-                disabled={saving}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-            </Box>
-          </Paper>
-
-          {/* Column 3: Financial Details */}
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-            <SectionHeader
-              icon={<PaymentIcon sx={{ fontSize: 16, color: '#1a237e' }} />}
-              title="Financial Details"
-              subtitle="Set rent amount. Monthly total auto-calculated if area and per-sqm rate are provided."
-            />
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField
-                fullWidth
-                size="small"
-                type="number"
-                label="Rent per m² (ETB)"
-                placeholder="e.g. 150.00"
-                value={formData.rentAmountPerSquareMeter}
-                onChange={handleChange('rentAmountPerSquareMeter')}
-                disabled={saving}
-                inputProps={{ min: 0, step: 'any' }}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">ETB</InputAdornment>,
-                  endAdornment: (
-                    <Tooltip title="If unit area is set, monthly total is auto-calculated.">
-                      <InfoIcon sx={{ fontSize: 16, color: '#94a3b8', cursor: 'help' }} />
-                    </Tooltip>
-                  ),
-                }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-
-              <TextField
-                required
-                fullWidth
-                size="small"
-                type="number"
-                label="Total Monthly Rent (ETB)"
-                placeholder="e.g. 15000.00"
-                value={formData.rentAmountTotalPerMonth}
-                onChange={handleChange('rentAmountTotalPerMonth')}
-                disabled={saving}
-                inputProps={{ min: 0, step: 'any' }}
-                InputProps={{ startAdornment: <InputAdornment position="start">ETB</InputAdornment> }}
-                helperText="This is the actual monthly payment amount."
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-
-              {/* Summary preview */}
-              {formData.rentAmountTotalPerMonth && formData.contractStartDate && formData.contractEndDate && (
-                <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#eef2ff', border: '1px solid #c7d2fe' }}>
-                  <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#4f46e5', mb: 0.75, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <AutoIcon sx={{ fontSize: 14 }} />
-                    PAYMENT SCHEDULE PREVIEW
+                {/* Readiness Checklist */}
+                <Box sx={{ mx: 3, mb: 2, p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                  <Typography sx={{ fontSize: '0.65rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1.25 }}>
+                    Issuance Readiness Checklist
                   </Typography>
-                  {(() => {
-                    const start = new Date(formData.contractStartDate);
-                    const end = new Date(formData.contractEndDate);
-                    const months = Math.max(0, Math.round((end - start) / (1000 * 60 * 60 * 24 * 30)));
-                    const total = months * parseFloat(formData.rentAmountTotalPerMonth || 0);
-                    return (
-                      <>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#334155' }}>
-                          Duration: ~<strong>{months}</strong> months
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                    {[
+                      { done: !!(formData.buildingId && formData.floorId && formData.unitId), label: 'Premises & unit selected' },
+                      { done: !!(formData.contractStartDate && formData.contractEndDate && termCalculations.isValidRange), label: 'Valid lease duration set' },
+                      { done: !!(formData.rentalPaymentTypeId && formData.paymentTimingId), label: 'Payment terms configured' },
+                      { done: !!(formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0), label: 'Monthly rent specified' },
+                    ].map((item, i) => (
+                      <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: item.done ? '#dcfce7' : '#fef3c7', border: `1.5px solid ${item.done ? '#86efac' : '#fde68a'}`, flexShrink: 0 }}>
+                          {item.done ? <CheckCircleIcon sx={{ fontSize: 12, color: '#16a34a' }} /> : <WarningIcon sx={{ fontSize: 11, color: '#f59e0b' }} />}
+                        </Box>
+                        <Typography sx={{ fontSize: '0.74rem', color: item.done ? '#15803d' : '#78350f', fontWeight: item.done ? 600 : 500 }}>
+                          {item.label}
                         </Typography>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#334155' }}>
-                          Total Contract Value: <strong>ETB {total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.68rem', color: '#6366f1', mt: 0.5 }}>
-                          Payment schedules will be auto-generated based on the selected payment type frequency.
-                        </Typography>
-                      </>
-                    );
-                  })()}
+                      </Box>
+                    ))}
+                  </Box>
                 </Box>
-              )}
-            </Box>
-          </Paper>
-        </Box>
 
-        {/* Submit Actions */}
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 3 }}>
-          <Button
-            variant="outlined"
-            onClick={() => navigate('/contracts')}
-            disabled={saving}
-            sx={{ borderRadius: 2, borderColor: '#cbd5e1', color: '#475569', fontWeight: 600 }}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
-            disabled={saving}
-            sx={{
-              borderRadius: 2,
-              fontWeight: 700,
-              px: 4,
-              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-              boxShadow: '0 4px 14px rgba(79,70,229,0.35)',
-              '&:hover': { background: 'linear-gradient(135deg, #4338ca 0%, #6d28d9 100%)' },
-            }}
-          >
-            {saving ? 'Creating Contract...' : 'Create Contract & Generate Schedule'}
-          </Button>
-        </Box>
-      </form>
+                {/* Action Buttons */}
+                <Box sx={{ px: 3, pb: 3, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    fullWidth
+                    disabled={saving}
+                    startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+                    sx={{
+                      py: 1.35,
+                      borderRadius: 2.5,
+                      fontWeight: 800,
+                      fontSize: '0.88rem',
+                      textTransform: 'none',
+                      background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                      boxShadow: '0 4px 14px rgba(79,70,229,0.35)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #4338ca 0%, #6d28d9 100%)',
+                        boxShadow: '0 6px 20px rgba(79,70,229,0.45)',
+                      },
+                    }}
+                  >
+                    {saving ? 'Creating Agreement...' : 'Create Contract & Issue Schedule'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => navigate('/contracts')}
+                    disabled={saving}
+                    sx={{
+                      py: 1,
+                      borderRadius: 2,
+                      fontWeight: 600,
+                      fontSize: '0.82rem',
+                      textTransform: 'none',
+                      borderColor: '#cbd5e1',
+                      color: '#64748b',
+                      '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
+                    }}
+                  >
+                    Cancel & Return
+                  </Button>
+                </Box>
+              </Paper>
+
+        {/* DIV 3: Automated Payment Schedule */}
+        <Paper
+          className="div3"
+          elevation={0}
+          sx={{
+            gridRow: { xs: 'auto', lg: 'span 3 / span 3' },
+            gridColumnStart: { xs: '1', lg: 5 },
+            gridRowStart: { xs: 'auto', lg: 4 },
+            minHeight: 0,
+            borderRadius: 2,
+            border: '1px solid #e2e8f0',
+            backgroundColor: '#ffffff',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+                {/* Header Banner */}
+                <Box
+                  sx={{
+                    px: 3,
+                    py: 2,
+                    background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 1.5,
+                        backgroundColor: 'rgba(99,102,241,0.2)',
+                        border: '1px solid rgba(99,102,241,0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <ScheduleIcon sx={{ fontSize: 18, color: '#818cf8' }} />
+                    </Box>
+                    <Box>
+                      <Typography sx={{ fontSize: '0.86rem', fontWeight: 800, color: '#ffffff' }}>
+                        Automated Payment Schedule
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                        {selectedPaymentType?.name ? `${selectedPaymentType.name} frequency` : 'Recurring schedule simulator'}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Chip
+                    label={simulatedSchedule.length > 0 && formData.generateSchedule ? `${simulatedSchedule.length} Installments` : 'Pending Setup'}
+                    size="small"
+                    sx={{
+                      height: 22,
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      backgroundColor: simulatedSchedule.length > 0 && formData.generateSchedule ? 'rgba(99,102,241,0.18)' : 'rgba(148,163,184,0.15)',
+                      color: simulatedSchedule.length > 0 && formData.generateSchedule ? '#818cf8' : '#94a3b8',
+                      border: `1px solid ${simulatedSchedule.length > 0 && formData.generateSchedule ? 'rgba(99,102,241,0.3)' : 'rgba(148,163,184,0.2)'}`,
+                    }}
+                  />
+                </Box>
+
+                {/* Body Content */}
+                {simulatedSchedule.length > 0 && formData.generateSchedule ? (
+                  <>
+                    {/* Summary Bar */}
+                    <Box sx={{ px: 3, py: 1.25, backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
+                        {simulatedSchedule.length} installments scheduled
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: '#16a34a' }}>
+                        Total: ETB {formatCurrency(simulatedSchedule.reduce((acc, s) => acc + s.amount, 0))}
+                      </Typography>
+                    </Box>
+
+                    {/* Scrollable Schedule Table */}
+                    <TableContainer sx={{ maxHeight: 280, '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-track': { background: '#f1f5f9' }, '&::-webkit-scrollbar-thumb': { background: '#c7d2fe', borderRadius: 4 } }}>
+                      <Table size="small" stickyHeader>
+                        <TableHead>
+                          <TableRow sx={{ '& th': { backgroundColor: '#f8fafc', fontSize: '0.68rem', fontWeight: 700, color: '#64748b', py: 0.75, px: 2 } }}>
+                            <TableCell>#</TableCell>
+                            <TableCell>DUE DATE</TableCell>
+                            <TableCell align="right">CYCLE AMOUNT</TableCell>
+                            <TableCell align="right">STATUS</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {simulatedSchedule.map((item) => (
+                            <TableRow key={item.installmentNumber} hover sx={{ '& td': { fontSize: '0.74rem', py: 0.85, px: 2 } }}>
+                              <TableCell sx={{ fontWeight: 700, color: '#4f46e5' }}>
+                                #{item.installmentNumber}
+                              </TableCell>
+                              <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>
+                                {item.dueDate}
+                              </TableCell>
+                              <TableCell align="right" sx={{ fontWeight: 700, color: '#16a34a' }}>
+                                ETB {formatCurrency(item.amount)}
+                              </TableCell>
+                              <TableCell align="right">
+                                <Chip label="Pending" size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#fef9c3', color: '#ca8a04' }} />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+
+                    <Box sx={{ px: 3, py: 1.5, backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                      <Typography sx={{ fontSize: '0.68rem', color: '#94a3b8', textAlign: 'center' }}>
+                        Installments will be automatically recorded in the billing ledger upon contract creation.
+                      </Typography>
+                    </Box>
+                  </>
+                ) : (
+                  <Box sx={{ p: 3, textAlign: 'center' }}>
+                    <Box
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        backgroundColor: '#f1f5f9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        mx: 'auto',
+                        mb: 1.5,
+                      }}
+                    >
+                      <ScheduleIcon sx={{ fontSize: 24, color: '#94a3b8' }} />
+                    </Box>
+                    <Typography sx={{ fontSize: '0.84rem', fontWeight: 700, color: '#334155', mb: 0.5 }}>
+                      Schedule Simulation Pending
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.72rem', color: '#64748b', maxWidth: 300, mx: 'auto', mb: 2 }}>
+                      Complete the lease period, payment frequency, and monthly rent on the left to preview automated payment installments.
+                    </Typography>
+
+                    {/* Prerequisite status checklist */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, textAlign: 'left', p: 1.5, backgroundColor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: formData.unitId ? '#22c55e' : '#cbd5e1' }} />
+                        <Typography sx={{ fontSize: '0.68rem', color: formData.unitId ? '#15803d' : '#64748b', fontWeight: 600 }}>
+                          Unit: {formData.unitId ? 'Selected' : 'Missing'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: termCalculations.isValidRange ? '#22c55e' : '#cbd5e1' }} />
+                        <Typography sx={{ fontSize: '0.68rem', color: termCalculations.isValidRange ? '#15803d' : '#64748b', fontWeight: 600 }}>
+                          Dates: {termCalculations.isValidRange ? 'Configured' : 'Missing'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: formData.rentalPaymentTypeId ? '#22c55e' : '#cbd5e1' }} />
+                        <Typography sx={{ fontSize: '0.68rem', color: formData.rentalPaymentTypeId ? '#15803d' : '#64748b', fontWeight: 600 }}>
+                          Frequency: {formData.rentalPaymentTypeId ? 'Selected' : 'Missing'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: parseFloat(formData.rentAmountTotalPerMonth) > 0 ? '#22c55e' : '#cbd5e1' }} />
+                        <Typography sx={{ fontSize: '0.68rem', color: parseFloat(formData.rentAmountTotalPerMonth) > 0 ? '#15803d' : '#64748b', fontWeight: 600 }}>
+                          Rent: {parseFloat(formData.rentAmountTotalPerMonth) > 0 ? 'Specified' : 'Missing'}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+        </Paper>
+      </Box>
     </Box>
   );
 };
+
+export default ContractCreatePage;
