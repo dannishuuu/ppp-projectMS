@@ -242,7 +242,7 @@ export const Login = () => {
                 Welcome back
               </Typography>
               <Typography variant="body2" sx={{ color: '#64748b' }}>
-                Access PPP & CBR Portal
+                Access CBR Portal
               </Typography>
             </Box>
 
