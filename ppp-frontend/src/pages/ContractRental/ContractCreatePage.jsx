@@ -325,8 +325,12 @@ export const ContractCreatePage = () => {
 
   const handleDurationMonthChange = (e) => {
     const raw = e.target.value;
-    // Only allow positive integers, max 12
-    if (raw !== '' && (!/^\d+$/.test(raw) || parseInt(raw, 10) < 1 || parseInt(raw, 10) > 12)) return;
+    // Only allow non-negative integers between 0 and 11
+    if (raw !== '') {
+      if (!/^\d+$/.test(raw)) return;
+      const val = parseInt(raw, 10);
+      if (val < 0 || val > 11) return;
+    }
     setLeaseDurationMonths(raw);
     const newEnd = recalcEndDate(formData.contractStartDate, leaseDurationYears, raw);
     setFormData((p) => ({ ...p, contractEndDate: newEnd }));
@@ -452,7 +456,15 @@ export const ContractCreatePage = () => {
     if (!formData.unitId) return 'Please select a specific unit.';
     if (selectedUnit?.is_rented) return 'The selected unit is already leased under an active contract.';
     if (!formData.contractStartDate) return 'Contract start date is required.';
-    if (!leaseDurationYears && !leaseDurationMonths) return 'Please enter at least years or months for the lease term.';
+    if (
+      (!leaseDurationYears || parseInt(leaseDurationYears, 10) < 1) &&
+      (!leaseDurationMonths || parseInt(leaseDurationMonths, 10) < 1)
+    ) {
+      return 'Please enter at least 1 year or 1 month for the lease term.';
+    }
+    if (leaseDurationMonths !== '' && (parseInt(leaseDurationMonths, 10) < 0 || parseInt(leaseDurationMonths, 10) > 11)) {
+      return 'Lease months must be between 0 and 11.';
+    }
     if (!formData.contractEndDate) return 'Lease end date could not be calculated.';
     if (new Date(formData.contractEndDate) <= new Date(formData.contractStartDate)) {
       return 'Contract end date must be strictly after the start date.';
@@ -1166,7 +1178,7 @@ export const ContractCreatePage = () => {
                         value={leaseDurationMonths}
                         onChange={handleDurationMonthChange}
                         disabled={saving}
-                        inputProps={{ min: 1, max: 12, step: 1 }}
+                        inputProps={{ min: 0, max: 11, step: 1 }}
                         InputProps={{
                           endAdornment: (
                             <InputAdornment position="end">
@@ -1539,16 +1551,39 @@ export const ContractCreatePage = () => {
                     <FormControlLabel
                       control={
                         <Switch
-                          checked={formData.generateSchedule}
-                          onChange={(e) => setFormData((p) => ({ ...p, generateSchedule: e.target.checked }))}
+                          checked={true}
+                          disabled
                           color="primary"
+                          sx={{
+                            '& .MuiSwitch-switchBase.Mui-checked': {
+                              color: '#4f46e5',
+                            },
+                            '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                              backgroundColor: '#4f46e5',
+                              opacity: 0.6,
+                            },
+                          }}
                         />
                       }
                       label={
                         <Box>
-                          <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                            Auto-Generate Payment Schedule
-                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                              Auto-Generate Payment Schedule
+                            </Typography>
+                            <Chip
+                              label="Always Active"
+                              size="small"
+                              sx={{
+                                height: 18,
+                                fontSize: '0.62rem',
+                                fontWeight: 700,
+                                backgroundColor: '#e0e7ff',
+                                color: '#4338ca',
+                                border: '1px solid #c7d2fe',
+                              }}
+                            />
+                          </Box>
                           <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
                             Generates recurring payment installments based on the selected payment frequency.
                           </Typography>
