@@ -51,7 +51,14 @@ export const rentalContractService = {
    */
   async getContractSummary() {
     const response = await apiClient.get(`${CONTRACTS_BASE}/summary`);
-    return response.data;
+    const raw = response?.data ?? response ?? {};
+    return {
+      totalContracts: Number(raw.total_contracts ?? raw.totalContracts ?? 0),
+      activeContracts: Number(raw.active_contracts ?? raw.activeContracts ?? 0),
+      inactiveContracts: Number(raw.inactive_contracts ?? raw.inactiveContracts ?? 0),
+      totalMonthlyRevenue: Number(raw.monthly_rent_revenue ?? raw.totalMonthlyRevenue ?? 0),
+      rentedUnitsCount: Number(raw.rented_units_count ?? raw.rentedUnitsCount ?? 0),
+    };
   },
 
   /**

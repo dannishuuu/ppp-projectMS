@@ -22,6 +22,7 @@ import {
   Avatar,
   LinearProgress,
   Divider,
+  Skeleton,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -68,6 +69,7 @@ export const ContractIndexPage = () => {
 
   const [contracts, setContracts] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -112,13 +114,23 @@ export const ContractIndexPage = () => {
   }, [page, rowsPerPage, appliedSearch, statusFilter, buildingFilter, enqueueSnackbar]);
 
   const fetchSummary = useCallback(async () => {
+    setSummaryLoading(true);
     try {
       const res = await rentalContractService.getContractSummary();
       setSummary(res);
     } catch {
-      // non-critical
+      enqueueSnackbar('Failed to load contract summary metrics.', { variant: 'warning' });
+      setSummary({
+        totalContracts: 0,
+        activeContracts: 0,
+        inactiveContracts: 0,
+        totalMonthlyRevenue: 0,
+        rentedUnitsCount: 0,
+      });
+    } finally {
+      setSummaryLoading(false);
     }
-  }, []);
+  }, [enqueueSnackbar]);
 
   useEffect(() => {
     fetchContracts();
@@ -167,15 +179,15 @@ export const ContractIndexPage = () => {
   const statCards = [
     {
       label: 'Total Contracts',
-      value: summary?.totalContracts ?? '—',
-      sub: `${summary?.activeContracts ?? 0} active`,
+      value: summaryLoading ? null : String(summary?.totalContracts ?? 0),
+      sub: summaryLoading ? 'Loading...' : `${summary?.activeContracts ?? 0} active`,
       color: '#4f46e5',
       bg: '#eef2ff',
       icon: <ContractIcon sx={{ fontSize: 22, color: '#4f46e5' }} />,
     },
     {
       label: 'Monthly Revenue',
-      value: summary?.totalMonthlyRevenue != null ? `ETB ${formatCurrency(summary.totalMonthlyRevenue)}` : '—',
+      value: summaryLoading ? null : `ETB ${formatCurrency(summary?.totalMonthlyRevenue ?? 0)}`,
       sub: 'From active contracts',
       color: '#16a34a',
       bg: '#dcfce7',
@@ -183,7 +195,7 @@ export const ContractIndexPage = () => {
     },
     {
       label: 'Rented Units',
-      value: summary?.rentedUnitsCount ?? '—',
+      value: summaryLoading ? null : String(summary?.rentedUnitsCount ?? 0),
       sub: 'Units currently leased',
       color: '#0284c7',
       bg: '#e0f2fe',
@@ -191,7 +203,7 @@ export const ContractIndexPage = () => {
     },
     {
       label: 'Inactive Contracts',
-      value: (summary?.totalContracts ?? 0) - (summary?.activeContracts ?? 0),
+      value: summaryLoading ? null : String(summary?.inactiveContracts ?? 0),
       sub: 'Suspended or expired',
       color: '#dc2626',
       bg: '#fee2e2',
@@ -258,9 +270,13 @@ export const ContractIndexPage = () => {
               <Typography sx={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 {card.label}
               </Typography>
-              <Typography sx={{ fontSize: '1.2rem', fontWeight: 800, color: card.color, lineHeight: 1.2 }}>
-                {card.value}
-              </Typography>
+              {card.value == null ? (
+                <Skeleton variant="text" width={80} height={32} sx={{ mt: 0.25 }} />
+              ) : (
+                <Typography sx={{ fontSize: '1.2rem', fontWeight: 800, color: card.color, lineHeight: 1.2 }}>
+                  {card.value}
+                </Typography>
+              )}
               <Typography sx={{ fontSize: '0.7rem', color: '#94a3b8', mt: 0.25 }}>
                 {card.sub}
               </Typography>
