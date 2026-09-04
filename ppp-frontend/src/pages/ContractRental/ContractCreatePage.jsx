@@ -397,30 +397,36 @@ export const ContractCreatePage = () => {
                 disabled={saving}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
-              <TextField
-                required
-                fullWidth
-                size="small"
-                type="date"
-                label="Contract Start Date"
-                value={formData.contractStartDate}
-                onChange={handleChange('contractStartDate')}
-                disabled={saving}
-                InputLabelProps={{ shrink: true }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
-              <TextField
-                required
-                fullWidth
-                size="small"
-                type="date"
-                label="Contract End Date"
-                value={formData.contractEndDate}
-                onChange={handleChange('contractEndDate')}
-                disabled={saving}
-                InputLabelProps={{ shrink: true }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              />
+              <Box>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>
+                  Contract Start Date <span style={{ color: '#dc2626' }}>*</span>
+                </Typography>
+                <TextField
+                  required
+                  fullWidth
+                  size="small"
+                  type="date"
+                  value={formData.contractStartDate}
+                  onChange={handleChange('contractStartDate')}
+                  disabled={saving}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>
+                  Contract End Date <span style={{ color: '#dc2626' }}>*</span>
+                </Typography>
+                <TextField
+                  required
+                  fullWidth
+                  size="small"
+                  type="date"
+                  value={formData.contractEndDate}
+                  onChange={handleChange('contractEndDate')}
+                  disabled={saving}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              </Box>
 
               <TextField
                 required

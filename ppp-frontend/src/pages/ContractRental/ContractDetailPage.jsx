@@ -574,13 +574,17 @@ export const ContractDetailPage = () => {
               inputProps={{ min: 0, step: 'any' }}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
-            <TextField
-              required fullWidth size="small" type="date" label="Payment Date"
-              value={payDate}
-              onChange={(e) => setPayDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-            />
+            <Box>
+              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569', mb: 0.5 }}>
+                Payment Date <span style={{ color: '#dc2626' }}>*</span>
+              </Typography>
+              <TextField
+                required fullWidth size="small" type="date"
+                value={payDate}
+                onChange={(e) => setPayDate(e.target.value)}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+            </Box>
             <TextField
               fullWidth size="small" label="Transaction Reference"
               placeholder="e.g. TXN-98421, Bank receipt #"

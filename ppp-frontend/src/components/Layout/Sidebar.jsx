@@ -63,12 +63,12 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
 
   const [openMenu, setOpenMenu] = useState(
     location.pathname.startsWith('/projects') && !location.pathname.startsWith('/projects/tracking-types') ? 'projects' :
-    location.pathname.startsWith('/users') ? 'users' :
-    location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types') ? 'organizations' :
-    location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/foundation/') ? 'foundation' :
-    location.pathname.startsWith('/document-sequences') ? 'docmgmt' :
-    location.pathname.startsWith('/contracts') ? 'contracts' :
-    null
+      location.pathname.startsWith('/users') ? 'users' :
+        location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types') ? 'organizations' :
+          location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/foundation/') ? 'foundation' :
+            location.pathname.startsWith('/document-sequences') ? 'docmgmt' :
+              location.pathname.startsWith('/contracts') ? 'contracts' :
+                null
   );
 
   const handleMenuToggle = (menu) => {
@@ -118,7 +118,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     { text: 'Proposal Statuses', icon: <StatusIcon />, path: '/proposal-statuses' },
     { text: 'Geographic Mngt', icon: <GeographicIcon />, path: '/foundation/geographical' },
     { text: 'Building Types', icon: <BuildingTypeIcon />, path: '/foundation/building-types' },
-    { text: 'Shop/Service Types', icon: <ShopServiceIcon />, path: '/foundation/shop-service-types' },
+    { text: 'Shop Types', icon: <ShopServiceIcon />, path: '/foundation/shop-service-types' },
     { text: 'Payment Timings', icon: <TimingIcon />, path: '/foundation/payment-timings' },
     { text: 'Rental Payment Types', icon: <RentalTypeIcon />, path: '/foundation/rental-payment-types' },
     { text: 'Area Units', icon: <AreaUnitIcon />, path: '/foundation/area-units' },
