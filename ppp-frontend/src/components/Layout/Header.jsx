@@ -114,7 +114,7 @@ export const Header = ({ handleDrawerToggle }) => {
         {/* Right: Reset, Notifications, Profile */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
 
-          <Tooltip title="Reset mock data to initial 58 projects">
+          {/* <Tooltip title="Reset mock data to initial 58 projects">
             <Button
               size="small"
               variant="outlined"
@@ -131,7 +131,7 @@ export const Header = ({ handleDrawerToggle }) => {
             >
               Reset Mock Data
             </Button>
-          </Tooltip>
+          </Tooltip> */}
 
           <IconButton color="inherit" size="small">
             <Badge badgeContent={3} color="error">
