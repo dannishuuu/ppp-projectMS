@@ -230,7 +230,7 @@ export const ContractEditPage = () => {
             const flRes = await buildingFloorsService.getFloors({
               buildingId: c.building_id,
               limit: 100,
-              status: 'active',
+              status: 'all',
             });
             let fls = flRes?.floors || flRes?.rows || (Array.isArray(flRes) ? flRes : []);
             if (c.floor_id && !fls.some((f) => String(f.id) === String(c.floor_id))) {
@@ -250,7 +250,7 @@ export const ContractEditPage = () => {
                 buildingId: c.building_id,
                 floorId: c.floor_id,
                 limit: 100,
-                status: 'active',
+                status: 'all',
               });
               let uns = unRes?.units || unRes?.rows || (Array.isArray(unRes) ? unRes : []);
               if (c.unit_id && !uns.some((u) => String(u.id) === String(c.unit_id))) {
@@ -357,7 +357,7 @@ export const ContractEditPage = () => {
         const res = await buildingFloorsService.getFloors({
           buildingId: newBuildingId,
           limit: 100,
-          status: 'active',
+          status: 'all',
         });
         setFloors(res?.floors || res?.rows || (Array.isArray(res) ? res : []));
       } catch (err) {
@@ -388,7 +388,7 @@ export const ContractEditPage = () => {
           buildingId: formData.buildingId,
           floorId,
           limit: 100,
-          status: 'active',
+          status: 'all',
         });
         setUnits(res?.units || res?.rows || (Array.isArray(res) ? res : []));
       } catch (err) {
@@ -469,17 +469,17 @@ export const ContractEditPage = () => {
 
   // Selected payment type object
   const selectedPaymentType = useMemo(() => {
-    return paymentTypes.find((pt) => pt.id === formData.rentalPaymentTypeId) || null;
+    return paymentTypes.find((pt) => String(pt.id) === String(formData.rentalPaymentTypeId)) || null;
   }, [paymentTypes, formData.rentalPaymentTypeId]);
 
   // Selected building object
   const selectedBuilding = useMemo(() => {
-    return buildings.find((b) => b.id === formData.buildingId) || null;
+    return buildings.find((b) => String(b.id) === String(formData.buildingId)) || null;
   }, [buildings, formData.buildingId]);
 
   // Selected organization object
   const selectedTenant = useMemo(() => {
-    return organizations.find((o) => o.id === formData.tenantOrganizationId) || null;
+    return organizations.find((o) => String(o.id) === String(formData.tenantOrganizationId)) || null;
   }, [organizations, formData.tenantOrganizationId]);
 
   // Compute Total Contract Value
@@ -556,10 +556,13 @@ export const ContractEditPage = () => {
 
   // Validation
   const validate = () => {
+    if (original?.is_active) {
+      return 'Active contracts cannot be edited. Please deactivate the contract first.';
+    }
     if (!formData.buildingId) return 'Please select a building.';
     if (!formData.floorId) return 'Please select a floor level.';
     if (!formData.unitId) return 'Please select a specific unit.';
-    if (selectedUnit?.is_rented && selectedUnit.id !== original?.unit_id) {
+    if (selectedUnit?.is_rented && String(selectedUnit.id) !== String(original?.unit_id)) {
       return 'The selected unit is already leased under an active contract.';
     }
     if (!formData.contractStartDate) return 'Contract start date is required.';
@@ -593,6 +596,12 @@ export const ContractEditPage = () => {
   // Form Submission
   const handleSubmit = async (e) => {
     e?.preventDefault();
+    if (original?.is_active) {
+      const msg = 'Active contracts cannot be edited. Please deactivate the contract first.';
+      setErrorMsg(msg);
+      enqueueSnackbar(msg, { variant: 'error' });
+      return;
+    }
     const err = validate();
     if (err) {
       setErrorMsg(err);
@@ -604,7 +613,7 @@ export const ContractEditPage = () => {
     setErrorMsg('');
 
     try {
-      const floor = floors.find((f) => f.id === formData.floorId);
+      const floor = floors.find((f) => String(f.id) === String(formData.floorId));
       const payload = {
         buildingId: formData.buildingId,
         floorId: formData.floorId,
@@ -624,6 +633,7 @@ export const ContractEditPage = () => {
         rentAmountTotalPerMonth: parseFloat(formData.rentAmountTotalPerMonth),
         remarks: formData.remarks.trim(),
         isActive: formData.isActive,
+        generateSchedule: formData.generateSchedule,
       };
 
       await rentalContractService.updateContract(id, payload);
@@ -726,6 +736,26 @@ export const ContractEditPage = () => {
           </Box>
         </Box>
       </Box>
+
+      {/* Active Contract Alert */}
+      {original?.is_active && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 3, borderRadius: 2.5, fontWeight: 600, fontSize: '0.84rem' }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => navigate(`/contracts/${id}`)}
+              sx={{ fontWeight: 700, textTransform: 'none' }}
+            >
+              View Contract
+            </Button>
+          }
+        >
+          This rental contract is currently ACTIVE. Active contracts cannot be edited. If you need to make changes, please deactivate the contract from the details page first.
+        </Alert>
+      )}
 
       {/* Inline Error Alert */}
       {errorMsg && (
@@ -849,9 +879,9 @@ export const ContractEditPage = () => {
                   select
                   fullWidth
                   size="small"
-                  value={formData.floorId}
+                  value={formData.floorId ? String(formData.floorId) : ''}
                   onChange={handleFloorChange}
-                  disabled={!formData.buildingId || loadingFloors || saving}
+                  disabled={Boolean(original?.is_active) || !formData.buildingId || loadingFloors || saving}
                   error={Boolean(errorMsg && !formData.floorId)}
                   helperText={
                     !formData.buildingId
@@ -868,7 +898,7 @@ export const ContractEditPage = () => {
                     Select Floor Level
                   </MenuItem>
                   {floors.map((fl) => (
-                    <MenuItem key={fl.id} value={fl.id} sx={{ fontSize: '0.82rem' }}>
+                    <MenuItem key={fl.id} value={String(fl.id)} sx={{ fontSize: '0.82rem' }}>
                       {fl.name} (Floor {fl.floor_number})
                     </MenuItem>
                   ))}
@@ -884,9 +914,9 @@ export const ContractEditPage = () => {
                   select
                   fullWidth
                   size="small"
-                  value={formData.unitId}
+                  value={formData.unitId ? String(formData.unitId) : ''}
                   onChange={handleUnitChange}
-                  disabled={!formData.floorId || loadingUnits || saving}
+                  disabled={Boolean(original?.is_active) || !formData.floorId || loadingUnits || saving}
                   error={Boolean(errorMsg && !formData.unitId)}
                   helperText={
                     !formData.floorId
@@ -903,12 +933,12 @@ export const ContractEditPage = () => {
                     Select Building Unit
                   </MenuItem>
                   {units.map((u) => {
-                    const isCurrentUnit = u.id === original?.unit_id;
+                    const isCurrentUnit = String(u.id) === String(original?.unit_id);
                     const isAlreadyRented = u.is_rented && !isCurrentUnit;
                     return (
                       <MenuItem
                         key={u.id}
-                        value={u.id}
+                        value={String(u.id)}
                         disabled={isAlreadyRented}
                         sx={{ fontSize: '0.82rem', display: 'flex', justifyContent: 'space-between' }}
                       >
@@ -1731,28 +1761,32 @@ export const ContractEditPage = () => {
 
           {/* Action Buttons */}
           <Box sx={{ px: 3, pb: 3, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-            <Button
-              type="submit"
-              variant="contained"
-              fullWidth
-              disabled={saving}
-              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
-              sx={{
-                py: 1.35,
-                borderRadius: 2.5,
-                fontWeight: 800,
-                fontSize: '0.88rem',
-                textTransform: 'none',
-                background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-                boxShadow: '0 4px 14px rgba(79,70,229,0.35)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #4338ca 0%, #6d28d9 100%)',
-                  boxShadow: '0 6px 20px rgba(79,70,229,0.45)',
-                },
-              }}
-            >
-              {saving ? 'Updating Lease...' : 'Save Changes'}
-            </Button>
+            <Tooltip title={original?.is_active ? 'Active contracts cannot be edited. Deactivate first.' : ''}>
+              <span>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  fullWidth
+                  disabled={Boolean(original?.is_active) || saving}
+                  startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+                  sx={{
+                    py: 1.35,
+                    borderRadius: 2.5,
+                    fontWeight: 800,
+                    fontSize: '0.88rem',
+                    textTransform: 'none',
+                    background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                    boxShadow: '0 4px 14px rgba(79,70,229,0.35)',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #4338ca 0%, #6d28d9 100%)',
+                      boxShadow: '0 6px 20px rgba(79,70,229,0.45)',
+                    },
+                  }}
+                >
+                  {saving ? 'Updating Lease...' : 'Save Changes'}
+                </Button>
+              </span>
+            </Tooltip>
             <Button
               variant="text"
               fullWidth

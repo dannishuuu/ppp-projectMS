@@ -174,6 +174,12 @@ class RentalContractService {
       throw err;
     }
 
+    if (current.is_active) {
+      const err = new Error('Active contracts cannot be edited. Please deactivate the contract first.');
+      err.status = 400;
+      throw err;
+    }
+
     if (payload.contractNumber && payload.contractNumber.trim() !== current.contract_number) {
       const existing = await RentalContractModel.findByContractNumber(payload.contractNumber.trim(), id);
       if (existing) {
@@ -255,6 +261,28 @@ class RentalContractService {
         await this._syncUnitRentedStatus(current.unit_id, transaction, actorId);
       }
       await this._syncUnitRentedStatus(unitId, transaction, actorId);
+
+      // Synchronize automated payment schedule if requested (default true)
+      if (payload.generateSchedule !== false) {
+        // Delete unpaid payments
+        await db.query(
+          `DELETE FROM rental_payments WHERE rental_contract_id = :id AND is_paid = false`,
+          { replacements: { id }, type: QueryTypes.DELETE, transaction }
+        );
+
+        // Check if there are any remaining paid payments
+        const remainingPaid = await db.query(
+          `SELECT COUNT(*)::int as count FROM rental_payments WHERE rental_contract_id = :id AND is_paid = true AND is_deleted = false`,
+          { replacements: { id }, type: QueryTypes.SELECT, transaction }
+        );
+        const paidCount = remainingPaid[0]?.count || 0;
+
+        if (paidCount === 0) {
+          await this._generateScheduleForContract(updated, transaction, actorId);
+        } else {
+          await this._generateRemainingScheduleForContract(updated, paidCount, transaction, actorId);
+        }
+      }
 
       await transaction.commit();
       return this.getContractById(id);
@@ -397,6 +425,72 @@ class RentalContractService {
     const endBound = new Date(eY, eM - 1, eD);
 
     for (let count = 1; count <= numberOfSchedules; count++) {
+      const nextDue = new Date(currentDue);
+      nextDue.setDate(nextDue.getDate() + intervalDays);
+
+      const dueDateStr = formatYMD(currentDue);
+      const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
+
+      await RentalPaymentsModel.create(
+        {
+          rentalContractId: contract.id,
+          amountDue: amountPerCycle > 0 ? amountPerCycle : monthlyRent,
+          amountPaid: 0,
+          dueDate: dueDateStr,
+          nextPaymentDate: nextDateStr,
+          isPaid: false,
+          transactionReference: null,
+          remarks: `Scheduled payment #${count}`,
+          createdBy: actorId,
+        },
+        transaction
+      );
+
+      currentDue = nextDue;
+    }
+  }
+
+  static async _generateRemainingScheduleForContract(contract, paidCount, transaction, actorId) {
+    if (!contract) return;
+    const paymentTypeId = contract.rental_payment_type_id || contract.rentalPaymentTypeId;
+    const paymentType = paymentTypeId ? await RentalPaymentTypeModel.findById(paymentTypeId) : null;
+    const durationDays = paymentType?.duration_days ? parseInt(paymentType.duration_days, 10) : (contract.payment_duration_days || 30);
+    const intervalDays = durationDays > 0 ? durationDays : 30;
+
+    const startDateStr = contract.contract_start_date || contract.contractStartDate;
+    const endDateStr = contract.contract_end_date || contract.contractEndDate;
+    if (!startDateStr || !endDateStr) return;
+
+    const [sY, sM, sD] = String(startDateStr).split('T')[0].split('-').map(Number);
+    const [eY, eM, eD] = String(endDateStr).split('T')[0].split('-').map(Number);
+    const startUTC = Date.UTC(sY, sM - 1, sD);
+    const endUTC = Date.UTC(eY, eM - 1, eD);
+    const diffMs = endUTC - startUTC;
+    if (diffMs < 0) return;
+
+    const totalDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
+    const numberOfSchedules = Math.round(totalDays / intervalDays);
+    if (numberOfSchedules <= paidCount) return;
+
+    const monthlyRent = parseFloat(contract.rent_amount_total_per_month || contract.rentAmountTotalPerMonth) || 0;
+    const amountPerCycle = parseFloat(((monthlyRent / 30) * intervalDays).toFixed(2));
+
+    const formatYMD = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    let currentDue = new Date(sY, sM - 1, sD);
+    const endBound = new Date(eY, eM - 1, eD);
+
+    // Fast-forward past the paid installments
+    for (let count = 1; count <= paidCount; count++) {
+      currentDue.setDate(currentDue.getDate() + intervalDays);
+    }
+
+    for (let count = paidCount + 1; count <= numberOfSchedules; count++) {
       const nextDue = new Date(currentDue);
       nextDue.setDate(nextDue.getDate() + intervalDays);
 

@@ -25,6 +25,7 @@ import {
   LinearProgress,
   Alert,
   Skeleton,
+  Tooltip,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -408,22 +409,27 @@ export const ContractDetailPage = () => {
             >
               Back to Contracts
             </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<EditIcon sx={{ fontSize: 16 }} />}
-              onClick={() => navigate(`/contracts/${id}/edit`)}
-              sx={{
-                borderRadius: 2,
-                fontSize: '0.78rem',
-                textTransform: 'none',
-                color: '#4f46e5',
-                borderColor: '#c7d2fe',
-                '&:hover': { borderColor: '#818cf8', backgroundColor: '#eef2ff' },
-              }}
-            >
-              Edit Lease
-            </Button>
+            <Tooltip title={contract.is_active ? 'Active contracts cannot be edited. Deactivate first.' : 'Edit Lease'}>
+              <span>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  disabled={Boolean(contract.is_active)}
+                  startIcon={<EditIcon sx={{ fontSize: 16 }} />}
+                  onClick={() => navigate(`/contracts/${id}/edit`)}
+                  sx={{
+                    borderRadius: 2,
+                    fontSize: '0.78rem',
+                    textTransform: 'none',
+                    color: '#4f46e5',
+                    borderColor: '#c7d2fe',
+                    '&:hover': { borderColor: '#818cf8', backgroundColor: '#eef2ff' },
+                  }}
+                >
+                  Edit Lease
+                </Button>
+              </span>
+            </Tooltip>
             <Button
               variant="outlined"
               size="small"
