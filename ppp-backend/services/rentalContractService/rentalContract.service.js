@@ -74,6 +74,7 @@ class RentalContractService {
     if (!buildingId) throw this._validationError('buildingId is required');
     if (!floorId) throw this._validationError('floorId is required');
     if (!unitId) throw this._validationError('unitId is required');
+    if (!tenantOrganizationId) throw this._validationError('tenantOrganizationId is required');
     if (!rentalPaymentTypeId) throw this._validationError('rentalPaymentTypeId is required');
     if (!paymentTimingId) throw this._validationError('paymentTimingId is required');
     if (!contractStartDate) throw this._validationError('contractStartDate is required');
@@ -196,6 +197,11 @@ class RentalContractService {
     }
     if (payload.remarks !== undefined && (!payload.remarks || !payload.remarks.trim())) {
       throw this._validationError('Contract remarks & stipulations cannot be empty');
+    }
+
+    const tenantOrganizationId = payload.tenantOrganizationId !== undefined ? payload.tenantOrganizationId : current.tenant_organization_id;
+    if (!tenantOrganizationId) {
+      throw this._validationError('tenantOrganizationId is required');
     }
 
     const unitId = payload.unitId || current.unit_id;

@@ -454,6 +454,7 @@ export const ContractCreatePage = () => {
     if (!formData.buildingId) return 'Please select a building.';
     if (!formData.floorId) return 'Please select a floor level.';
     if (!formData.unitId) return 'Please select a specific unit.';
+    if (!formData.tenantOrganizationId) return 'Please select a tenant organization.';
     if (selectedUnit?.is_rented) return 'The selected unit is already leased under an active contract.';
     if (!formData.contractStartDate) return 'Contract start date is required.';
     if (
@@ -987,7 +988,7 @@ export const ContractCreatePage = () => {
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
                   <Box sx={{ width: '100%' }}>
                     <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Tenant Organization
+                      Tenant Organization <span style={{ color: '#dc2626' }}>*</span>
                     </Typography>
                     <Autocomplete
                       fullWidth
@@ -1029,6 +1030,8 @@ export const ContractCreatePage = () => {
                         <TextField
                           {...params}
                           placeholder="Search & select organization..."
+                          error={Boolean(errorMsg && !formData.tenantOrganizationId)}
+                          helperText={errorMsg && !formData.tenantOrganizationId ? 'Tenant organization is required' : ''}
                           sx={{
                             width: '100%',
                             '& .MuiOutlinedInput-root': {
@@ -1719,6 +1722,7 @@ export const ContractCreatePage = () => {
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
                     {[
                       { done: !!(formData.buildingId && formData.floorId && formData.unitId), label: 'Premises & unit selected' },
+                      { done: !!formData.tenantOrganizationId, label: 'Tenant organization selected' },
                       { done: !!(formData.contractStartDate && formData.contractEndDate && termCalculations.isValidRange), label: 'Valid lease duration set' },
                       { done: !!(formData.rentalPaymentTypeId && formData.paymentTimingId), label: 'Payment terms configured' },
                       { done: !!(formData.rentAmountPerSquareMeter && parseFloat(formData.rentAmountPerSquareMeter) > 0 && formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0), label: 'Rent calculated' },
