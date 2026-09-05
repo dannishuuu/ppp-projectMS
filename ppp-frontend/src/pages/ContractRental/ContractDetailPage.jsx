@@ -1306,6 +1306,8 @@ export const ContractDetailPage = () => {
             ? `Are you sure you want to deactivate contract "${contract.contract_number}"? The unit will be marked as available.`
             : `Are you sure you want to reactivate contract "${contract.contract_number}"?`
         }
+        confirmText={contract.is_active ? 'Deactivate' : 'Activate'}
+        confirmColor={contract.is_active ? 'error' : 'success'}
         onConfirm={handleToggleStatus}
         onClose={() => setToggleModalOpen(false)}
         loading={toggling}

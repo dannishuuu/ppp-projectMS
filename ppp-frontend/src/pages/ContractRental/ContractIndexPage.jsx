@@ -492,6 +492,8 @@ export const ContractIndexPage = () => {
             ? `Are you sure you want to deactivate contract "${selectedContract?.contract_number}"? This will also mark the linked unit as available.`
             : `Are you sure you want to activate contract "${selectedContract?.contract_number}"?`
         }
+        confirmText={selectedContract?.is_active ? 'Deactivate' : 'Activate'}
+        confirmColor={selectedContract?.is_active ? 'error' : 'success'}
         onConfirm={handleToggleStatus}
         onClose={() => { setToggleModalOpen(false); setSelectedContract(null); }}
         loading={toggling}

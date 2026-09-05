@@ -19,7 +19,7 @@ export const ConfirmationModal = ({
   onClose,
   loading = false,
   confirmColor = 'error',
-  confirmText = 'Delete Project',
+  confirmText = 'Confirm',
 }) => {
   return (
     <Dialog
@@ -66,7 +66,7 @@ export const ConfirmationModal = ({
           startIcon={loading ? <CircularProgress size={18} color="inherit" /> : null}
           sx={{ fontWeight: 600, px: 2.5 }}
         >
-          {loading ? 'Deleting...' : confirmText}
+          {loading ? 'Processing...' : confirmText}
         </Button>
       </DialogActions>
     </Dialog>
