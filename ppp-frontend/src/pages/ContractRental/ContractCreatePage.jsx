@@ -700,7 +700,7 @@ export const ContractCreatePage = () => {
         </Alert>
       )}
 
-      {/* Main Workspace: 2-Column Split */}
+      {/* Main Workspace: full-width form on top, preview & schedule side-by-side below (4-col grid) */}
       <Box
         component="form"
         onSubmit={handleSubmit}
@@ -1651,13 +1651,13 @@ export const ContractCreatePage = () => {
           </Paper>
         </Box>
 
-        {/* DIV 2: LEASE AGREEMENT PREVIEW */}
+        {/* DIV 2: LEASE AGREEMENT PREVIEW — bottom-left half */}
         <Paper
           className="div2"
           elevation={0}
           sx={{
-            gridColumnStart: { xs: '1', lg: 5 },
-            gridRow: { xs: 'auto', lg: 1 },
+            gridColumn: { lg: '1 / span 2' },
+            gridRowStart: { lg: 3 },
             height: 'fit-content',
             alignSelf: 'start',
             borderRadius: 2,
@@ -1838,13 +1838,13 @@ export const ContractCreatePage = () => {
                 </Box>
               </Paper>
 
-        {/* DIV 3: Automated Payment Schedule */}
+        {/* DIV 3: Automated Payment Schedule — bottom-right half */}
         <Paper
           className="div3"
           elevation={0}
           sx={{
-            gridColumnStart: { xs: '1', lg: 5 },
-            gridRow: { xs: 'auto', lg: 2 },
+            gridColumn: { lg: '3 / span 2' },
+            gridRowStart: { lg: 3 },
             height: 'fit-content',
             alignSelf: 'start',
             borderRadius: 2,
