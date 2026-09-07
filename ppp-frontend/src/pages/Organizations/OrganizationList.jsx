@@ -365,7 +365,7 @@ export const OrganizationList = () => {
                           <Typography className="org-name" variant="body2" noWrap sx={{ fontWeight: 600, color: '#0f172a', fontSize: '0.82rem', transition: 'color 0.2s' }}>
                             {org.name}
                           </Typography>
-                          {org.amharic_org_name && (
+                          {/* {org.amharic_org_name && (
                             <Typography variant="caption" sx={{ display: 'block', color: '#64748b', fontSize: '0.7rem' }}>
                               {org.amharic_org_name}
                             </Typography>
@@ -374,7 +374,7 @@ export const OrganizationList = () => {
                             <Typography variant="caption" sx={{ display: 'block', color: '#64748b', fontSize: '0.7rem' }}>
                               {org.oromo_org_name}
                             </Typography>
-                          )}
+                          )} */}
                           {org.license_number && (
                             <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.7rem' }}>
                               Lic: {org.license_number}
