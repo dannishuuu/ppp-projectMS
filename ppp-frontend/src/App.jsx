@@ -97,7 +97,6 @@ function App() {
                   <Route path="projects/new" element={<ProjectForm />} />
                   <Route path="projects/:id" element={<ProjectDetails />} />
                   <Route path="projects/:id/edit" element={<ProjectForm />} />
-                  <Route path="project-categories" element={<ProjectCategoryPage />} />
 
                   {/* Project proposal pages */}
                   <Route path="projects/proposals" element={<ProjectProposalList />} />
@@ -106,7 +105,6 @@ function App() {
                   <Route path="projects/proposals/:id/edit" element={<ProjectProposalEdit />} />
                   <Route path="projects/reviews" element={<ProjectReviewPage />} />
                   <Route path="projects/reviews/:id" element={<ProjectReviewApprovalPage />} />
-                  <Route path="project-statuses" element={<ProjectStatusPage />} />
 
                   {/* Document management pages */}
                   <Route path="document-sequences" element={<DocumentSequencePage />} />
@@ -134,9 +132,10 @@ function App() {
                   <Route path="foundation/rental-payment-types" element={<RentalPaymentTypePage />} />
                   <Route path="foundation/area-units" element={<AreaUnitPage />} />
                   <Route path="foundation/floor-types" element={<FloorTypePage />} />
-                  <Route path="foundation/floor-types" element={<FloorTypePage />} />
                   <Route path="foundation/business-sectors" element={<BusinessSectorPage />} />
                   <Route path="foundation/tracking-types" element={<ProjectTrackingTypePage />} />
+                  <Route path="foundation/project-categories" element={<ProjectCategoryPage />} />
+                  <Route path="foundation/project-statuses" element={<ProjectStatusPage />} />
 
                   {/* Building Management pages */}
                   <Route path="buildings" element={<BuildingIndexPage />} />
