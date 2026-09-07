@@ -72,7 +72,7 @@ class OrganizationService {
       address,
       profileExperience,
       // profile fields
-      businessSector,
+      businessSectorId,
       yearsOfExperience,
       registrationDate,
       licenseNumber,
@@ -132,7 +132,7 @@ class OrganizationService {
 
       await OrganizationModel.insertProfile(t, {
         organizationId: orgId,
-        businessSector,
+        businessSectorId,
         yearsOfExperience,
         registrationDate,
         licenseNumber,
@@ -175,7 +175,7 @@ class OrganizationService {
       address,
       profileExperience,
       // profile fields
-      businessSector,
+      businessSectorId,
       yearsOfExperience,
       registrationDate,
       licenseNumber,
@@ -221,7 +221,7 @@ class OrganizationService {
       }
 
       await OrganizationModel.updateProfile(t, id, {
-        business_sector: businessSector,
+        business_sector_id: businessSectorId,
         years_of_experience: yearsOfExperience,
         registration_date: registrationDate,
         license_number: licenseNumber,

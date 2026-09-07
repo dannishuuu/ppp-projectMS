@@ -419,8 +419,13 @@ export const OrganizationList = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.82rem' }}>
-                        {org.business_sector || org.profile_experience ? (org.business_sector || 'General Profile') : '-'}
+                        {org.business_sector_name || '-'}
                       </Typography>
+                      {org.business_sector_amh_name && (
+                        <Typography variant="caption" sx={{ display: 'block', color: '#64748b', fontSize: '0.72rem' }}>
+                          {org.business_sector_amh_name}
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Box>

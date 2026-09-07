@@ -50,17 +50,21 @@ const ORG_FIELDS = `
 /** Profile columns appended on every read (LEFT JOIN – nullable when no profile yet) */
 const PROFILE_FIELDS = `
   op.id                         AS profile_id,
-  op.business_sector,
+  op.business_sector_id,
   op.years_of_experience,
   op.registration_date,
   op.license_number,
   op.bio,
-  op.past_projects_summary
+  op.past_projects_summary,
+  bs.eng_name                   AS business_sector_name,
+  bs.amh_name                   AS business_sector_amh_name,
+  bs.oro_name                   AS business_sector_oro_name
 `;
 
 const BASE_JOIN = `
   FROM organizations o
   LEFT JOIN organization_profiles op   ON op.organization_id = o.id
+  LEFT JOIN business_sectors bs        ON bs.id = op.business_sector_id AND bs.is_deleted = FALSE
   LEFT JOIN users creator              ON creator.id = o.created_by
   LEFT JOIN users updater              ON updater.id = o.updated_by
 `;
@@ -190,18 +194,18 @@ class OrganizationModel {
   /**
    * Insert a row into `organization_profiles`.
    */
-  static async insertProfile(t, { organizationId, businessSector, yearsOfExperience, registrationDate, licenseNumber, bio, pastProjectsSummary, createdBy }) {
+  static async insertProfile(t, { organizationId, businessSectorId, yearsOfExperience, registrationDate, licenseNumber, bio, pastProjectsSummary, createdBy }) {
     const query = `
       INSERT INTO organization_profiles
-        (organization_id, business_sector, years_of_experience, registration_date, license_number, bio, past_projects_summary, created_by, updated_by)
+        (organization_id, business_sector_id, years_of_experience, registration_date, license_number, bio, past_projects_summary, created_by, updated_by)
       VALUES
-        (:organizationId, :businessSector, :yearsOfExperience, :registrationDate, :licenseNumber, :bio, :pastProjectsSummary, :createdBy, :createdBy)
+        (:organizationId, :businessSectorId, :yearsOfExperience, :registrationDate, :licenseNumber, :bio, :pastProjectsSummary, :createdBy, :createdBy)
       RETURNING id
     `;
     const rows = await db.query(query, {
       replacements: {
         organizationId,
-        businessSector: businessSector || null,
+        businessSectorId: businessSectorId || null,
         yearsOfExperience: yearsOfExperience ?? null,
         registrationDate: registrationDate || null,
         licenseNumber: licenseNumber || null,
@@ -278,7 +282,7 @@ class OrganizationModel {
   }
 
   static async updateProfile(t, organizationId, fields, updatedBy) {
-    const allowed = ['business_sector', 'years_of_experience', 'registration_date', 'license_number', 'bio', 'past_projects_summary'];
+    const allowed = ['business_sector_id', 'years_of_experience', 'registration_date', 'license_number', 'bio', 'past_projects_summary'];
     const setClauses = [];
     const replacements = { organizationId, updatedBy };
 

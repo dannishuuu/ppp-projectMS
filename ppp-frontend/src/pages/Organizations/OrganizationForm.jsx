@@ -34,6 +34,7 @@ import {
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { organizationService, organizationTypeService } from '../../services/organizationService';
+import { businessSectorService } from '../../services/foundationService/businessSectorService';
 
 const inputSx = {
   borderRadius: 2,
@@ -86,6 +87,7 @@ export const OrganizationForm = () => {
   const isEditMode = Boolean(id);
 
   const [orgTypes, setOrgTypes] = useState([]);
+  const [businessSectors, setBusinessSectors] = useState([]);
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -103,7 +105,7 @@ export const OrganizationForm = () => {
     profileExperience: '',
 
     // Organization Profile
-    businessSector: '',
+    businessSectorId: '',
     yearsOfExperience: '',
     registrationDate: '',
     licenseNumber: '',
@@ -120,14 +122,18 @@ export const OrganizationForm = () => {
 
   const totalFields = useMemo(() => Object.keys(formData).length, []);
 
-  // Load Organization Types
+  // Load Organization Types and Business Sectors
   useEffect(() => {
     const fetchTypes = async () => {
       try {
-        const res = await organizationTypeService.getOrganizationTypes({ limit: 100, status: 'active' });
-        setOrgTypes(res.organizationTypes || res.rows || []);
+        const [orgTypesRes, businessSectorsRes] = await Promise.all([
+          organizationTypeService.getOrganizationTypes({ limit: 100, status: 'active' }),
+          businessSectorService.getBusinessSectors({ limit: 100, status: 'active' }),
+        ]);
+        setOrgTypes(orgTypesRes.organizationTypes || orgTypesRes.rows || []);
+        setBusinessSectors(businessSectorsRes.businessSectors || businessSectorsRes.rows || []);
       } catch (err) {
-        console.error('Failed to load organization types:', err);
+        console.error('Failed to load lookups:', err);
       }
     };
     fetchTypes();
@@ -159,7 +165,7 @@ export const OrganizationForm = () => {
           email: org.email || '',
           address: org.address || '',
           profileExperience: org.profile_experience || '',
-          businessSector: org.business_sector || '',
+          businessSectorId: org.business_sector_id || '',
           yearsOfExperience: org.years_of_experience ?? '',
           registrationDate: org.registration_date ? org.registration_date.split('T')[0] : '',
           licenseNumber: org.license_number || '',
@@ -503,14 +509,25 @@ export const OrganizationForm = () => {
               <Divider sx={{ borderColor: '#e2e8f0' }} />
 
               <TextField
+                select
                 fullWidth
                 label="Business Sector"
-                placeholder="e.g. Real Estate, Construction, Pharma"
-                value={formData.businessSector}
-                onChange={handleChange('businessSector')}
+                placeholder="Select business sector"
+                value={formData.businessSectorId}
+                onChange={handleChange('businessSectorId')}
                 size="small"
                 sx={formFieldSx}
-              />
+              >
+                <MenuItem value="">
+                  <em>None</em>
+                </MenuItem>
+                {businessSectors.map((sector) => (
+                  <MenuItem key={sector.id} value={sector.id}>
+                    {sector.eng_name}
+                    {sector.amh_name && ` (${sector.amh_name})`}
+                  </MenuItem>
+                ))}
+              </TextField>
 
                <TextField
                 fullWidth

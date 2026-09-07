@@ -391,8 +391,18 @@ export const OrganizationDetails = () => {
                   Primary Business Sector
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 700, fontSize: '0.85rem' }}>
-                  {org.business_sector || '-'}
+                  {org.business_sector_name || '-'}
                 </Typography>
+                {org.business_sector_amh_name && (
+                  <Typography variant="caption" sx={{ display: 'block', color: '#64748b', fontSize: '0.72rem' }}>
+                    {org.business_sector_amh_name}
+                  </Typography>
+                )}
+                {org.business_sector_oro_name && (
+                  <Typography variant="caption" sx={{ display: 'block', color: '#64748b', fontSize: '0.72rem' }}>
+                    {org.business_sector_oro_name}
+                  </Typography>
+                )}
               </Box>
               <Divider light />
 
