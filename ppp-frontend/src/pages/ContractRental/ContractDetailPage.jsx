@@ -26,6 +26,8 @@ import {
   Alert,
   Skeleton,
   Tooltip,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -48,6 +50,8 @@ import {
   Schedule as ScheduleIcon,
   CheckCircle as CheckCircleIcon,
   WarningAmber as WarningIcon,
+  ArrowForward as ArrowForwardIcon,
+  BusinessCenter as TenantIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -64,41 +68,74 @@ const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-const FormSectionHeader = ({ icon, title, subtitle, badge }) => (
-  <Box sx={{ mb: 2.5 }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 28,
-            height: 28,
-            borderRadius: 1.5,
-            backgroundColor: '#eef2ff',
-            color: '#4f46e5',
-          }}
-        >
-          {icon}
-        </Box>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.95rem' }}>
+// Shared styling for detail section cards
+const sectionPaperSx = {
+  p: { xs: 2.25, sm: 3 },
+  borderRadius: 3,
+  border: '1px solid #e2e8f0',
+  backgroundColor: '#ffffff',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+};
+
+// Section Header Component — numbered step badge + gradient icon tile
+const FormSectionHeader = ({ step, icon, title, subtitle, badge }) => (
+  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 2.5 }}>
+    <Box sx={{ position: 'relative', flexShrink: 0 }}>
+      <Box
+        sx={{
+          width: 38,
+          height: 38,
+          borderRadius: 2,
+          background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+          color: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 3px 10px rgba(79, 70, 229, 0.28)',
+        }}
+      >
+        {icon}
+      </Box>
+      <Box
+        sx={{
+          position: 'absolute',
+          top: -6,
+          right: -8,
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          backgroundColor: '#0f172a',
+          color: '#ffffff',
+          fontSize: '0.6rem',
+          fontWeight: 800,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '2px solid #ffffff',
+        }}
+      >
+        {step}
+      </Box>
+    </Box>
+    <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.98rem' }}>
           {title}
         </Typography>
+        {badge && (
+          <Chip
+            label={badge}
+            size="small"
+            sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#eef2ff', color: '#4f46e5', border: '1px solid #e0e7ff' }}
+          />
+        )}
       </Box>
-      {badge && (
-        <Chip
-          label={badge}
-          size="small"
-          sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700, backgroundColor: '#f1f5f9', color: '#475569' }}
-        />
+      {subtitle && (
+        <Typography sx={{ fontSize: '0.76rem', color: '#64748b', mt: 0.25 }}>
+          {subtitle}
+        </Typography>
       )}
     </Box>
-    {subtitle && (
-      <Typography sx={{ fontSize: '0.78rem', color: '#64748b', ml: 4.5 }}>
-        {subtitle}
-      </Typography>
-    )}
   </Box>
 );
 
@@ -187,6 +224,9 @@ export const ContractDetailPage = () => {
   const [payNote, setPayNote] = useState('');
   const [recordingPayment, setRecordingPayment] = useState(false);
   const [payError, setPayError] = useState('');
+
+  // Active tab index for the detail card (pure UI state — sections 1-5)
+  const [activeSection, setActiveSection] = useState(0);
 
   const fetchContract = useCallback(async () => {
     try {
@@ -335,20 +375,30 @@ export const ContractDetailPage = () => {
     return (
       <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, width: '100%' }}>
         <Skeleton variant="text" width={320} height={36} sx={{ mb: 2 }} />
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(5, 1fr)' }, gap: '16px' }}>
-          <Box sx={{ gridColumn: { xs: '1', lg: 'span 4' } }}>
-            {[1, 2, 3, 4].map((i) => (
-              <Paper key={i} elevation={0} sx={{ p: 3, mb: 2.5, borderRadius: 3, border: '1px solid #e2e8f0' }}>
-                <Skeleton variant="text" width={200} height={28} sx={{ mb: 2 }} />
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                  <Skeleton variant="rounded" height={45} />
-                  <Skeleton variant="rounded" height={45} />
-                </Box>
-              </Paper>
-            ))}
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(4, 1fr)' }, gap: '12px' }}>
+          <Box sx={{ gridColumn: { lg: 'span 4 / span 4' } }}>
+            <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+              <Skeleton variant="rectangular" height={58} />
+              <Box sx={{ p: 3 }}>
+                {[1, 2].map((i) => (
+                  <Box key={i} sx={{ mb: 3 }}>
+                    <Skeleton variant="text" width={220} height={28} sx={{ mb: 2 }} />
+                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                      <Skeleton variant="rounded" height={45} />
+                      <Skeleton variant="rounded" height={45} />
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Paper>
           </Box>
-          <Box sx={{ gridColumn: { xs: '1', lg: 'span 1' } }}>
+          <Box sx={{ gridColumn: { lg: '1 / span 2' } }}>
             <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0', mb: 2 }}>
+              <Skeleton variant="rounded" height={300} />
+            </Paper>
+          </Box>
+          <Box sx={{ gridColumn: { lg: '3 / span 2' } }}>
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #e2e8f0' }}>
               <Skeleton variant="rounded" height={300} />
             </Paper>
           </Box>
@@ -470,40 +520,96 @@ export const ContractDetailPage = () => {
         </Box>
       </Box>
 
-      {/* Main Grid Layout */}
+      {/* Main Workspace: full-width tabbed detail on top, preview & schedule side-by-side below (4-col grid) */}
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', lg: 'repeat(5, 1fr)' },
-          gap: '16px',
+          gridTemplateColumns: { xs: '1fr', lg: 'repeat(4, 1fr)' },
+          gap: '12px',
+          width: '100%',
+          alignItems: 'start',
         }}
       >
-        {/* LEFT: Detail Cards */}
+        {/* DIV 1: tabbed detail card (Steps 1-5) */}
         <Box
+          className="div1"
           sx={{
-            gridColumn: { xs: '1', lg: 'span 4' },
+            gridColumn: { lg: 'span 4 / span 4' },
+            gridRow: { lg: 'span 2 / span 2' },
             display: 'flex',
             flexDirection: 'column',
-            gap: 2.5,
           }}
         >
-          {/* CARD 1: Premises & Unit */}
           <Paper
             elevation={0}
             sx={{
-              p: 3,
-              borderRadius: 3,
-              border: '1px solid #e2e8f0',
-              backgroundColor: '#ffffff',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+              ...sectionPaperSx,
+              p: 0,
+              overflow: 'hidden',
             }}
           >
-            <FormSectionHeader
-              icon={<BuildingIcon sx={{ fontSize: 18 }} />}
-              title="Premises & Unit Selection"
-              subtitle="Building, floor level, and leased unit allocation"
-              badge="Space Allocation"
-            />
+            {/* Tab Bar — Steps 1-5 */}
+            <Tabs
+              value={activeSection}
+              onChange={(event, newValue) => setActiveSection(newValue)}
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
+              aria-label="Contract detail sections"
+              sx={{
+                minHeight: 58,
+                pt: 1,
+                px: { xs: 0.5, sm: 1.5 },
+                borderBottom: '1px solid #e2e8f0',
+                backgroundColor: '#f8fafc',
+                '& .MuiTabs-indicator': { height: 3, borderRadius: '3px 3px 0 0', backgroundColor: '#4f46e5' },
+              }}
+            >
+              {[
+                { icon: <BuildingIcon sx={{ fontSize: 17 }} />, label: 'Premises' },
+                { icon: <TenantIcon sx={{ fontSize: 17 }} />, label: 'Tenant' },
+                { icon: <CalendarIcon sx={{ fontSize: 17 }} />, label: 'Lease Term' },
+                { icon: <PaymentIcon sx={{ fontSize: 17 }} />, label: 'Financials' },
+                { icon: <ReceiptIcon sx={{ fontSize: 17 }} />, label: 'Execution' },
+              ].map((tab, idx) => (
+                <Tab
+                  key={tab.label}
+                  value={idx}
+                  disableRipple
+                  icon={tab.icon}
+                  iconPosition="start"
+                  label={
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
+                      <Typography sx={{ fontSize: '0.56rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'inherit', opacity: 0.55, lineHeight: 1.2 }}>
+                        Step {idx + 1}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: 'inherit', lineHeight: 1.3 }}>
+                        {tab.label}
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{
+                    minHeight: 58,
+                    textTransform: 'none',
+                    color: '#94a3b8',
+                    '&.Mui-selected': { color: '#4f46e5' },
+                  }}
+                />
+              ))}
+            </Tabs>
+
+            {/* Active Section Content */}
+            <Box sx={{ p: { xs: 2.25, sm: 3 } }}>
+              {/* PANEL 1: PREMISES & UNIT */}
+              {activeSection === 0 && (
+              <Box>
+                <FormSectionHeader
+                  step={1}
+                  icon={<BuildingIcon sx={{ fontSize: 18 }} />}
+                  title="Premises & Unit Allocation"
+                  subtitle="Building, floor level, and leased unit allocation"
+                  badge="Space Allocation"
+                />
 
             <Box
               sx={{
@@ -523,10 +629,6 @@ export const ContractDetailPage = () => {
                 }
               />
               <DetailField label="Building Unit" value={contract.unit_number ? `Unit ${contract.unit_number}` : null} />
-              <DetailField
-                label="Tenant Organization"
-                value={contract.tenant_organization_name || 'Individual / Unspecified Tenant'}
-              />
             </Box>
 
             <Box
@@ -587,20 +689,83 @@ export const ContractDetailPage = () => {
                 />
               </Box>
             </Box>
-          </Paper>
+          </Box>
+          )}
 
-          {/* CARD 2: Lease Term */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 3,
-              border: '1px solid #e2e8f0',
-              backgroundColor: '#ffffff',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-            }}
-          >
+          {/* PANEL 2: TENANT & LESSEE */}
+          {activeSection === 1 && (
+          <Box>
             <FormSectionHeader
+              step={2}
+              icon={<TenantIcon sx={{ fontSize: 18 }} />}
+              title="Tenant / Lessee Organization"
+              subtitle="The tenant party legally bound to this lease agreement."
+              badge="Lessee"
+            />
+
+            <DetailField
+              label="Tenant Organization"
+              value={contract.tenant_organization_name || 'Individual / Unspecified Tenant'}
+            />
+
+            <Box
+              sx={{
+                mt: 2.5,
+                p: 2,
+                borderRadius: 2.5,
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box
+                  sx={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 2,
+                    backgroundColor: '#e0e7ff',
+                    color: '#4f46e5',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <TenantIcon sx={{ fontSize: 22 }} />
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>
+                    {contract.tenant_organization_name || 'Individual / Unspecified Tenant'}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    Legally bound lessee under this lease agreement
+                  </Typography>
+                </Box>
+              </Box>
+              <Chip
+                label={contract.tenant_organization_name ? 'Registered Organization' : 'Unassigned'}
+                size="small"
+                sx={{
+                  height: 24,
+                  fontWeight: 700,
+                  fontSize: '0.72rem',
+                  backgroundColor: contract.tenant_organization_name ? '#dcfce7' : '#f1f5f9',
+                  color: contract.tenant_organization_name ? '#15803d' : '#64748b',
+                }}
+              />
+            </Box>
+          </Box>
+          )}
+
+          {/* PANEL 3: LEASE TERM */}
+          {activeSection === 2 && (
+          <Box>
+            <FormSectionHeader
+              step={3}
               icon={<CalendarIcon sx={{ fontSize: 18 }} />}
               title="Lease Term & Agreement Schedule"
               subtitle="Contract timeline, tenure duration, and key dates"
@@ -644,20 +809,14 @@ export const ContractDetailPage = () => {
                 />
               </Box>
             )}
-          </Paper>
+          </Box>
+          )}
 
-          {/* CARD 3: Financial Terms */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 3,
-              border: '1px solid #e2e8f0',
-              backgroundColor: '#ffffff',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-            }}
-          >
+          {/* PANEL 4: FINANCIAL TERMS */}
+          {activeSection === 3 && (
+          <Box>
             <FormSectionHeader
+              step={4}
               icon={<PaymentIcon sx={{ fontSize: 18 }} />}
               title="Financial Terms & Rent Calculator"
               subtitle="Pricing matrix, billing frequency, and recurring rent"
@@ -717,20 +876,14 @@ export const ContractDetailPage = () => {
                 </Typography>
               )}
             </Box>
-          </Paper>
+          </Box>
+          )}
 
-          {/* CARD 4: Remarks */}
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              borderRadius: 3,
-              border: '1px solid #e2e8f0',
-              backgroundColor: '#ffffff',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-            }}
-          >
+          {/* PANEL 5: EXECUTION & STIPULATIONS */}
+          {activeSection === 4 && (
+          <Box>
             <FormSectionHeader
+              step={5}
               icon={<ContractIcon sx={{ fontSize: 18 }} />}
               title="Operational Settings & Stipulations"
               subtitle="Contract activation status and compliance remarks"
@@ -758,29 +911,140 @@ export const ContractDetailPage = () => {
                 {contract.remarks || 'No remarks or special stipulations recorded.'}
               </Typography>
             </Box>
-          </Paper>
+          </Box>
+          )}
 
-          {/* CARD 5: Payment Schedule */}
-          <Paper
-            elevation={0}
+          {/* Panel footer navigation */}
+          <Box
             sx={{
-              borderRadius: 3,
-              border: '1px solid #e2e8f0',
-              backgroundColor: '#ffffff',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+              mt: 3,
+              pt: 2.5,
+              borderTop: '1px dashed #e2e8f0',
             }}
           >
-            <Box sx={{ p: 3, pb: 2 }}>
-              <FormSectionHeader
-                icon={<ScheduleIcon sx={{ fontSize: 18 }} />}
-                title="Automated Payment Schedule"
-                subtitle="Installment ledger, payment status, and schedule management"
-                badge={`${payments.length} Installments`}
-              />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
+              disabled={activeSection === 0}
+              onClick={() => setActiveSection((s) => Math.max(0, s - 1))}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: '#64748b',
+                borderColor: '#cbd5e1',
+                '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
+              }}
+            >
+              Previous Step
+            </Button>
 
-              {paymentStats && (
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 2.5 }}>
+            <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8' }}>
+              Step {activeSection + 1} of 5
+            </Typography>
+
+            <Button
+              variant="outlined"
+              size="small"
+              endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
+              disabled={activeSection === 4}
+              onClick={() => setActiveSection((s) => Math.min(4, s + 1))}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: '#4f46e5',
+                borderColor: '#c7d2fe',
+                backgroundColor: '#eef2ff',
+                '&:hover': { borderColor: '#818cf8', backgroundColor: '#e0e7ff' },
+              }}
+            >
+              Next Step
+            </Button>
+          </Box>
+            </Box>
+          </Paper>
+        </Box>
+
+        {/* DIV 3: Automated Payment Schedule — bottom-right half */}
+        <Paper
+          className="div3"
+          elevation={0}
+          sx={{
+            gridColumn: { lg: '3 / span 2' },
+            gridRowStart: { lg: 3 },
+            height: 'fit-content',
+            alignSelf: 'start',
+            borderRadius: 2,
+            border: '1px solid #e2e8f0',
+            backgroundColor: '#ffffff',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Header Banner */}
+          <Box
+            sx={{
+              px: 3,
+              py: 2,
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 1.5,
+                  backgroundColor: 'rgba(99,102,241,0.2)',
+                  border: '1px solid rgba(99,102,241,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ScheduleIcon sx={{ fontSize: 18, color: '#818cf8' }} />
+              </Box>
+              <Box>
+                <Typography sx={{ fontSize: '0.86rem', fontWeight: 800, color: '#ffffff' }}>
+                  Automated Payment Schedule
+                </Typography>
+                <Typography sx={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                  {contract.rental_payment_type_name ? `${contract.rental_payment_type_name} frequency` : 'Installment ledger & status'}
+                </Typography>
+              </Box>
+            </Box>
+
+            <Chip
+              label={payments.length > 0 ? `${payments.length} Installments` : 'No Schedule'}
+              size="small"
+              sx={{
+                height: 22,
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                backgroundColor: payments.length > 0 ? 'rgba(99,102,241,0.18)' : 'rgba(148,163,184,0.15)',
+                color: payments.length > 0 ? '#818cf8' : '#94a3b8',
+                border: `1px solid ${payments.length > 0 ? 'rgba(99,102,241,0.3)' : 'rgba(148,163,184,0.2)'}`,
+              }}
+            />
+          </Box>
+
+          {/* Stats & Schedule Management */}
+          <Box sx={{ px: 3, pt: 2.5, pb: 2 }}>
+            {paymentStats && (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', xl: 'repeat(4, 1fr)' }, gap: 2, mb: 2.5 }}>
                   {[
                     { label: 'Total Due', value: `ETB ${formatCurrency(paymentStats.totalAmountDue)}`, color: '#dc2626', bg: '#fee2e2', icon: <ReceiptIcon sx={{ fontSize: 18, color: '#dc2626' }} /> },
                     { label: 'Total Paid', value: `ETB ${formatCurrency(paymentStats.totalAmountPaid)}`, color: '#16a34a', bg: '#dcfce7', icon: <PaidIcon sx={{ fontSize: 18, color: '#16a34a' }} /> },
@@ -933,146 +1197,122 @@ export const ContractDetailPage = () => {
                 </TableContainer>
               </>
             )}
-          </Paper>
-        </Box>
+        </Paper>
 
-        {/* RIGHT: Sidebar */}
-        <Box
+        {/* DIV 2: LEASE AGREEMENT — bottom-left half */}
+        <Paper
+          className="div2"
+          elevation={0}
           sx={{
-            gridColumn: { xs: '1', lg: 'span 1' },
+            gridColumn: { lg: '1 / span 2' },
+            gridRowStart: { lg: 3 },
+            height: 'fit-content',
+            alignSelf: 'start',
+            borderRadius: 2,
+            border: '1px solid #e2e8f0',
+            backgroundColor: '#ffffff',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
             display: 'flex',
             flexDirection: 'column',
-            gap: 2,
+            overflow: 'hidden',
           }}
         >
-          {/* Lease Agreement Preview */}
-          <Paper
-            elevation={0}
-            sx={{
-              height: 'fit-content',
-              borderRadius: 2,
-              border: '1px solid #e2e8f0',
-              backgroundColor: '#ffffff',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-            }}
-          >
+            {/* Header Banner */}
             <Box
               sx={{
                 px: 3,
-                py: 2.25,
-                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                pt: 2.5,
+                pb: 2.5,
+                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #334155 100%)',
                 color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                <Box
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ReceiptIcon sx={{ fontSize: 18, color: '#818cf8' }} />
+                  <Typography sx={{ fontSize: '0.78rem', fontWeight: 800, letterSpacing: '0.12em', color: '#cbd5e1', textTransform: 'uppercase' }}>
+                    LEASE AGREEMENT
+                  </Typography>
+                </Box>
+                <Chip
+                  label={contract.is_active ? '● Active' : '○ Inactive'}
+                  size="small"
                   sx={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 2,
-                    backgroundColor: 'rgba(99,102,241,0.2)',
-                    border: '1px solid rgba(99,102,241,0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    height: 22,
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    backgroundColor: contract.is_active ? 'rgba(52,211,153,0.15)' : 'rgba(148,163,184,0.15)',
+                    color: contract.is_active ? '#34d399' : '#94a3b8',
+                    border: `1px solid ${contract.is_active ? 'rgba(52,211,153,0.3)' : 'rgba(148,163,184,0.25)'}`,
                   }}
-                >
-                  <ContractIcon sx={{ fontSize: 18, color: '#818cf8' }} />
-                </Box>
-                <Box>
-                  <Typography sx={{ fontSize: '0.88rem', fontWeight: 800, color: '#ffffff' }}>
-                    Lease Agreement
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.68rem', color: '#94a3b8' }}>
-                    Contract Overview
-                  </Typography>
-                </Box>
+                />
               </Box>
-              <Chip
-                label={contract.contract_number}
-                size="small"
-                sx={{
-                  height: 22,
-                  fontSize: '0.62rem',
-                  fontWeight: 800,
-                  backgroundColor: 'rgba(99,102,241,0.2)',
-                  color: '#818cf8',
-                  border: '1px solid rgba(99,102,241,0.3)',
-                  fontFamily: 'monospace',
-                }}
-              />
+
+              <Typography sx={{ fontSize: '1.4rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.01em', fontFamily: 'monospace', lineHeight: 1.2, mb: 0.5 }}>
+                {contract.contract_number}
+              </Typography>
+
+              <Typography sx={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                {contract.building_name || 'No Building'}
+                {contract.unit_number ? ` • Unit ${contract.unit_number}${contract.floor_number != null ? ` (Floor ${contract.floor_number})` : ''}` : ''}
+              </Typography>
+
+              {startDate && endDate && termCalculations.isValidRange && (
+                <Box sx={{ mt: 1.75, px: 1.5, py: 0.6, borderRadius: 1.5, backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+                  <CalendarIcon sx={{ fontSize: 13, color: '#818cf8' }} />
+                  <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>
+                    {startDate} → {endDate}
+                  </Typography>
+                  <Box sx={{ width: '1px', height: 11, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                  <Typography sx={{ fontSize: '0.72rem', color: '#818cf8', fontWeight: 800 }}>
+                    {termCalculations.totalMonths} mo
+                  </Typography>
+                </Box>
+              )}
             </Box>
 
-            <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box>
-                <Typography sx={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
-                  Premises
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                  Unit {contract.unit_number || '—'}
-                </Typography>
-                <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
-                  {contract.building_name || 'Building'}
-                  {contract.floor_number != null ? ` • Floor ${contract.floor_number}` : ''}
-                  {contract.area_value ? ` • ${contract.area_value} m²` : ''}
-                </Typography>
-              </Box>
+            {/* Property Detail Rows */}
+            <Box sx={{ px: 3, pt: 2, pb: 0.5 }}>
+              {[
+                { label: 'Lessee / Tenant', value: contract.tenant_organization_name || '— Unassigned' },
+                { label: 'Premises', value: contract.unit_number ? `Unit ${contract.unit_number} (Level ${contract.floor_number ?? '—'})` : '—' },
+                { label: 'Space Use Type', value: contract.unit_use_type || '—' },
+                { label: 'Floor Area', value: contract.area_value ? `${contract.area_value} m²` : '—' },
+                { label: 'Rate per m²', value: contract.rent_amount_per_square_meter != null ? `ETB ${formatCurrency(contract.rent_amount_per_square_meter)}` : '—' },
+                { label: 'Payment Cycle', value: contract.rental_payment_type_name || '—' },
+              ].map((row, i, arr) => (
+                <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.85, borderBottom: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                  <Typography sx={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 500 }}>{row.label}</Typography>
+                  <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a', textAlign: 'right', maxWidth: '60%' }}>{row.value}</Typography>
+                </Box>
+              ))}
+            </Box>
 
-              <Divider />
-
-              <Box>
-                <Typography sx={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
-                  Lessee / Tenant
-                </Typography>
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                  {contract.tenant_organization_name || 'Individual / Unspecified Tenant'}
-                </Typography>
-              </Box>
-
-              <Divider />
-
-              <Box>
-                <Typography sx={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>
-                  Term & Duration
-                </Typography>
-                <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f172a' }}>
-                  {startDate || 'Start'} → {endDate || 'End'}
-                </Typography>
-                {termCalculations.totalDays > 0 && (
-                  <Typography sx={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>
-                    {termCalculations.totalMonths} Months ({termCalculations.totalDays} Days)
+            {/* Financial Summary Highlight */}
+            <Box sx={{ mx: 3, my: 2, p: 2, borderRadius: 2.5, background: 'linear-gradient(135deg, #f8faff 0%, #eef2ff 100%)', border: '1px solid #e0e7ff' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                <Box>
+                  <Typography sx={{ fontSize: '0.64rem', color: '#6366f1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.25 }}>
+                    Monthly Rent
                   </Typography>
-                )}
-              </Box>
-
-              <Divider />
-
-              <Box sx={{ backgroundColor: '#f8fafc', p: 2, borderRadius: 2, border: '1px solid #e2e8f0' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
-                  <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>Rate / m²</Typography>
-                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: '#0f172a' }}>
-                    ETB {formatCurrency(contract.rent_amount_per_square_meter || 0)}
+                  <Typography sx={{ fontSize: '1.05rem', fontWeight: 900, color: '#312e81' }}>
+                    ETB {formatCurrency(contract.rent_amount_total_per_month)}
                   </Typography>
                 </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
-                  <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>Monthly Rent</Typography>
-                  <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: '#16a34a' }}>
-                    ETB {formatCurrency(contract.rent_amount_total_per_month || 0)}
+                <Box sx={{ textAlign: 'right' }}>
+                  <Typography sx={{ fontSize: '0.64rem', color: '#16a34a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.25 }}>
+                    Total Contract Value
                   </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 0.75, borderTop: '1px dashed #cbd5e1' }}>
-                  <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#334155' }}>Contract Value</Typography>
-                  <Typography sx={{ fontSize: '0.88rem', fontWeight: 800, color: '#4f46e5' }}>
+                  <Typography sx={{ fontSize: '1.05rem', fontWeight: 900, color: '#15803d' }}>
                     ETB {formatCurrency(totalContractValue)}
                   </Typography>
                 </Box>
               </Box>
+              {termCalculations.totalMonths > 0 && contract.rent_amount_total_per_month && (
+                <Typography sx={{ fontSize: '0.7rem', color: '#6366f1', textAlign: 'center', mt: 0.75, fontWeight: 500 }}>
+                  {termCalculations.totalMonths} months × ETB {formatCurrency(contract.rent_amount_total_per_month)}
+                </Typography>
+              )}
             </Box>
 
             {/* Payment Progress */}
@@ -1189,8 +1429,7 @@ export const ContractDetailPage = () => {
                 {contract.is_active ? 'Deactivate Contract' : 'Activate Contract'}
               </Button>
             </Box>
-          </Paper>
-        </Box>
+        </Paper>
       </Box>
 
       {/* Record Payment Dialog */}
