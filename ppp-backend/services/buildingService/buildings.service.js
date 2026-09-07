@@ -294,7 +294,7 @@ class BuildingService {
                                             deleted_by = NULL,
                                             updated_by = :updatedBy,
                                             updated_at = NOW()
-                                        WHERE id = :unitId`,
+                                        WHERE id = :unitId AND is_rented = false`,
                                         {
                                             replacements: {
                                                 unitId: u.id,
@@ -350,11 +350,11 @@ class BuildingService {
                             }
                         }
 
-                        // Soft-delete units of this floor that were removed
+                        // Soft-delete units of this floor that were removed (protect rented units)
                         if (retainedUnitIds.length > 0) {
                             await db.query(`
                                 UPDATE building_units SET is_deleted = true, is_active = false, deleted_at = NOW(), deleted_by = :deletedBy
-                                WHERE floor_id = :floorId AND id NOT IN (:retainedUnitIds) AND is_deleted = false`,
+                                WHERE floor_id = :floorId AND id NOT IN (:retainedUnitIds) AND is_deleted = false AND is_rented = false`,
                                 {
                                     replacements: { floorId, retainedUnitIds, deletedBy: actorId || null },
                                     type: QueryTypes.UPDATE,
@@ -365,11 +365,15 @@ class BuildingService {
                     }
                 }
 
-                // Soft-delete floors of this building that were removed
+                // Soft-delete floors of this building that were removed (protect floors containing rented units)
                 if (retainedFloorIds.length > 0) {
                     await db.query(`
                         UPDATE building_floors SET is_deleted = true, is_active = false, deleted_at = NOW(), deleted_by = :deletedBy
-                        WHERE building_id = :buildingId AND id NOT IN (:retainedFloorIds) AND is_deleted = false`,
+                        WHERE building_id = :buildingId AND id NOT IN (:retainedFloorIds) AND is_deleted = false
+                        AND id NOT IN (
+                            SELECT DISTINCT floor_id FROM building_units 
+                            WHERE building_id = :buildingId AND is_rented = true AND is_deleted = false
+                        )`,
                         {
                             replacements: { buildingId: id, retainedFloorIds, deletedBy: actorId || null },
                             type: QueryTypes.UPDATE,

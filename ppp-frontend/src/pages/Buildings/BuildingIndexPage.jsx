@@ -744,25 +744,49 @@ export const BuildingIndexPage = () => {
                           </IconButton>
                         </Tooltip>
 
-                        <Tooltip title={building.is_active ? 'Deactivate Building' : 'Activate Building'} arrow placement="top">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleToggleDialogOpen(building)}
-                            sx={{
-                              p: 0.5,
-                              color: building.is_active ? '#eab308' : '#16a34a',
-                              '&:hover': {
-                                backgroundColor: building.is_active ? '#fef9c3' : '#dcfce7',
-                              },
-                            }}
+                        {/* Only show deactivate button if no units are rented, or show activate if already inactive */}
+                        {(!building.is_active || (building.rented_units_count === 0 || building.rented_units_count === null)) && (
+                          <Tooltip title={building.is_active ? 'Deactivate Building' : 'Activate Building'} arrow placement="top">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleToggleDialogOpen(building)}
+                              sx={{
+                                p: 0.5,
+                                color: building.is_active ? '#eab308' : '#16a34a',
+                                '&:hover': {
+                                  backgroundColor: building.is_active ? '#fef9c3' : '#dcfce7',
+                                },
+                              }}
+                            >
+                              {building.is_active ? (
+                                <DeactivateIcon sx={{ fontSize: 17 }} />
+                              ) : (
+                                <ActivateIcon sx={{ fontSize: 17 }} />
+                              )}
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        
+                        {/* Show info tooltip if building has rented units and is active */}
+                        {building.is_active && building.rented_units_count > 0 && (
+                          <Tooltip 
+                            title={`Cannot deactivate: ${building.rented_units_count} unit(s) currently rented`} 
+                            arrow 
+                            placement="top"
                           >
-                            {building.is_active ? (
+                            <IconButton
+                              size="small"
+                              disabled
+                              sx={{
+                                p: 0.5,
+                                color: '#94a3b8',
+                                cursor: 'not-allowed',
+                              }}
+                            >
                               <DeactivateIcon sx={{ fontSize: 17 }} />
-                            ) : (
-                              <ActivateIcon sx={{ fontSize: 17 }} />
-                            )}
-                          </IconButton>
-                        </Tooltip>
+                            </IconButton>
+                          </Tooltip>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>

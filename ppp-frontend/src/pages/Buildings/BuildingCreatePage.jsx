@@ -299,7 +299,7 @@ export const BuildingCreatePage = () => {
       return;
     }
 
-    // Validate floor line items
+    // Validate floor & unit line items
     for (let i = 0; i < floorsList.length; i++) {
       const f = floorsList[i];
       if (!f.name || !f.name.trim()) {
@@ -309,6 +309,15 @@ export const BuildingCreatePage = () => {
       if (!f.floorTypeId) {
         setErrorMsg(`Please select a Floor Type for "${f.name}".`);
         return;
+      }
+      // Area Value is mandatory for every unit row
+      for (let uIdx = 0; uIdx < (f.units || []).length; uIdx++) {
+        const u = f.units[uIdx];
+        const area = parseFloat(u.areaValue);
+        if (!u.areaValue || isNaN(area) || area <= 0) {
+          setErrorMsg(`Area Value is required (greater than 0) for Unit "${u.unitNumber || `row ${uIdx + 1}`}" on "${f.name}" (Level ${f.floorNumber}).`);
+          return;
+        }
       }
     }
 
@@ -797,7 +806,9 @@ export const BuildingCreatePage = () => {
                                             <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 50 }}>#</TableCell>
                                             <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', minWidth: 140 }}>UNIT NUMBER</TableCell>
                                             <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', minWidth: 160 }}>USE / SPACE TYPE</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 120 }}>AREA VALUE</TableCell>
+                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 120 }}>
+                                              AREA VALUE <Box component="span" sx={{ color: '#dc2626' }}>*</Box>
+                                            </TableCell>
                                             <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 110 }}>FOR RENT?</TableCell>
                                             <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 110 }}>RENTED?</TableCell>
                                             <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 60, textAlign: 'center' }}>ACTION</TableCell>
@@ -862,11 +873,7 @@ export const BuildingCreatePage = () => {
                                                   fullWidth
                                                   value={unit.isForRent !== false ? 'true' : 'false'}
                                                   onChange={(e) => {
-                                                    const isForRent = e.target.value === 'true';
-                                                    handleUnitFieldChange(floorIndex, unitIndex, 'isForRent', isForRent);
-                                                    if (!isForRent) {
-                                                      handleUnitFieldChange(floorIndex, unitIndex, 'isRented', false);
-                                                    }
+                                                    handleUnitFieldChange(floorIndex, unitIndex, 'isForRent', e.target.value === 'true');
                                                   }}
                                                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem' } }}
                                                 >
@@ -876,18 +883,20 @@ export const BuildingCreatePage = () => {
                                               </TableCell>
 
                                               <TableCell>
-                                                <TextField
-                                                  select
-                                                  size="small"
-                                                  fullWidth
-                                                  disabled={unit.isForRent === false}
-                                                  value={unit.isRented ? 'true' : 'false'}
-                                                  onChange={(e) => handleUnitFieldChange(floorIndex, unitIndex, 'isRented', e.target.value === 'true')}
-                                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem' } }}
-                                                >
-                                                  <MenuItem value="false">Vacant</MenuItem>
-                                                  <MenuItem value="true">Rented</MenuItem>
-                                                </TextField>
+                                                <Tooltip title="Units are always registered as vacant — rented status is set through lease contracts">
+                                                  <Box component="span" sx={{ display: 'block', width: '100%' }}>
+                                                    <TextField
+                                                      select
+                                                      size="small"
+                                                      fullWidth
+                                                      disabled
+                                                      value="false"
+                                                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem' } }}
+                                                    >
+                                                      <MenuItem value="false">Vacant</MenuItem>
+                                                    </TextField>
+                                                  </Box>
+                                                </Tooltip>
                                               </TableCell>
 
                                               <TableCell sx={{ textAlign: 'center' }}>

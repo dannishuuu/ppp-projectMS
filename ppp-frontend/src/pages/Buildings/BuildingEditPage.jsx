@@ -39,6 +39,7 @@ import {
   Delete as DeleteIcon,
   ViewModule as GridViewIcon,
   ViewList as ListViewIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -89,6 +90,7 @@ export const BuildingEditPage = () => {
 
   // Dynamic Floor & Unit Line Items
   const [floorsList, setFloorsList] = useState([]);
+  const [initialRentedUnits, setInitialRentedUnits] = useState([]);
   const [expandedFloorIndex, setExpandedFloorIndex] = useState(null);
   const [unitViewMode, setUnitViewMode] = useState('cards'); // 'cards' | 'table'
   const [floorStatusFilter, setFloorStatusFilter] = useState({}); // { [floorIndex]: 'all' | 'available' | 'rented' | 'reserved' }
@@ -136,6 +138,11 @@ export const BuildingEditPage = () => {
         const existingUnits = extractArray(unitsRes, 'units');
 
         if (b) {
+          const rentedOnly = existingUnits
+            .filter((u) => Boolean(u.is_rented))
+            .map((u) => ({ id: u.id, unitNumber: u.unit_number, floorNumber: u.floor_number }));
+          setInitialRentedUnits(rentedOnly);
+
           setBuildingMeta({
             floorsCount: existingFloors.length || b.floors_count || b.total_floors || 0,
             unitsCount: existingUnits.length || b.units_count || 0,
@@ -277,14 +284,81 @@ export const BuildingEditPage = () => {
     }
   };
 
-  // Adjust floor line items when totalFloors is edited
+  // Calculate minimum floors required (highest floor number containing any rented units)
+  const minTotalFloors = React.useMemo(() => {
+    let maxFloor = 1;
+    for (const f of floorsList) {
+      if ((f.units || []).some((u) => Boolean(u.isRented))) {
+        const fNum = parseInt(f.floorNumber, 10);
+        if (fNum > maxFloor) {
+          maxFloor = fNum;
+        }
+      }
+    }
+    return maxFloor;
+  }, [floorsList]);
+
+  // Helper to trim units while strictly preserving ALL rented units
+  const trimNonRentedUnits = (units, targetCount) => {
+    const rentedCount = units.filter((u) => Boolean(u.isRented)).length;
+    const finalTarget = Math.max(targetCount, rentedCount);
+    let toRemove = units.length - finalTarget;
+    if (toRemove <= 0) return units;
+
+    const dropIndices = new Set();
+    for (let i = units.length - 1; i >= 0 && toRemove > 0; i--) {
+      if (!units[i].isRented) {
+        dropIndices.add(i);
+        toRemove--;
+      }
+    }
+    return units.filter((_, idx) => !dropIndices.has(idx));
+  };
+
+  // Adjust floor line items when totalFloors is edited (strictly protecting floors with rented units)
   const handleTotalFloorsChange = (val) => {
     const cleanVal = val.replace(/[^0-9]/g, '');
+
+    // Calculate highest floor number containing rented units
+    let minFloors = 0;
+    let highestRentedFloorName = '';
+    for (const f of floorsList) {
+      if ((f.units || []).some((u) => Boolean(u.isRented))) {
+        const fNum = parseInt(f.floorNumber, 10);
+        if (fNum > minFloors) {
+          minFloors = fNum;
+          highestRentedFloorName = f.name || `Floor ${fNum}`;
+        }
+      }
+    }
+
+    if (cleanVal !== '') {
+      const count = parseInt(cleanVal, 10);
+      if (minFloors > 0 && count < minFloors) {
+        enqueueSnackbar(
+          `Cannot reduce total floors below ${minFloors}. ${highestRentedFloorName} contains rented units.`,
+          { variant: 'warning' }
+        );
+        setFormData((prev) => ({ ...prev, totalFloors: minFloors.toString() }));
+        return;
+      }
+    }
+
     setFormData((prev) => ({ ...prev, totalFloors: cleanVal }));
     if (errorMsg) setErrorMsg('');
 
+    if (cleanVal === '') return;
+
     const count = parseInt(cleanVal, 10);
     if (!count || count < 1) {
+      if (minFloors > 0) {
+        enqueueSnackbar(
+          `Cannot remove floors containing rented units (minimum ${minFloors} floors).`,
+          { variant: 'warning' }
+        );
+        setFormData((prev) => ({ ...prev, totalFloors: minFloors.toString() }));
+        return;
+      }
       setFloorsList([]);
       return;
     }
@@ -318,7 +392,15 @@ export const BuildingEditPage = () => {
         }
         return currentList;
       } else if (currentList.length > count) {
-        // Trim excess floors
+        // Check if any floor being trimmed contains rented units
+        const floorsToTrim = currentList.slice(count);
+        const hasRentedInTrimmed = floorsToTrim.some((f) =>
+          (f.units || []).some((u) => Boolean(u.isRented))
+        );
+        if (hasRentedInTrimmed) {
+          enqueueSnackbar('Cannot reduce floors: floors with rented units cannot be removed.', { variant: 'warning' });
+          return currentList;
+        }
         return currentList.slice(0, count);
       }
       return currentList;
@@ -342,11 +424,27 @@ export const BuildingEditPage = () => {
 
       if (field === 'expectedUnitCount') {
         const cleanCount = value.replace(/[^0-9]/g, '');
-        const newExpected = cleanCount === '' ? 0 : parseInt(cleanCount, 10);
+        const currentUnits = floor.units || [];
+        const rentedCount = currentUnits.filter((u) => Boolean(u.isRented)).length;
+
+        if (cleanCount !== '') {
+          const parsed = parseInt(cleanCount, 10);
+          if (parsed < rentedCount) {
+            enqueueSnackbar(
+              `Cannot reduce units below ${rentedCount} on "${floor.name}". ${rentedCount} rented unit(s) cannot be removed.`,
+              { variant: 'warning' }
+            );
+            floor.expectedUnitCount = rentedCount;
+            floor.units = trimNonRentedUnits(currentUnits, rentedCount);
+            updated[index] = floor;
+            return updated;
+          }
+        }
+
+        const newExpected = cleanCount === '' ? rentedCount : parseInt(cleanCount, 10);
         floor.expectedUnitCount = cleanCount;
 
         // Synchronize unit line items for this floor
-        const currentUnits = floor.units || [];
         const floorNum = floor.floorNumber;
         if (currentUnits.length < newExpected) {
           const nextUnits = [...currentUnits];
@@ -362,7 +460,8 @@ export const BuildingEditPage = () => {
           }
           floor.units = nextUnits;
         } else if (currentUnits.length > newExpected) {
-          floor.units = currentUnits.slice(0, newExpected);
+          // Strictly trim ONLY non-rented units
+          floor.units = trimNonRentedUnits(currentUnits, newExpected);
         }
       } else {
         floor[field] = value;
@@ -379,6 +478,10 @@ export const BuildingEditPage = () => {
       const updated = [...prev];
       const floor = { ...updated[floorIndex] };
       const units = [...floor.units];
+      if (units[unitIndex]?.isRented) {
+        // Absolutely no change can be done on rented units
+        return prev;
+      }
       units[unitIndex] = { ...units[unitIndex], [field]: value };
       floor.units = units;
       updated[floorIndex] = floor;
@@ -411,6 +514,10 @@ export const BuildingEditPage = () => {
     setFloorsList((prev) => {
       const updated = [...prev];
       const floor = { ...updated[floorIndex] };
+      if (floor.units?.[unitIndex]?.isRented) {
+        enqueueSnackbar('Rented units cannot be removed.', { variant: 'warning' });
+        return prev;
+      }
       const units = floor.units.filter((_, idx) => idx !== unitIndex);
       floor.units = units;
       floor.expectedUnitCount = units.length;
@@ -445,6 +552,16 @@ export const BuildingEditPage = () => {
         setErrorMsg(`Please select a Floor Type for "${f.name}".`);
         return;
       }
+    }
+
+    // Validate that no rented units were dropped or removed
+    const currentRentedUnits = floorsList.flatMap((f) => (f.units || []).filter((u) => Boolean(u.isRented)));
+    const missingRented = initialRentedUnits.filter(
+      (orig) => !currentRentedUnits.some((u) => u.id === orig.id)
+    );
+    if (missingRented.length > 0) {
+      setErrorMsg(`Cannot save: Rented unit(s) (${missingRented.map((u) => u.unitNumber).join(', ')}) cannot be removed.`);
+      return;
     }
 
     const payload = {
@@ -678,8 +795,12 @@ export const BuildingEditPage = () => {
                 }}
                 size="small"
                 disabled={saving}
-                inputProps={{ min: 1, max: 200, step: 1 }}
-                helperText="Enter whole number > 0 to configure floor line items below"
+                inputProps={{ min: minTotalFloors, max: 200, step: 1 }}
+                helperText={
+                  minTotalFloors > 1
+                    ? `Minimum ${minTotalFloors} floors (contains rented units)`
+                    : 'Enter whole number > 0 to configure floor line items below'
+                }
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
 
@@ -896,14 +1017,21 @@ export const BuildingEditPage = () => {
                             </TableCell>
 
                             <TableCell sx={{ textAlign: 'center' }}>
-                              <TextField
-                                type="number"
-                                size="small"
-                                value={floor.expectedUnitCount}
-                                onChange={(e) => handleFloorFieldChange(floorIndex, 'expectedUnitCount', e.target.value)}
-                                inputProps={{ min: 0, max: 100, step: 1, style: { textAlign: 'center' } }}
-                                sx={{ width: 100, '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
-                              />
+                              {(() => {
+                                const floorRentedCount = (floor.units || []).filter((u) => Boolean(u.isRented)).length;
+                                return (
+                                  <TextField
+                                    type="number"
+                                    size="small"
+                                    value={floor.expectedUnitCount}
+                                    onChange={(e) => handleFloorFieldChange(floorIndex, 'expectedUnitCount', e.target.value)}
+                                    inputProps={{ min: floorRentedCount, max: 100, step: 1, style: { textAlign: 'center' } }}
+                                    helperText={floorRentedCount > 0 ? `Min ${floorRentedCount} rented` : undefined}
+                                    FormHelperTextProps={{ sx: { fontSize: '0.62rem', textAlign: 'center', mx: 0, color: '#7c3aed', fontWeight: 600 } }}
+                                    sx={{ width: 110, '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                                  />
+                                );
+                              })()}
                             </TableCell>
 
                             <TableCell sx={{ textAlign: 'center' }}>
@@ -1062,8 +1190,9 @@ export const BuildingEditPage = () => {
                                                   sx={{
                                                     p: 2,
                                                     borderRadius: 2.5,
-                                                    border: '1px solid #e2e8f0',
-                                                    backgroundColor: '#ffffff',
+                                                    border: '1px solid',
+                                                    borderColor: isRented ? '#ddd6fe' : '#e2e8f0',
+                                                    backgroundColor: isRented ? '#faf5ff' : '#ffffff',
                                                     display: 'flex',
                                                     flexDirection: 'column',
                                                     gap: 1.5,
@@ -1100,18 +1229,27 @@ export const BuildingEditPage = () => {
                                                           value={unit.unitNumber}
                                                           onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'unitNumber', e.target.value)}
                                                           placeholder="Unit No."
-                                                          inputProps={{ style: { fontWeight: 800, fontSize: '0.85rem', color: '#0f172a', padding: '3px 8px' } }}
+                                                          disabled={isRented}
+                                                          inputProps={{
+                                                            style: {
+                                                              fontWeight: 800,
+                                                              fontSize: '0.85rem',
+                                                              color: isRented ? '#64748b' : '#0f172a',
+                                                              padding: '3px 8px',
+                                                            },
+                                                          }}
                                                           sx={{
                                                             '& .MuiOutlinedInput-root': {
                                                               borderRadius: 1.5,
+                                                              backgroundColor: isRented ? '#f8fafc' : '#ffffff',
                                                               '& fieldset': { borderColor: '#e2e8f0' },
-                                                              '&:hover fieldset': { borderColor: accentColor },
+                                                              '&:hover fieldset': { borderColor: isRented ? '#e2e8f0' : accentColor },
                                                               '&.Mui-focused fieldset': { borderColor: accentColor },
                                                             },
                                                           }}
                                                         />
                                                         <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 500, display: 'block', mt: 0.3 }}>
-                                                          Level {floor.floorNumber}
+                                                          Level {floor.floorNumber} {isRented && <span style={{ color: '#7c3aed', fontWeight: 700 }}>• Locked (Rented)</span>}
                                                         </Typography>
                                                       </Box>
                                                     </Box>
@@ -1119,24 +1257,47 @@ export const BuildingEditPage = () => {
                                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
                                                       {/* Leasing status chip */}
                                                       {isRented ? (
-                                                        <Chip size="small" label="Rented" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe', '& .MuiChip-label': { px: 0.8 } }} />
+                                                        <Chip
+                                                          size="small"
+                                                          icon={<LockIcon sx={{ fontSize: '11px !important', color: '#6d28d9 !important' }} />}
+                                                          label="Rented"
+                                                          sx={{
+                                                            height: 20,
+                                                            fontSize: '0.65rem',
+                                                            fontWeight: 700,
+                                                            backgroundColor: '#f5f3ff',
+                                                            color: '#6d28d9',
+                                                            border: '1px solid #ddd6fe',
+                                                            '& .MuiChip-label': { px: 0.8 },
+                                                          }}
+                                                        />
                                                       ) : !isForRent ? (
                                                         <Chip size="small" label="Reserved" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #cbd5e1', '& .MuiChip-label': { px: 0.8 } }} />
                                                       ) : (
                                                         <Chip size="small" label="Available" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', '& .MuiChip-label': { px: 0.8 } }} />
                                                       )}
-                                                      <Tooltip title="Remove unit">
-                                                        <IconButton size="small" onClick={() => handleRemoveUnitFromFloor(floorIndex, realIndex)} sx={{ color: '#ef4444', p: 0.4 }}>
-                                                          <DeleteIcon sx={{ fontSize: 15 }} />
-                                                        </IconButton>
-                                                      </Tooltip>
+                                                      {isRented ? (
+                                                        <Tooltip title="Rented units cannot be deleted">
+                                                          <span>
+                                                            <IconButton size="small" disabled sx={{ color: '#cbd5e1', p: 0.4, cursor: 'not-allowed' }}>
+                                                              <DeleteIcon sx={{ fontSize: 15 }} />
+                                                            </IconButton>
+                                                          </span>
+                                                        </Tooltip>
+                                                      ) : (
+                                                        <Tooltip title="Remove unit">
+                                                          <IconButton size="small" onClick={() => handleRemoveUnitFromFloor(floorIndex, realIndex)} sx={{ color: '#ef4444', p: 0.4 }}>
+                                                            <DeleteIcon sx={{ fontSize: 15 }} />
+                                                          </IconButton>
+                                                        </Tooltip>
+                                                      )}
                                                     </Box>
                                                   </Box>
 
                                                   {/* 2-col attribute grid */}
                                                   <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
                                                     {/* Space Type */}
-                                                    <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                                                    <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: isRented ? '#f1f5f9' : '#f8fafc', border: '1px solid #f1f5f9' }}>
                                                       <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 0.25 }}>
                                                         Space Type
                                                       </Typography>
@@ -1146,12 +1307,13 @@ export const BuildingEditPage = () => {
                                                         fullWidth
                                                         value={unit.unitUseType}
                                                         onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'unitUseType', e.target.value)}
+                                                        disabled={isRented}
                                                         sx={{
                                                           '& .MuiOutlinedInput-root': { borderRadius: 1, fontSize: '0.74rem', fontWeight: 700, color: '#334155' },
                                                           '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
                                                           '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
                                                           '& .MuiSelect-select': { py: 0.4, px: 0.75 },
-                                                          backgroundColor: '#ffffff',
+                                                          backgroundColor: isRented ? '#f8fafc' : '#ffffff',
                                                           borderRadius: 1,
                                                         }}
                                                       >
@@ -1168,7 +1330,7 @@ export const BuildingEditPage = () => {
                                                     </Box>
 
                                                     {/* Floor Area */}
-                                                    <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                                                    <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: isRented ? '#f1f5f9' : '#f8fafc', border: '1px solid #f1f5f9' }}>
                                                       <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 0.25 }}>
                                                         Floor Area
                                                       </Typography>
@@ -1179,6 +1341,7 @@ export const BuildingEditPage = () => {
                                                         value={unit.areaValue}
                                                         onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'areaValue', e.target.value)}
                                                         placeholder="e.g. 50"
+                                                        disabled={isRented}
                                                         inputProps={{ min: 0, step: 'any' }}
                                                         InputProps={{ endAdornment: <InputAdornment position="end"><Typography sx={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>m²</Typography></InputAdornment> }}
                                                         sx={{
@@ -1186,14 +1349,14 @@ export const BuildingEditPage = () => {
                                                           '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
                                                           '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
                                                           '& .MuiInputBase-input': { py: 0.4, px: 0.75 },
-                                                          backgroundColor: '#ffffff',
+                                                          backgroundColor: isRented ? '#f8fafc' : '#ffffff',
                                                           borderRadius: 1,
                                                         }}
                                                       />
                                                     </Box>
 
                                                     {/* For Rent */}
-                                                    <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                                                    <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: isRented ? '#f1f5f9' : '#f8fafc', border: '1px solid #f1f5f9' }}>
                                                       <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 0.25 }}>
                                                         For Rent?
                                                       </Typography>
@@ -1207,12 +1370,13 @@ export const BuildingEditPage = () => {
                                                           handleUnitFieldChange(floorIndex, realIndex, 'isForRent', val);
                                                           if (!val) handleUnitFieldChange(floorIndex, realIndex, 'isRented', false);
                                                         }}
+                                                        disabled={isRented}
                                                         sx={{
                                                           '& .MuiOutlinedInput-root': { borderRadius: 1, fontSize: '0.74rem', fontWeight: 700, color: '#334155' },
                                                           '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
                                                           '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
                                                           '& .MuiSelect-select': { py: 0.4, px: 0.75 },
-                                                          backgroundColor: '#ffffff',
+                                                          backgroundColor: isRented ? '#f8fafc' : '#ffffff',
                                                           borderRadius: 1,
                                                         }}
                                                       >
@@ -1222,12 +1386,13 @@ export const BuildingEditPage = () => {
                                                     </Box>
 
                                                     {/* Occupancy — read-only, auto-set from For Rent */}
-                                                    <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                                                    <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: isRented ? '#f1f5f9' : '#f8fafc', border: '1px solid #f1f5f9' }}>
                                                       <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 0.5 }}>
                                                         Occupancy
                                                       </Typography>
                                                       <Chip
                                                         size="small"
+                                                        icon={unit.isRented ? <LockIcon sx={{ fontSize: '11px !important', color: '#6d28d9 !important' }} /> : undefined}
                                                         label={unit.isRented ? 'Rented' : 'Vacant'}
                                                         sx={{
                                                           height: 22,
@@ -1251,10 +1416,13 @@ export const BuildingEditPage = () => {
                                                         size="small"
                                                         value={unit.isActive !== false ? 'true' : 'false'}
                                                         onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'isActive', e.target.value === 'true')}
+                                                        disabled={isRented}
                                                         sx={{
                                                           '& .MuiOutlinedInput-root': { borderRadius: 1, fontSize: '0.68rem', fontWeight: 600, color: isActive ? '#15803d' : '#b91c1c' },
                                                           '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
-                                                          '& .MuiSelect-select': { py: 0.3, px: 0.75, pr: '20px !important' },
+                                                          '& .MuiSelect-select': { py: 0.3, px: 0.75, pr: isRented ? '10px !important' : '20px !important' },
+                                                          backgroundColor: isRented ? '#f1f5f9' : 'transparent',
+                                                          borderRadius: 1,
                                                         }}
                                                       >
                                                         <MenuItem value="true">Active Space</MenuItem>
@@ -1262,7 +1430,7 @@ export const BuildingEditPage = () => {
                                                       </TextField>
                                                     </Box>
                                                     <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.66rem', fontWeight: 500 }}>
-                                                      {isRented ? 'Occupied' : isForRent ? 'Ready for Lease' : 'Off-market'}
+                                                      {isRented ? 'Occupied (Locked)' : isForRent ? 'Ready for Lease' : 'Off-market'}
                                                     </Typography>
                                                   </Box>
                                                 </Paper>
@@ -1292,7 +1460,14 @@ export const BuildingEditPage = () => {
                                                 const isForRent = unit.isForRent !== false;
                                                 const isActive = unit.isActive !== false;
                                                 return (
-                                                  <TableRow key={unit.id || realIndex} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                                  <TableRow
+                                                    key={unit.id || realIndex}
+                                                    hover
+                                                    sx={{
+                                                      backgroundColor: isRented ? 'rgba(245, 243, 255, 0.45)' : 'inherit',
+                                                      '&:last-child td, &:last-child th': { border: 0 },
+                                                    }}
+                                                  >
                                                     <TableCell sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.82rem', minWidth: 130 }}>
                                                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                         <Box sx={{ width: 24, height: 24, borderRadius: 1, backgroundColor: isRented ? '#f5f3ff' : isForRent ? '#ecfdf5' : '#f1f5f9', color: isRented ? '#7c3aed' : isForRent ? '#059669' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1303,7 +1478,8 @@ export const BuildingEditPage = () => {
                                                           value={unit.unitNumber}
                                                           onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'unitNumber', e.target.value)}
                                                           placeholder="Unit No."
-                                                          sx={{ minWidth: 80, '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem', fontWeight: 700 } }}
+                                                          disabled={isRented}
+                                                          sx={{ minWidth: 80, '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem', fontWeight: 700, backgroundColor: isRented ? '#f8fafc' : '#ffffff' } }}
                                                         />
                                                       </Box>
                                                     </TableCell>
@@ -1312,7 +1488,8 @@ export const BuildingEditPage = () => {
                                                         select size="small" fullWidth
                                                         value={unit.unitUseType}
                                                         onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'unitUseType', e.target.value)}
-                                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.78rem' } }}
+                                                        disabled={isRented}
+                                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.78rem', backgroundColor: isRented ? '#f8fafc' : '#ffffff' } }}
                                                       >
                                                         <MenuItem value="Commercial">Commercial</MenuItem>
                                                         <MenuItem value="Office">Office</MenuItem>
@@ -1331,9 +1508,10 @@ export const BuildingEditPage = () => {
                                                         value={unit.areaValue}
                                                         onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'areaValue', e.target.value)}
                                                         placeholder="0"
+                                                        disabled={isRented}
                                                         inputProps={{ min: 0, step: 'any', style: { textAlign: 'right' } }}
                                                         InputProps={{ endAdornment: <InputAdornment position="end"><Typography sx={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>m²</Typography></InputAdornment> }}
-                                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.78rem' } }}
+                                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.78rem', backgroundColor: isRented ? '#f8fafc' : '#ffffff' } }}
                                                       />
                                                     </TableCell>
                                                     <TableCell sx={{ textAlign: 'center', minWidth: 90 }}>
@@ -1345,7 +1523,8 @@ export const BuildingEditPage = () => {
                                                           handleUnitFieldChange(floorIndex, realIndex, 'isForRent', val);
                                                           if (!val) handleUnitFieldChange(floorIndex, realIndex, 'isRented', false);
                                                         }}
-                                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.78rem' } }}
+                                                        disabled={isRented}
+                                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.78rem', backgroundColor: isRented ? '#f8fafc' : '#ffffff' } }}
                                                       >
                                                         <MenuItem value="true">Yes</MenuItem>
                                                         <MenuItem value="false">No</MenuItem>
@@ -1354,6 +1533,7 @@ export const BuildingEditPage = () => {
                                                     <TableCell sx={{ textAlign: 'center', minWidth: 90 }}>
                                                       <Chip
                                                         size="small"
+                                                        icon={unit.isRented ? <LockIcon sx={{ fontSize: '11px !important', color: '#6d28d9 !important' }} /> : undefined}
                                                         label={unit.isRented ? 'Rented' : 'Vacant'}
                                                         sx={{
                                                           height: 22,
@@ -1369,21 +1549,33 @@ export const BuildingEditPage = () => {
                                                       <Chip
                                                         label={isActive ? 'Active' : 'Inactive'}
                                                         size="small"
-                                                        onClick={() => handleUnitFieldChange(floorIndex, realIndex, 'isActive', !isActive)}
+                                                        onClick={() => !isRented && handleUnitFieldChange(floorIndex, realIndex, 'isActive', !isActive)}
                                                         sx={{
-                                                          height: 22, fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer',
+                                                          height: 22, fontSize: '0.68rem', fontWeight: 700,
+                                                          cursor: isRented ? 'not-allowed' : 'pointer',
+                                                          opacity: isRented ? 0.75 : 1,
                                                           backgroundColor: isActive ? '#dcfce7' : '#fee2e2',
                                                           color: isActive ? '#15803d' : '#b91c1c',
-                                                          '&:hover': { opacity: 0.85 },
+                                                          '&:hover': { opacity: isRented ? 0.75 : 0.85 },
                                                         }}
                                                       />
                                                     </TableCell>
                                                     <TableCell sx={{ textAlign: 'center' }}>
-                                                      <Tooltip title="Remove unit">
-                                                        <IconButton size="small" onClick={() => handleRemoveUnitFromFloor(floorIndex, realIndex)} sx={{ color: '#ef4444' }}>
-                                                          <DeleteIcon sx={{ fontSize: 16 }} />
-                                                        </IconButton>
-                                                      </Tooltip>
+                                                      {isRented ? (
+                                                        <Tooltip title="Rented units cannot be deleted">
+                                                          <span>
+                                                            <IconButton size="small" disabled sx={{ color: '#cbd5e1', cursor: 'not-allowed' }}>
+                                                              <DeleteIcon sx={{ fontSize: 16 }} />
+                                                            </IconButton>
+                                                          </span>
+                                                        </Tooltip>
+                                                      ) : (
+                                                        <Tooltip title="Remove unit">
+                                                          <IconButton size="small" onClick={() => handleRemoveUnitFromFloor(floorIndex, realIndex)} sx={{ color: '#ef4444' }}>
+                                                            <DeleteIcon sx={{ fontSize: 16 }} />
+                                                          </IconButton>
+                                                        </Tooltip>
+                                                      )}
                                                     </TableCell>
                                                   </TableRow>
                                                 );
