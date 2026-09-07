@@ -454,8 +454,13 @@ export const ContractCreatePage = () => {
     const numberOfSchedules = Math.round(totalDays / intervalDays);
     if (numberOfSchedules <= 0) return [];
 
-    const monthlyRent = parseFloat(formData.rentAmountTotalPerMonth) || 0;
-    const amountPerCycle = parseFloat(((monthlyRent / 30) * intervalDays).toFixed(2));
+    // The Lease Agreement Preview's "Total Contract Value" (monthly rent × lease months) is the
+    // authoritative amount — distribute it evenly across the installments so the schedule total
+    // matches it exactly. Rounding cents are absorbed by the final installment.
+    const contractTotal = totalContractValue;
+    if (contractTotal <= 0) return [];
+    const baseAmount = Math.floor((contractTotal / numberOfSchedules) * 100) / 100;
+    const finalAmount = Math.round((contractTotal - baseAmount * (numberOfSchedules - 1)) * 100) / 100;
 
     const formatYMD = (d) => {
       const year = d.getFullYear();
@@ -482,7 +487,7 @@ export const ContractCreatePage = () => {
         installmentNumber: count,
         dueDate: dueDateStr,
         nextDate: nextDateStr,
-        amount: amountPerCycle > 0 ? amountPerCycle : monthlyRent,
+        amount: count === numberOfSchedules ? finalAmount : baseAmount,
       });
 
       currentDue = nextDue;
@@ -495,6 +500,7 @@ export const ContractCreatePage = () => {
     termCalculations.isValidRange,
     formData.rentAmountTotalPerMonth,
     selectedPaymentType,
+    totalContractValue,
   ]);
 
   // Validation
