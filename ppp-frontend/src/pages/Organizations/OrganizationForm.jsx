@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -20,6 +20,10 @@ import {
   Chip,
   Checkbox,
   ListItemText,
+  Stack,
+  Tooltip,
+  Fade,
+  FormHelperText,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -27,10 +31,53 @@ import {
   Business as BusinessIcon,
   Badge as LicenseIcon,
   Description as DescriptionIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { organizationService, organizationTypeService } from '../../services/organizationService';
+
+const inputSx = {
+  borderRadius: 2,
+  backgroundColor: '#f8fafc',
+  '& fieldset': { borderColor: '#e2e8f0' },
+  '&:hover fieldset': { borderColor: '#94a3b8' },
+  '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+};
+
+const formFieldSx = { '& .MuiOutlinedInput-root': inputSx };
+
+const SectionHeader = ({ icon, title, color = '#1e40af' }) => (
+  <Stack direction="row" alignItems="center" spacing={1}>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 28,
+        height: 28,
+        borderRadius: 1.5,
+        backgroundColor: `${color}12`,
+        color,
+        '& svg': { fontSize: 16 },
+      }}
+    >
+      {icon}
+    </Box>
+    <Typography
+      variant="subtitle2"
+      sx={{
+        fontWeight: 700,
+        color,
+        letterSpacing: '0.3px',
+        fontSize: '0.78rem',
+        textTransform: 'uppercase',
+      }}
+    >
+      {title}
+    </Typography>
+  </Stack>
+);
 
 export const OrganizationForm = () => {
   const { id } = useParams();
@@ -44,6 +91,7 @@ export const OrganizationForm = () => {
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [formData, setFormData] = useState({
     // Core Organization
@@ -62,6 +110,15 @@ export const OrganizationForm = () => {
     bio: '',
     pastProjectsSummary: '',
   });
+
+  const filledCount = useMemo(() => {
+    return Object.values(formData).filter((v) => {
+      if (Array.isArray(v)) return v.length > 0;
+      return v !== '' && v !== null && v !== undefined;
+    }).length;
+  }, [formData]);
+
+  const totalFields = useMemo(() => Object.keys(formData).length, []);
 
   // Load Organization Types
   useEffect(() => {
@@ -83,7 +140,7 @@ export const OrganizationForm = () => {
       setLoading(true);
       try {
         const org = await organizationService.getOrganizationById(id);
-        
+
         let typeIds = [];
         if (Array.isArray(org.organization_type_ids)) {
           typeIds = org.organization_type_ids;
@@ -120,20 +177,37 @@ export const OrganizationForm = () => {
   const handleChange = (field) => (event) => {
     setFormData((prev) => ({ ...prev, [field]: event.target.value }));
     if (errorMsg) setErrorMsg('');
+    if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: false }));
+  };
+
+  const validate = () => {
+    const errors = {};
+    if (!formData.name.trim()) errors.name = true;
+    if (!formData.organizationTypeIds || formData.organizationTypeIds.length === 0) errors.organizationTypeIds = true;
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.email = true;
+
+    setFieldErrors(errors);
+
+    if (errors.name) {
+      setErrorMsg('Organization name is required.');
+      return false;
+    }
+    if (errors.organizationTypeIds) {
+      setErrorMsg('Please select at least one Organization Type.');
+      return false;
+    }
+    if (errors.email) {
+      setErrorMsg('Please enter a valid email address.');
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
 
-    if (!formData.name.trim()) {
-      setErrorMsg('Organization name is required.');
-      return;
-    }
-    if (!formData.organizationTypeIds || formData.organizationTypeIds.length === 0) {
-      setErrorMsg('Please select at least one Organization Type.');
-      return;
-    }
+    if (!validate()) return;
 
     setSaving(true);
     try {
@@ -159,17 +233,29 @@ export const OrganizationForm = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <CircularProgress sx={{ color: '#4f46e5' }} />
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '60vh',
+          gap: 2,
+        }}
+      >
+        <CircularProgress size={36} sx={{ color: '#4f46e5' }} />
+        <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+          Loading organization details...
+        </Typography>
       </Box>
     );
   }
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, width: '100%' }}>
-      {/* Compact Header Bar */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5, flexWrap: 'wrap', gap: 1.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+      {/* Header Bar */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
           <Breadcrumbs aria-label="breadcrumb" sx={{ fontSize: '0.78rem' }}>
             <Link underline="hover" color="inherit" component={RouterLink} to="/dashboard" sx={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
               Dashboard
@@ -182,7 +268,7 @@ export const OrganizationForm = () => {
             </Typography>
           </Breadcrumbs>
 
-          <Box sx={{ width: '1px', height: 16, backgroundColor: '#cbd5e1', flexShrink: 0 }} />
+          <Divider orientation="vertical" flexItem sx={{ borderColor: '#e2e8f0', mx: 0.5 }} />
 
           <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', lineHeight: 1 }}>
             {isEditMode ? `Edit: ${formData.name || 'Organization'}` : 'Add New Organization'}
@@ -191,25 +277,68 @@ export const OrganizationForm = () => {
 
         <Button
           variant="outlined"
+          size="small"
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate('/organizations')}
-          sx={{ borderRadius: 2, borderColor: '#cbd5e1', color: '#475569', fontWeight: 600, fontSize: '0.82rem' }}
+          sx={{
+            borderRadius: 2,
+            borderColor: '#cbd5e1',
+            color: '#475569',
+            fontWeight: 600,
+            fontSize: '0.8rem',
+            textTransform: 'none',
+          }}
         >
           Back to Directory
         </Button>
       </Box>
 
+      {/* Completion Progress */}
+      <Fade in>
+        <Box sx={{ mb: 2.5 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 500 }}>
+              Form Progress
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>
+              {filledCount} / {totalFields} fields
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: '#e2e8f0',
+              overflow: 'hidden',
+            }}
+          >
+            <Box
+              sx={{
+                height: '100%',
+                width: `${(filledCount / totalFields) * 100}%`,
+                borderRadius: 2,
+                backgroundColor: filledCount === totalFields ? '#22c55e' : '#4f46e5',
+                transition: 'width 0.4s ease, background-color 0.3s ease',
+              }}
+            />
+          </Box>
+        </Box>
+      </Fade>
+
       {errorMsg && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert
+          severity="error"
+          sx={{ mb: 3, borderRadius: 2, border: '1px solid #fecaca' }}
+        >
           {errorMsg}
         </Alert>
       )}
 
-      {/* Main 3-Column Paper Grid */}
+      {/* Main Form */}
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 2.5, sm: 4, md: 4 },
+          p: { xs: 2.5, sm: 3, md: 4 },
           borderRadius: 3,
           border: '1px solid #e2e8f0',
           backgroundColor: '#ffffff',
@@ -222,16 +351,18 @@ export const OrganizationForm = () => {
             sx={{
               display: 'grid',
               gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-              gap: 4,
-              alignItems: 'stretch',
+              gap: { xs: 3, md: 4 },
+              alignItems: 'start',
             }}
           >
             {/* Column 1: Core Organization Info */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', letterSpacing: '0.5px', fontSize: '0.8rem', textTransform: 'uppercase' }}>
-                Core Organization Info
-              </Typography>
-              <Divider />
+            <Stack spacing={2.5}>
+              <SectionHeader
+                icon={<BusinessIcon />}
+                title="Core Organization Info"
+                color="#1e40af"
+              />
+              <Divider sx={{ borderColor: '#e2e8f0' }} />
 
               <TextField
                 required
@@ -241,10 +372,18 @@ export const OrganizationForm = () => {
                 value={formData.name}
                 onChange={handleChange('name')}
                 size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                error={fieldErrors.name}
+                helperText={fieldErrors.name ? 'This field is required' : ''}
+                sx={formFieldSx}
               />
 
-              <FormControl required fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}>
+              <FormControl
+                required
+                fullWidth
+                size="small"
+                error={fieldErrors.organizationTypeIds}
+                sx={formFieldSx}
+              >
                 <InputLabel id="org-types-label">Organization Types</InputLabel>
                 <Select
                   labelId="org-types-label"
@@ -258,6 +397,7 @@ export const OrganizationForm = () => {
                       organizationTypeIds: typeof value === 'string' ? value.split(',') : value,
                     }));
                     if (errorMsg) setErrorMsg('');
+                    if (fieldErrors.organizationTypeIds) setFieldErrors((prev) => ({ ...prev, organizationTypeIds: false }));
                   }}
                   input={<OutlinedInput label="Organization Types" />}
                   renderValue={(selected) => (
@@ -275,6 +415,7 @@ export const OrganizationForm = () => {
                               color: '#3730a3',
                               fontWeight: 600,
                               fontSize: '0.75rem',
+                              height: 24,
                             }}
                           />
                         );
@@ -283,22 +424,34 @@ export const OrganizationForm = () => {
                   )}
                 >
                   {orgTypes.map((type) => (
-                    <MenuItem key={type.id} value={type.id}>
+                    <MenuItem key={type.id} value={type.id} sx={{ py: 0.75 }}>
                       <Checkbox checked={formData.organizationTypeIds.indexOf(type.id) > -1} size="small" />
                       <ListItemText primary={type.name} />
                     </MenuItem>
                   ))}
                 </Select>
+                {fieldErrors.organizationTypeIds && (
+                  <FormHelperText>Please select at least one type</FormHelperText>
+                )}
               </FormControl>
 
               <TextField
                 fullWidth
                 label="Phone Number"
-                placeholder="e.g. 0911517888 (HENOK)"
+                placeholder="e.g. 0911517888"
                 value={formData.phone}
                 onChange={handleChange('phone')}
                 size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <Typography variant="body2" sx={{ color: '#94a3b8', mr: 0.5, userSelect: 'none' }}>
+                        +
+                      </Typography>
+                    ),
+                  },
+                }}
+                sx={formFieldSx}
               />
 
               <TextField
@@ -309,7 +462,9 @@ export const OrganizationForm = () => {
                 value={formData.email}
                 onChange={handleChange('email')}
                 size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                error={fieldErrors.email}
+                helperText={fieldErrors.email ? 'Please enter a valid email' : ''}
+                sx={formFieldSx}
               />
 
               <TextField
@@ -317,20 +472,22 @@ export const OrganizationForm = () => {
                 multiline
                 rows={2}
                 label="Office Address"
-                placeholder="e.g. Kirkos Sub City, Woreda 03, House No. 441, Addis Ababa"
+                placeholder="e.g. Kirkos Sub City, Woreda 03, Addis Ababa"
                 value={formData.address}
                 onChange={handleChange('address')}
                 size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                sx={formFieldSx}
               />
-            </Box>
+            </Stack>
 
             {/* Column 2: Licensing & Profile */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', letterSpacing: '0.5px', fontSize: '0.8rem', textTransform: 'uppercase' }}>
-                Licensing & Profile Specs
-              </Typography>
-              <Divider />
+            <Stack spacing={2.5}>
+              <SectionHeader
+                icon={<LicenseIcon />}
+                title="Licensing & Profile Specs"
+                color="#047857"
+              />
+              <Divider sx={{ borderColor: '#e2e8f0' }} />
 
               <TextField
                 fullWidth
@@ -339,7 +496,7 @@ export const OrganizationForm = () => {
                 value={formData.businessSector}
                 onChange={handleChange('businessSector')}
                 size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                sx={formFieldSx}
               />
 
               <TextField
@@ -349,7 +506,16 @@ export const OrganizationForm = () => {
                 value={formData.licenseNumber}
                 onChange={handleChange('licenseNumber')}
                 size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <Tooltip title="Official trade license or registration number" arrow placement="top">
+                        <InfoIcon sx={{ fontSize: 16, color: '#94a3b8', cursor: 'help' }} />
+                      </Tooltip>
+                    ),
+                  },
+                }}
+                sx={formFieldSx}
               />
 
               <TextField
@@ -360,28 +526,37 @@ export const OrganizationForm = () => {
                 value={formData.yearsOfExperience}
                 onChange={handleChange('yearsOfExperience')}
                 size="small"
-                inputProps={{ min: 0 }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                slotProps={{ htmlInput: { min: 0 } }}
+                sx={formFieldSx}
               />
 
               <TextField
                 fullWidth
                 type="date"
                 label="Legal Registration Date"
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ inputLabel: { shrink: true } }}
                 value={formData.registrationDate}
                 onChange={handleChange('registrationDate')}
                 size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                sx={{
+                  ...formFieldSx,
+                  '& input[type="date"]:not(.Mui-focused):not(:focus-within)': {
+                    '&::-webkit-datetime-edit': {
+                      color: 'transparent',
+                    },
+                  },
+                }}
               />
-            </Box>
+            </Stack>
 
-            {/* Column 3: Experience & EV Summary */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1a237e', letterSpacing: '0.5px', fontSize: '0.8rem', textTransform: 'uppercase' }}>
-                Experience & Track Record
-              </Typography>
-              <Divider />
+            {/* Column 3: Experience & Track Record */}
+            <Stack spacing={2.5}>
+              <SectionHeader
+                icon={<DescriptionIcon />}
+                title="Experience & Track Record"
+                color="#7c3aed"
+              />
+              <Divider sx={{ borderColor: '#e2e8f0' }} />
 
               <TextField
                 fullWidth
@@ -392,7 +567,7 @@ export const OrganizationForm = () => {
                 value={formData.profileExperience}
                 onChange={handleChange('profileExperience')}
                 size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                sx={formFieldSx}
               />
 
               <TextField
@@ -404,7 +579,7 @@ export const OrganizationForm = () => {
                 value={formData.bio}
                 onChange={handleChange('bio')}
                 size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                sx={formFieldSx}
               />
 
               <TextField
@@ -416,48 +591,66 @@ export const OrganizationForm = () => {
                 value={formData.pastProjectsSummary}
                 onChange={handleChange('pastProjectsSummary')}
                 size="small"
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                sx={formFieldSx}
               />
-            </Box>
+            </Stack>
           </Box>
 
           {/* Submit Actions Footer */}
           <Box
             sx={{
               display: 'flex',
-              justify: 'flex-end',
-              gap: 2,
+              justifyContent: 'space-between',
+              alignItems: 'center',
               mt: 4,
               pt: 3,
               borderTop: '1px solid #e2e8f0',
+              flexWrap: 'wrap',
+              gap: 2,
             }}
           >
-            <Button
-              variant="outlined"
-              color="inherit"
-              onClick={() => navigate('/organizations')}
-              disabled={saving}
-              sx={{ borderRadius: 2, px: 3, borderColor: '#cbd5e1', color: '#475569', fontWeight: 600 }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={saving}
-              startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
-              sx={{
-                px: 4,
-                py: 1,
-                borderRadius: 2,
-                fontWeight: 700,
-                backgroundColor: '#4f46e5',
-                '&:hover': { backgroundColor: '#4338ca' },
-                boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)',
-              }}
-            >
-              {saving ? 'Saving...' : isEditMode ? 'Update Organization' : 'Create Organization'}
-            </Button>
+            <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
+              {isEditMode ? 'Changes will be saved immediately' : 'All required fields must be completed'}
+            </Typography>
+
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={() => navigate('/organizations')}
+                disabled={saving}
+                sx={{
+                  borderRadius: 2,
+                  px: 3,
+                  borderColor: '#cbd5e1',
+                  color: '#475569',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={saving}
+                startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
+                sx={{
+                  px: 4,
+                  py: 1,
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  backgroundColor: '#4f46e5',
+                  '&:hover': { backgroundColor: '#4338ca' },
+                  boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)',
+                  '&:disabled': { backgroundColor: '#e2e8f0', color: '#94a3b8', boxShadow: 'none' },
+                }}
+              >
+                {saving ? 'Saving...' : isEditMode ? 'Update Organization' : 'Create Organization'}
+              </Button>
+            </Stack>
           </Box>
         </form>
       </Paper>
