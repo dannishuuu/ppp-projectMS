@@ -84,29 +84,29 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
 
   const projectSubItems = [
     { text: 'Projects List', icon: <ListIcon />, path: '/projects', badge: projects?.length || 0 },
-    { text: 'Add New Project', icon: <AddIcon />, path: '/projects/new' },
+    { text: 'Create Project', icon: <AddIcon />, path: '/projects/new' },
     { text: 'Project Proposals', icon: <ProposalIcon />, path: '/projects/proposals' },
     { text: 'Proposal Reviewers', icon: <UsersIcon />, path: '/projects/reviews' },
   ];
 
   const userSubItems = [
     { text: 'Users List', icon: <UsersListIcon />, path: '/users/list' },
-    { text: 'Add New User', icon: <AddUserIcon />, path: '/users/new' },
+    { text: 'Create User', icon: <AddUserIcon />, path: '/users/new' },
   ];
 
   const orgSubItems = [
     { text: 'Organizations List', icon: <OrganizationIcon />, path: '/organizations' },
-    { text: 'New Organization', icon: <AddIcon />, path: '/organizations/new' },
+    { text: 'Create Organization', icon: <AddIcon />, path: '/organizations/new' },
   ];
 
   const buildingSubItems = [
     { text: 'Buildings List', icon: <BuildingNavIcon />, path: '/buildings' },
-    { text: 'New Building', icon: <AddIcon />, path: '/buildings/new' },
+    { text: 'Create Building', icon: <AddIcon />, path: '/buildings/new' },
   ];
 
   const contractSubItems = [
     { text: 'Contracts List', icon: <ContractNavIcon />, path: '/contracts' },
-    { text: 'New Contract', icon: <NewContractIcon />, path: '/contracts/new' },
+    { text: 'Create Contract', icon: <NewContractIcon />, path: '/contracts/new' },
   ];
 
   const foundationSubItems = [
