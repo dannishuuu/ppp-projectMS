@@ -40,6 +40,7 @@ import { AreaUnitPage } from './pages/Foundation/AreaUnitPage';
 import { FloorTypePage } from './pages/Foundation/FloorTypePage';
 import { BuildingIndexPage, BuildingCreatePage, BuildingEditPage, BuildingDetailPage } from './pages/Buildings';
 import { ContractIndexPage, ContractCreatePage, ContractEditPage, ContractDetailPage } from './pages/ContractRental';
+import { BusinessSectorPage } from './pages/Foundation/BusinessSectorPage';
 
 
 
@@ -135,6 +136,7 @@ function App() {
                   <Route path="foundation/area-units" element={<AreaUnitPage />} />
                   <Route path="foundation/floor-types" element={<FloorTypePage />} />
                   <Route path="floor-types" element={<FloorTypePage />} />
+                  <Route path="foundation/business-sectors" element={<BusinessSectorPage />} />
 
                   {/* Building Management pages */}
                   <Route path="buildings" element={<BuildingIndexPage />} />

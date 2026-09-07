@@ -11,3 +11,4 @@ export * from './paymentTimingsService';
 export * from './rentalPaymentTypesService';
 export * from './areaUnitsService';
 export * from './floorTypesService';
+export * from './businessSectorService';

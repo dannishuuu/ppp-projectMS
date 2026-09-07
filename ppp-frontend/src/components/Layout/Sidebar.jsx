@@ -123,6 +123,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     { text: 'Rental Payment Types', icon: <RentalTypeIcon />, path: '/foundation/rental-payment-types' },
     { text: 'Area Units', icon: <AreaUnitIcon />, path: '/foundation/area-units' },
     { text: 'Floor Types', icon: <FloorTypeIcon />, path: '/foundation/floor-types' },
+    { text: 'Business Sectors', icon: <CategoryIcon />, path: '/foundation/business-sectors' },
   ];
 
   const docMgmtSubItems = [
