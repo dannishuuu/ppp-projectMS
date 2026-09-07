@@ -20,6 +20,7 @@ import {
   Link,
   useMediaQuery,
   useTheme,
+  Stack,
 } from '@mui/material';
 import {
   Visibility,
@@ -31,9 +32,53 @@ import {
   BadgeOutlined as RoleIcon,
   BusinessOutlined as DepartmentIcon,
   ArrowBack as ArrowBackIcon,
+  PersonAddAlt as AccountIcon,
+  Security as SecurityIcon,
 } from '@mui/icons-material';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { userService } from '../../services/userServices/userServices';
+
+const inputSx = {
+  borderRadius: 2,
+  backgroundColor: '#f8fafc',
+  '& fieldset': { borderColor: '#e2e8f0' },
+  '&:hover fieldset': { borderColor: '#94a3b8' },
+  '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+};
+
+const formFieldSx = { '& .MuiOutlinedInput-root': inputSx };
+
+const SectionHeader = ({ icon, title, color = '#1e40af' }) => (
+  <Stack direction="row" alignItems="center" spacing={1}>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 28,
+        height: 28,
+        borderRadius: 1.5,
+        backgroundColor: `${color}12`,
+        color,
+        '& svg': { fontSize: 16 },
+      }}
+    >
+      {icon}
+    </Box>
+    <Typography
+      variant="subtitle2"
+      sx={{
+        fontWeight: 700,
+        color,
+        letterSpacing: '0.3px',
+        fontSize: '0.78rem',
+        textTransform: 'uppercase',
+      }}
+    >
+      {title}
+    </Typography>
+  </Stack>
+);
 
 export const CreateUser = () => {
   const theme = useTheme();
@@ -157,63 +202,68 @@ export const CreateUser = () => {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, width: '100%' }}>
-      {/* Breadcrumbs & Header */}
-      <Box sx={{ mb: 4 }}>
-        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 1 }}>
-          <Link underline="hover" color="inherit" component={RouterLink} to="/dashboard">
-            Dashboard
-          </Link>
-          <Link underline="hover" color="inherit" component={RouterLink} to="/users">
-            Users Management
-          </Link>
-          <Typography color="text.primary">Create New User</Typography>
-        </Breadcrumbs>
+      {/* Header Bar */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <Breadcrumbs aria-label="breadcrumb" sx={{ fontSize: '0.78rem' }}>
+            <Link underline="hover" color="inherit" component={RouterLink} to="/dashboard" sx={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
+              Dashboard
+            </Link>
+            <Link underline="hover" color="inherit" component={RouterLink} to="/users" sx={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
+              Users Management
+            </Link>
+            <Typography sx={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
+              Create New User
+            </Typography>
+          </Breadcrumbs>
 
-        <Box
+          <Divider orientation="vertical" flexItem sx={{ borderColor: '#e2e8f0', mx: 0.5 }} />
+
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', lineHeight: 1 }}>
+            Create New Account
+          </Typography>
+        </Box>
+
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate('/users')}
           sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 2,
+            borderRadius: 2,
+            borderColor: '#cbd5e1',
+            color: '#475569',
+            fontWeight: 600,
+            fontSize: '0.8rem',
+            textTransform: 'none',
           }}
         >
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, color: '#0f172a' }}>
-              Create New Account
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>
-              Add a new user account to the system and configure their authorization levels.
-            </Typography>
-          </Box>
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/users/list')}
-            sx={{ borderRadius: 2, flexShrink: 0 }}
-          >
-            Back to Users
-          </Button>
-        </Box>
+          Back to Users
+        </Button>
       </Box>
+
+      {/* Subtitle */}
+      <Typography variant="body2" sx={{ color: '#64748b', mb: 2.5 }}>
+        Add a new user account to the system and configure their authorization levels.
+      </Typography>
 
       {/* Global feedback */}
       {success && (
-        <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert severity="success" sx={{ mb: 3, borderRadius: 2, border: '1px solid #bbf7d0' }}>
           User account created successfully! Redirecting to user list...
         </Alert>
       )}
       {error && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2, border: '1px solid #fecaca' }}>
           {error}
         </Alert>
       )}
 
-      {/* Main Form - using CSS Grid for 3 equal columns */}
+      {/* Main Form */}
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 2.5, sm: 4, md: 5 },
+          p: { xs: 2.5, sm: 3, md: 4 },
           borderRadius: 3,
           border: '1px solid #e2e8f0',
           backgroundColor: '#ffffff',
@@ -222,30 +272,19 @@ export const CreateUser = () => {
         }}
       >
         <form onSubmit={handleSubmit} noValidate>
-          {/* Grid container with 3 columns */}
           <Box
             sx={{
               display: 'grid',
               gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-              gap: 4,
-              alignItems: 'stretch',
+              gap: { xs: 3, md: 4 },
+              alignItems: 'start',
             }}
           >
             {/* Column 1: Basic Information */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  fontWeight: 700,
-                  color: '#1a237e',
-                  letterSpacing: '0.5px',
-                  fontSize: '0.8rem',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Basic Information
-              </Typography>
-              <Divider sx={{ mb: 1 }} />
+            <Stack spacing={2.5}>
+              <SectionHeader icon={<AccountIcon />} title="Basic Information" color="#1e40af" />
+              <Divider sx={{ borderColor: '#e2e8f0' }} />
+
               <TextField
                 label="First Name"
                 name="firstName"
@@ -257,13 +296,16 @@ export const CreateUser = () => {
                 fullWidth
                 required
                 autoComplete="given-name"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <PersonIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PersonIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
+                sx={formFieldSx}
               />
               <TextField
                 label="Last Name"
@@ -276,6 +318,7 @@ export const CreateUser = () => {
                 fullWidth
                 required
                 autoComplete="family-name"
+                sx={formFieldSx}
               />
               <TextField
                 label="Email Address"
@@ -289,13 +332,16 @@ export const CreateUser = () => {
                 fullWidth
                 required
                 autoComplete="email"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <EmailIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EmailIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
+                sx={formFieldSx}
               />
               <TextField
                 label="Username"
@@ -308,6 +354,7 @@ export const CreateUser = () => {
                 fullWidth
                 required
                 autoComplete="username"
+                sx={formFieldSx}
               />
               <TextField
                 label="Phone Number (Optional)"
@@ -317,32 +364,25 @@ export const CreateUser = () => {
                 onChange={handleChange}
                 fullWidth
                 autoComplete="tel"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <PhoneIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PhoneIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
+                sx={formFieldSx}
               />
-            </Box>
+            </Stack>
 
             {/* Column 2: Role & Assignment */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  fontWeight: 700,
-                  color: '#1a237e',
-                  letterSpacing: '0.5px',
-                  fontSize: '0.8rem',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Role & Assignment
-              </Typography>
-              <Divider sx={{ mb: 1 }} />
-              <FormControl fullWidth required>
+            <Stack spacing={2.5}>
+              <SectionHeader icon={<RoleIcon />} title="Role & Assignment" color="#047857" />
+              <Divider sx={{ borderColor: '#e2e8f0' }} />
+
+              <FormControl fullWidth required size="small" sx={formFieldSx}>
                 <InputLabel id="role-select-label">System Role</InputLabel>
                 <Select
                   labelId="role-select-label"
@@ -369,13 +409,16 @@ export const CreateUser = () => {
                 fullWidth
                 placeholder="e.g. Infrastructure, Finance"
                 autoComplete="organization"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <DepartmentIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <DepartmentIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
+                sx={formFieldSx}
               />
               <FormControlLabel
                 control={
@@ -384,28 +427,19 @@ export const CreateUser = () => {
                     checked={formData.sendActivationEmail}
                     onChange={handleChange}
                     color="primary"
+                    sx={{ '&.Mui-checked': { color: '#4f46e5' } }}
                   />
                 }
                 label="Send activation email"
-                sx={{ mt: 1 }}
+                sx={{ mt: 1, '& .MuiFormControlLabel-label': { color: '#334155', fontSize: '0.9rem' } }}
               />
-            </Box>
+            </Stack>
 
             {/* Column 3: Security Credentials */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  fontWeight: 700,
-                  color: '#1a237e',
-                  letterSpacing: '0.5px',
-                  fontSize: '0.8rem',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Security Credentials
-              </Typography>
-              <Divider sx={{ mb: 1 }} />
+            <Stack spacing={2.5}>
+              <SectionHeader icon={<SecurityIcon />} title="Security Credentials" color="#7c3aed" />
+              <Divider sx={{ borderColor: '#e2e8f0' }} />
+
               <TextField
                 label="Initial Password"
                 name="password"
@@ -418,25 +452,28 @@ export const CreateUser = () => {
                 fullWidth
                 required
                 autoComplete="new-password"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <LockIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                    </InputAdornment>
-                  ),
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword((v) => !v)}
-                        edge="end"
-                        size="small"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LockIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword((v) => !v)}
+                          edge="end"
+                          size="small"
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
                 }}
+                sx={formFieldSx}
               />
               <TextField
                 label="Confirm Password"
@@ -450,63 +487,86 @@ export const CreateUser = () => {
                 fullWidth
                 required
                 autoComplete="new-password"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <LockIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                    </InputAdornment>
-                  ),
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowConfirmPassword((v) => !v)}
-                        edge="end"
-                        size="small"
-                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LockIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowConfirmPassword((v) => !v)}
+                          edge="end"
+                          size="small"
+                          aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
                 }}
+                sx={formFieldSx}
               />
-            </Box>
+            </Stack>
           </Box>
 
-          {/* Submit & Actions - full width row */}
+          {/* Submit & Actions */}
           <Box
             sx={{
               display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 2,
+              justifyContent: 'space-between',
+              alignItems: 'center',
               mt: 4,
               pt: 3,
               borderTop: '1px solid #e2e8f0',
+              flexWrap: 'wrap',
+              gap: 2,
             }}
           >
-            <Button
-              variant="outlined"
-              color="inherit"
-              onClick={() => navigate('/users')}
-              disabled={loading}
-              sx={{ borderRadius: 2, px: 3 }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={loading || success}
-              sx={{
-                px: 5,
-                py: 1.2,
-                borderRadius: 2,
-                fontWeight: 600,
-                background: 'linear-gradient(135deg, #1a237e, #283593)',
-              }}
-            >
-              {loading ? <CircularProgress size={22} sx={{ color: '#fff' }} /> : 'Create Account'}
-            </Button>
+            <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
+              Password must be at least 6 characters
+            </Typography>
+
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={() => navigate('/users')}
+                disabled={loading}
+                sx={{
+                  borderRadius: 2,
+                  px: 3,
+                  borderColor: '#cbd5e1',
+                  color: '#475569',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={loading || success}
+                sx={{
+                  px: 4,
+                  py: 1,
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  background: 'linear-gradient(135deg, #4f46e5, #4338ca)',
+                  '&:hover': { background: 'linear-gradient(135deg, #4338ca, #3730a3)' },
+                  boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)',
+                  '&:disabled': { backgroundColor: '#e2e8f0', color: '#94a3b8', boxShadow: 'none', backgroundImage: 'none' },
+                }}
+              >
+                {loading ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Create Account'}
+              </Button>
+            </Stack>
           </Box>
         </form>
       </Paper>
