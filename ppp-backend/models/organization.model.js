@@ -8,6 +8,8 @@ const { QueryTypes } = require('sequelize');
 const ORG_FIELDS = `
   o.id,
   o.name,
+  o.amharic_org_name,
+  o.oromo_org_name,
   o.phone,
   o.email,
   o.address,
@@ -73,7 +75,7 @@ class OrganizationModel {
     const replacements = {};
 
     if (search) {
-      where += ` AND (o.name ILIKE :search OR o.email ILIKE :search OR o.phone ILIKE :search)`;
+      where += ` AND (o.name ILIKE :search OR o.amharic_org_name ILIKE :search OR o.oromo_org_name ILIKE :search OR o.email ILIKE :search OR o.phone ILIKE :search)`;
       replacements.search = `%${search}%`;
     }
     if (status !== 'all') {
@@ -133,17 +135,19 @@ class OrganizationModel {
    * Insert a row into `organizations`.
    * Returns the new org id.
    */
-  static async insertOrganization(t, { name, phone, email, address, profileExperience, createdBy }) {
+  static async insertOrganization(t, { name, amharicOrgName, oromoOrgName, phone, email, address, profileExperience, createdBy }) {
     const query = `
       INSERT INTO organizations
-        (name, phone, email, address, profile_experience, created_by, updated_by)
+        (name, amharic_org_name, oromo_org_name, phone, email, address, profile_experience, created_by, updated_by)
       VALUES
-        (:name, :phone, :email, :address, :profileExperience, :createdBy, :createdBy)
+        (:name, :amharicOrgName, :oromoOrgName, :phone, :email, :address, :profileExperience, :createdBy, :createdBy)
       RETURNING id
     `;
     const rows = await db.query(query, {
       replacements: {
         name,
+        amharicOrgName: amharicOrgName || null,
+        oromoOrgName: oromoOrgName || null,
         phone: phone || null,
         email: email || null,
         address: address || null,
@@ -214,7 +218,7 @@ class OrganizationModel {
   // ─── UPDATE (called inside a transaction) ───────────────────
 
   static async updateOrganization(t, id, fields, updatedBy) {
-    const allowed = ['name', 'phone', 'email', 'address', 'profile_experience'];
+    const allowed = ['name', 'amharic_org_name', 'oromo_org_name', 'phone', 'email', 'address', 'profile_experience'];
     const setClauses = [];
     const replacements = { id, updatedBy };
 

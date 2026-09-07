@@ -223,6 +223,22 @@ export const OrganizationDetails = () => {
               />
             </Box>
 
+            {/* Display Amharic and Oromo names */}
+            {(org.amharic_org_name || org.oromo_org_name) && (
+              <Box sx={{ mb: 1 }}>
+                {org.amharic_org_name && (
+                  <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.9rem', fontWeight: 500 }}>
+                    {org.amharic_org_name}
+                  </Typography>
+                )}
+                {org.oromo_org_name && (
+                  <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.9rem', fontWeight: 500 }}>
+                    {org.oromo_org_name}
+                  </Typography>
+                )}
+              </Box>
+            )}
+
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap', color: '#64748b', fontSize: '0.85rem' }}>
               {org.phone && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>

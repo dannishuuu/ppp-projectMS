@@ -63,6 +63,8 @@ class OrganizationService {
   static async createOrganization(payload, actorId) {
     const {
       name,
+      amharicOrgName,
+      oromoOrgName,
       organizationTypeIds,
       organizationTypeId,
       phone,
@@ -113,6 +115,8 @@ class OrganizationService {
     try {
       const orgId = await OrganizationModel.insertOrganization(t, {
         name: name.trim(),
+        amharicOrgName: amharicOrgName?.trim(),
+        oromoOrgName: oromoOrgName?.trim(),
         phone,
         email,
         address,
@@ -162,6 +166,8 @@ class OrganizationService {
     const {
       // org fields
       name,
+      amharicOrgName,
+      oromoOrgName,
       organizationTypeIds,
       organizationTypeId,
       phone,
@@ -202,6 +208,8 @@ class OrganizationService {
       // Map camelCase payload → snake_case column names
       await OrganizationModel.updateOrganization(t, id, {
         name: name ? name.trim() : undefined,
+        amharic_org_name: amharicOrgName !== undefined ? (amharicOrgName ? amharicOrgName.trim() : null) : undefined,
+        oromo_org_name: oromoOrgName !== undefined ? (oromoOrgName ? oromoOrgName.trim() : null) : undefined,
         phone,
         email,
         address,

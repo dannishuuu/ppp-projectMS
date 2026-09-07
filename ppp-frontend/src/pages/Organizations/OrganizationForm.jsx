@@ -94,6 +94,8 @@ export const OrganizationForm = () => {
   const [formData, setFormData] = useState({
     // Core Organization
     name: '',
+    amharicOrgName: '',
+    oromoOrgName: '',
     organizationTypeIds: [],
     phone: '',
     email: '',
@@ -150,6 +152,8 @@ export const OrganizationForm = () => {
 
         setFormData({
           name: org.name || '',
+          amharicOrgName: org.amharic_org_name || '',
+          oromoOrgName: org.oromo_org_name || '',
           organizationTypeIds: typeIds,
           phone: org.phone || '',
           email: org.email || '',
@@ -372,6 +376,26 @@ export const OrganizationForm = () => {
                 size="small"
                 error={fieldErrors.name}
                 helperText={fieldErrors.name ? 'This field is required' : ''}
+                sx={formFieldSx}
+              />
+
+              <TextField
+                fullWidth
+                label="Organization Name (Amharic)"
+                placeholder="e.g. አዲስ ሪል እስቴት እና ልማት ድርጅት"
+                value={formData.amharicOrgName}
+                onChange={handleChange('amharicOrgName')}
+                size="small"
+                sx={formFieldSx}
+              />
+
+              <TextField
+                fullWidth
+                label="Organization Name (Oromo)"
+                placeholder="e.g. Garee Qabeenya Dhalataa fi Guddinaa Addis"
+                value={formData.oromoOrgName}
+                onChange={handleChange('oromoOrgName')}
+                size="small"
                 sx={formFieldSx}
               />
 
