@@ -23,6 +23,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Grid,
+  ToggleButton,
+  ToggleButtonGroup,
+  InputAdornment,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -33,6 +37,8 @@ import {
   KeyboardArrowUp as CollapseIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
+  ViewModule as GridViewIcon,
+  ViewList as ListViewIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -84,6 +90,8 @@ export const BuildingEditPage = () => {
   // Dynamic Floor & Unit Line Items
   const [floorsList, setFloorsList] = useState([]);
   const [expandedFloorIndex, setExpandedFloorIndex] = useState(null);
+  const [unitViewMode, setUnitViewMode] = useState('cards'); // 'cards' | 'table'
+  const [floorStatusFilter, setFloorStatusFilter] = useState({}); // { [floorIndex]: 'all' | 'available' | 'rented' | 'reserved' }
 
   // Lookups
   const [buildingTypes, setBuildingTypes] = useState([]);
@@ -919,165 +927,478 @@ export const BuildingEditPage = () => {
                             </TableCell>
                           </TableRow>
 
-                          {/* Nested Unit Line Items for this Floor */}
+                          {/* Nested Unit Cards/Table for this Floor */}
                           <TableRow>
                             <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
                               <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                                <Box sx={{ p: 2.5, my: 1.5, backgroundColor: '#f8fafc', borderRadius: 2, border: '1px solid #cbd5e1' }}>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                      Units for {floor.name} (Level {floor.floorNumber}) — {unitsCount} Unit Line Items
-                                    </Typography>
-                                    <Button
-                                      size="small"
-                                      startIcon={<AddIcon sx={{ fontSize: 14 }} />}
-                                      onClick={() => handleAddUnitToFloor(floorIndex)}
-                                      sx={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'none', color: '#4f46e5' }}
-                                    >
-                                      + Add Unit Row
-                                    </Button>
-                                  </Box>
+                                {(() => {
+                                  const currentFilter = floorStatusFilter[floorIndex] || 'all';
+                                  const filteredUnits = (floor.units || []).filter((u) => {
+                                    if (currentFilter === 'available') return u.isForRent !== false && !u.isRented;
+                                    if (currentFilter === 'rented') return Boolean(u.isRented);
+                                    if (currentFilter === 'reserved') return u.isForRent === false;
+                                    return true;
+                                  });
+                                  const availableCount = (floor.units || []).filter((u) => u.isForRent !== false && !u.isRented).length;
+                                  const rentedCount = (floor.units || []).filter((u) => Boolean(u.isRented)).length;
+                                  const reservedCount = (floor.units || []).filter((u) => u.isForRent === false).length;
 
-                                  {unitsCount === 0 ? (
-                                    <Box sx={{ p: 2, textAlign: 'center', backgroundColor: '#ffffff', borderRadius: 1.5, border: '1px dashed #cbd5e1' }}>
-                                      <Typography variant="caption" sx={{ color: '#64748b' }}>
-                                        No units configured for this floor. Enter an Expected Units count above or click "+ Add Unit Row".
-                                      </Typography>
-                                    </Box>
-                                  ) : (
-                                    <TableContainer sx={{ border: '1px solid #e2e8f0', borderRadius: 1.5, backgroundColor: '#ffffff' }}>
-                                      <Table size="small">
-                                        <TableHead sx={{ backgroundColor: '#f1f5f9' }}>
-                                          <TableRow>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 45 }}>#</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', minWidth: 130 }}>UNIT NUMBER</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', minWidth: 150 }}>USE / SPACE TYPE</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 110 }}>AREA VALUE</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 100 }}>FOR RENT?</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 100 }}>RENTED?</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 100 }}>STATUS</TableCell>
-                                            <TableCell sx={{ fontWeight: 700, fontSize: '0.72rem', color: '#475569', width: 60, textAlign: 'center' }}>ACTION</TableCell>
-                                          </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                          {floor.units.map((unit, unitIndex) => (
-                                            <TableRow key={unit.id || unitIndex}>
-                                              <TableCell sx={{ color: '#64748b', fontSize: '0.72rem', fontWeight: 600 }}>
-                                                {unitIndex + 1}
-                                              </TableCell>
+                                  return (
+                                    <Box sx={{ p: 2.5, my: 1.5, backgroundColor: '#f8fafc', borderRadius: 2, border: '1px solid #cbd5e1' }}>
+                                      {/* Toolbar: title + filter chips + view toggle + add button */}
+                                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1.5 }}>
+                                        <Box>
+                                          <Typography variant="caption" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.82rem', display: 'block' }}>
+                                            {floor.name} <span style={{ color: '#94a3b8', fontWeight: 500 }}>· Level {floor.floorNumber}</span>
+                                          </Typography>
+                                          <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.7rem' }}>
+                                            {unitsCount} {unitsCount === 1 ? 'unit' : 'units'} configured
+                                          </Typography>
+                                        </Box>
 
-                                              <TableCell>
-                                                <TextField
-                                                  size="small"
-                                                  fullWidth
-                                                  value={unit.unitNumber}
-                                                  onChange={(e) => handleUnitFieldChange(floorIndex, unitIndex, 'unitNumber', e.target.value)}
-                                                  placeholder="e.g. 1-01"
-                                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem' } }}
-                                                />
-                                              </TableCell>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                          {/* Status filter chips */}
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            {[
+                                              { key: 'all', label: `All (${unitsCount})` },
+                                              { key: 'available', label: `Available (${availableCount})` },
+                                              { key: 'rented', label: `Rented (${rentedCount})` },
+                                              { key: 'reserved', label: `Reserved (${reservedCount})` },
+                                            ].map((item) => (
+                                              <Chip
+                                                key={item.key}
+                                                label={item.label}
+                                                size="small"
+                                                clickable
+                                                onClick={() => setFloorStatusFilter((prev) => ({ ...prev, [floorIndex]: item.key }))}
+                                                sx={{
+                                                  height: 24,
+                                                  fontSize: '0.68rem',
+                                                  fontWeight: 700,
+                                                  backgroundColor: currentFilter === item.key ? '#1a237e' : '#f1f5f9',
+                                                  color: currentFilter === item.key ? '#ffffff' : '#64748b',
+                                                  '&:hover': { backgroundColor: currentFilter === item.key ? '#0f172a' : '#e2e8f0' },
+                                                }}
+                                              />
+                                            ))}
+                                          </Box>
 
-                                              <TableCell>
-                                                <TextField
-                                                  select
-                                                  size="small"
-                                                  fullWidth
-                                                  value={unit.unitUseType}
-                                                  onChange={(e) => handleUnitFieldChange(floorIndex, unitIndex, 'unitUseType', e.target.value)}
-                                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem' } }}
-                                                >
-                                                  <MenuItem value="Commercial">Commercial</MenuItem>
-                                                  <MenuItem value="Office">Office</MenuItem>
-                                                  <MenuItem value="Retail">Retail / Shop</MenuItem>
-                                                  <MenuItem value="Residential">Residential</MenuItem>
-                                                  <MenuItem value="Storage">Storage / Warehouse</MenuItem>
-                                                  <MenuItem value="Clinic">Clinic / Health</MenuItem>
-                                                  <MenuItem value="Restaurant">Restaurant / Cafe</MenuItem>
-                                                  <MenuItem value="Utility">Utility / Common Area</MenuItem>
-                                                  <MenuItem value="Other">Other</MenuItem>
-                                                </TextField>
-                                              </TableCell>
+                                          {/* View mode toggle */}
+                                          <ToggleButtonGroup
+                                            size="small"
+                                            value={unitViewMode}
+                                            exclusive
+                                            onChange={(e, val) => val && setUnitViewMode(val)}
+                                            sx={{ height: 26 }}
+                                          >
+                                            <ToggleButton value="cards" sx={{ px: 1, py: 0 }}>
+                                              <Tooltip title="Card Grid View">
+                                                <GridViewIcon sx={{ fontSize: 16 }} />
+                                              </Tooltip>
+                                            </ToggleButton>
+                                            <ToggleButton value="table" sx={{ px: 1, py: 0 }}>
+                                              <Tooltip title="Table List View">
+                                                <ListViewIcon sx={{ fontSize: 16 }} />
+                                              </Tooltip>
+                                            </ToggleButton>
+                                          </ToggleButtonGroup>
 
-                                              <TableCell>
-                                                <TextField
-                                                  type="number"
-                                                  size="small"
-                                                  fullWidth
-                                                  value={unit.areaValue}
-                                                  onChange={(e) => handleUnitFieldChange(floorIndex, unitIndex, 'areaValue', e.target.value)}
-                                                  placeholder="e.g. 50"
-                                                  inputProps={{ min: 0, step: 'any' }}
-                                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem' } }}
-                                                />
-                                              </TableCell>
+                                          {/* Add unit button */}
+                                          <Button
+                                            size="small"
+                                            variant="outlined"
+                                            startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+                                            onClick={() => handleAddUnitToFloor(floorIndex)}
+                                            sx={{
+                                              fontSize: '0.72rem',
+                                              fontWeight: 700,
+                                              textTransform: 'none',
+                                              borderRadius: 1.5,
+                                              borderColor: '#c7d2fe',
+                                              color: '#4f46e5',
+                                              '&:hover': { borderColor: '#4f46e5', backgroundColor: '#eef2ff' },
+                                            }}
+                                          >
+                                            Add Unit
+                                          </Button>
+                                        </Box>
+                                      </Box>
 
-                                              <TableCell>
-                                                <TextField
-                                                  select
-                                                  size="small"
-                                                  fullWidth
-                                                  value={unit.isForRent !== false ? 'true' : 'false'}
-                                                  onChange={(e) => {
-                                                    const isForRent = e.target.value === 'true';
-                                                    handleUnitFieldChange(floorIndex, unitIndex, 'isForRent', isForRent);
-                                                    if (!isForRent) {
-                                                      handleUnitFieldChange(floorIndex, unitIndex, 'isRented', false);
-                                                    }
+                                      {/* Empty state */}
+                                      {unitsCount === 0 ? (
+                                        <Box sx={{ py: 4, textAlign: 'center', backgroundColor: '#ffffff', borderRadius: 2, border: '1px dashed #cbd5e1' }}>
+                                          <UnitIcon sx={{ fontSize: 36, color: '#94a3b8', mb: 0.5 }} />
+                                          <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 600 }}>
+                                            No units configured for this floor.
+                                          </Typography>
+                                          <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                                            Enter an Expected Units count above or click "Add Unit".
+                                          </Typography>
+                                        </Box>
+                                      ) : filteredUnits.length === 0 ? (
+                                        <Box sx={{ py: 3.5, textAlign: 'center', backgroundColor: '#ffffff', borderRadius: 2, border: '1px dashed #cbd5e1' }}>
+                                          <UnitIcon sx={{ fontSize: 32, color: '#94a3b8', mb: 0.5 }} />
+                                          <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 600 }}>
+                                            No units match the selected filter.
+                                          </Typography>
+                                        </Box>
+                                      ) : unitViewMode === 'cards' ? (
+                                        /* ── CARD GRID VIEW ── */
+                                        <Grid container spacing={2}>
+                                          {filteredUnits.map((unit, unitIndex) => {
+                                            const realIndex = (floor.units || []).indexOf(unit);
+                                            const isRented = Boolean(unit.isRented);
+                                            const isForRent = unit.isForRent !== false;
+                                            const isActive = unit.isActive !== false;
+                                            const accentColor = isRented ? '#8b5cf6' : isForRent ? '#10b981' : '#94a3b8';
+                                            const badgeBg = isRented ? '#f5f3ff' : isForRent ? '#ecfdf5' : '#f1f5f9';
+                                            const badgeColor = isRented ? '#7c3aed' : isForRent ? '#059669' : '#64748b';
+                                            const badgeBorder = isRented ? '#ddd6fe' : isForRent ? '#a7f3d0' : '#e2e8f0';
+
+                                            return (
+                                              <Grid item xs={12} sm={6} md={4} lg={3} key={unit.id || realIndex}>
+                                                <Paper
+                                                  elevation={0}
+                                                  sx={{
+                                                    p: 2,
+                                                    borderRadius: 2.5,
+                                                    border: '1px solid #e2e8f0',
+                                                    backgroundColor: '#ffffff',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: 1.5,
+                                                    position: 'relative',
+                                                    overflow: 'hidden',
+                                                    transition: 'all 0.2s ease-in-out',
+                                                    '&:hover': {
+                                                      boxShadow: '0 8px 20px -4px rgba(15,23,42,0.09)',
+                                                      borderColor: accentColor,
+                                                    },
                                                   }}
-                                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem' } }}
                                                 >
-                                                  <MenuItem value="true">Yes</MenuItem>
-                                                  <MenuItem value="false">No</MenuItem>
-                                                </TextField>
-                                              </TableCell>
+                                                  {/* Top accent line */}
+                                                  <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: accentColor }} />
 
-                                              <TableCell>
-                                                <TextField
-                                                  select
-                                                  size="small"
-                                                  fullWidth
-                                                  disabled={unit.isForRent === false}
-                                                  value={unit.isRented ? 'true' : 'false'}
-                                                  onChange={(e) => handleUnitFieldChange(floorIndex, unitIndex, 'isRented', e.target.value === 'true')}
-                                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem' } }}
-                                                >
-                                                  <MenuItem value="false">Vacant</MenuItem>
-                                                  <MenuItem value="true">Rented</MenuItem>
-                                                </TextField>
-                                              </TableCell>
+                                                  {/* Card header: icon badge + unit title + status chip + delete */}
+                                                  <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, pt: 0.5 }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, flex: 1, minWidth: 0 }}>
+                                                      <Box
+                                                        sx={{
+                                                          width: 36, height: 36, borderRadius: 2,
+                                                          backgroundColor: badgeBg, color: badgeColor,
+                                                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                          border: `1px solid ${badgeBorder}`,
+                                                          flexShrink: 0,
+                                                        }}
+                                                      >
+                                                        <UnitIcon sx={{ fontSize: 18 }} />
+                                                      </Box>
+                                                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                                                        <TextField
+                                                          size="small"
+                                                          fullWidth
+                                                          value={unit.unitNumber}
+                                                          onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'unitNumber', e.target.value)}
+                                                          placeholder="Unit No."
+                                                          inputProps={{ style: { fontWeight: 800, fontSize: '0.85rem', color: '#0f172a', padding: '3px 8px' } }}
+                                                          sx={{
+                                                            '& .MuiOutlinedInput-root': {
+                                                              borderRadius: 1.5,
+                                                              '& fieldset': { borderColor: '#e2e8f0' },
+                                                              '&:hover fieldset': { borderColor: accentColor },
+                                                              '&.Mui-focused fieldset': { borderColor: accentColor },
+                                                            },
+                                                          }}
+                                                        />
+                                                        <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 500, display: 'block', mt: 0.3 }}>
+                                                          Level {floor.floorNumber}
+                                                        </Typography>
+                                                      </Box>
+                                                    </Box>
 
-                                              <TableCell>
-                                                <TextField
-                                                  select
-                                                  size="small"
-                                                  fullWidth
-                                                  value={unit.isActive !== false ? 'true' : 'false'}
-                                                  onChange={(e) => handleUnitFieldChange(floorIndex, unitIndex, 'isActive', e.target.value === 'true')}
-                                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem' } }}
-                                                >
-                                                  <MenuItem value="true">Active</MenuItem>
-                                                  <MenuItem value="false">Inactive</MenuItem>
-                                                </TextField>
-                                              </TableCell>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                                                      {/* Leasing status chip */}
+                                                      {isRented ? (
+                                                        <Chip size="small" label="Rented" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe', '& .MuiChip-label': { px: 0.8 } }} />
+                                                      ) : !isForRent ? (
+                                                        <Chip size="small" label="Reserved" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #cbd5e1', '& .MuiChip-label': { px: 0.8 } }} />
+                                                      ) : (
+                                                        <Chip size="small" label="Available" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', '& .MuiChip-label': { px: 0.8 } }} />
+                                                      )}
+                                                      <Tooltip title="Remove unit">
+                                                        <IconButton size="small" onClick={() => handleRemoveUnitFromFloor(floorIndex, realIndex)} sx={{ color: '#ef4444', p: 0.4 }}>
+                                                          <DeleteIcon sx={{ fontSize: 15 }} />
+                                                        </IconButton>
+                                                      </Tooltip>
+                                                    </Box>
+                                                  </Box>
 
-                                              <TableCell sx={{ textAlign: 'center' }}>
-                                                <Tooltip title="Remove unit">
-                                                  <IconButton
-                                                    size="small"
-                                                    onClick={() => handleRemoveUnitFromFloor(floorIndex, unitIndex)}
-                                                    sx={{ color: '#ef4444' }}
-                                                  >
-                                                    <DeleteIcon sx={{ fontSize: 16 }} />
-                                                  </IconButton>
-                                                </Tooltip>
-                                              </TableCell>
-                                            </TableRow>
-                                          ))}
-                                        </TableBody>
-                                      </Table>
-                                    </TableContainer>
-                                  )}
-                                </Box>
+                                                  {/* 2-col attribute grid */}
+                                                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+                                                    {/* Space Type */}
+                                                    <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                                                      <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 0.25 }}>
+                                                        Space Type
+                                                      </Typography>
+                                                      <TextField
+                                                        select
+                                                        size="small"
+                                                        fullWidth
+                                                        value={unit.unitUseType}
+                                                        onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'unitUseType', e.target.value)}
+                                                        sx={{
+                                                          '& .MuiOutlinedInput-root': { borderRadius: 1, fontSize: '0.74rem', fontWeight: 700, color: '#334155' },
+                                                          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+                                                          '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
+                                                          '& .MuiSelect-select': { py: 0.4, px: 0.75 },
+                                                          backgroundColor: '#ffffff',
+                                                          borderRadius: 1,
+                                                        }}
+                                                      >
+                                                        <MenuItem value="Commercial">Commercial</MenuItem>
+                                                        <MenuItem value="Office">Office</MenuItem>
+                                                        <MenuItem value="Retail">Retail / Shop</MenuItem>
+                                                        <MenuItem value="Residential">Residential</MenuItem>
+                                                        <MenuItem value="Storage">Storage / Warehouse</MenuItem>
+                                                        <MenuItem value="Clinic">Clinic / Health</MenuItem>
+                                                        <MenuItem value="Restaurant">Restaurant / Cafe</MenuItem>
+                                                        <MenuItem value="Utility">Utility / Common Area</MenuItem>
+                                                        <MenuItem value="Other">Other</MenuItem>
+                                                      </TextField>
+                                                    </Box>
+
+                                                    {/* Floor Area */}
+                                                    <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                                                      <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 0.25 }}>
+                                                        Floor Area
+                                                      </Typography>
+                                                      <TextField
+                                                        type="number"
+                                                        size="small"
+                                                        fullWidth
+                                                        value={unit.areaValue}
+                                                        onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'areaValue', e.target.value)}
+                                                        placeholder="e.g. 50"
+                                                        inputProps={{ min: 0, step: 'any' }}
+                                                        InputProps={{ endAdornment: <InputAdornment position="end"><Typography sx={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>m²</Typography></InputAdornment> }}
+                                                        sx={{
+                                                          '& .MuiOutlinedInput-root': { borderRadius: 1, fontSize: '0.74rem', fontWeight: 700, color: '#0f172a' },
+                                                          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+                                                          '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
+                                                          '& .MuiInputBase-input': { py: 0.4, px: 0.75 },
+                                                          backgroundColor: '#ffffff',
+                                                          borderRadius: 1,
+                                                        }}
+                                                      />
+                                                    </Box>
+
+                                                    {/* For Rent */}
+                                                    <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                                                      <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 0.25 }}>
+                                                        For Rent?
+                                                      </Typography>
+                                                      <TextField
+                                                        select
+                                                        size="small"
+                                                        fullWidth
+                                                        value={unit.isForRent !== false ? 'true' : 'false'}
+                                                        onChange={(e) => {
+                                                          const val = e.target.value === 'true';
+                                                          handleUnitFieldChange(floorIndex, realIndex, 'isForRent', val);
+                                                          if (!val) handleUnitFieldChange(floorIndex, realIndex, 'isRented', false);
+                                                        }}
+                                                        sx={{
+                                                          '& .MuiOutlinedInput-root': { borderRadius: 1, fontSize: '0.74rem', fontWeight: 700, color: '#334155' },
+                                                          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+                                                          '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
+                                                          '& .MuiSelect-select': { py: 0.4, px: 0.75 },
+                                                          backgroundColor: '#ffffff',
+                                                          borderRadius: 1,
+                                                        }}
+                                                      >
+                                                        <MenuItem value="true">Yes</MenuItem>
+                                                        <MenuItem value="false">No</MenuItem>
+                                                      </TextField>
+                                                    </Box>
+
+                                                    {/* Occupancy */}
+                                                    <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                                                      <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 0.25 }}>
+                                                        Occupancy
+                                                      </Typography>
+                                                      <TextField
+                                                        select
+                                                        size="small"
+                                                        fullWidth
+                                                        disabled={unit.isForRent === false}
+                                                        value={unit.isRented ? 'true' : 'false'}
+                                                        onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'isRented', e.target.value === 'true')}
+                                                        sx={{
+                                                          '& .MuiOutlinedInput-root': { borderRadius: 1, fontSize: '0.74rem', fontWeight: 700, color: '#334155' },
+                                                          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+                                                          '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
+                                                          '& .MuiSelect-select': { py: 0.4, px: 0.75 },
+                                                          backgroundColor: '#ffffff',
+                                                          borderRadius: 1,
+                                                        }}
+                                                      >
+                                                        <MenuItem value="false">Vacant</MenuItem>
+                                                        <MenuItem value="true">Rented</MenuItem>
+                                                      </TextField>
+                                                    </Box>
+                                                  </Box>
+
+                                                  {/* Card Footer: active indicator + leasing status selector */}
+                                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 1, borderTop: '1px solid #f1f5f9' }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                                      <Box sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: isActive ? '#10b981' : '#ef4444' }} />
+                                                      <TextField
+                                                        select
+                                                        size="small"
+                                                        value={unit.isActive !== false ? 'true' : 'false'}
+                                                        onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'isActive', e.target.value === 'true')}
+                                                        sx={{
+                                                          '& .MuiOutlinedInput-root': { borderRadius: 1, fontSize: '0.68rem', fontWeight: 600, color: isActive ? '#15803d' : '#b91c1c' },
+                                                          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+                                                          '& .MuiSelect-select': { py: 0.3, px: 0.75, pr: '20px !important' },
+                                                        }}
+                                                      >
+                                                        <MenuItem value="true">Active Space</MenuItem>
+                                                        <MenuItem value="false">Inactive</MenuItem>
+                                                      </TextField>
+                                                    </Box>
+                                                    <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.66rem', fontWeight: 500 }}>
+                                                      {isRented ? 'Occupied' : isForRent ? 'Ready for Lease' : 'Off-market'}
+                                                    </Typography>
+                                                  </Box>
+                                                </Paper>
+                                              </Grid>
+                                            );
+                                          })}
+                                        </Grid>
+                                      ) : (
+                                        /* ── TABLE VIEW ── */
+                                        <TableContainer sx={{ border: '1px solid #e2e8f0', borderRadius: 2, backgroundColor: '#ffffff' }}>
+                                          <Table size="small">
+                                            <TableHead sx={{ backgroundColor: '#f8fafc' }}>
+                                              <TableRow>
+                                                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem' }}>UNIT #</TableCell>
+                                                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem' }}>SPACE TYPE</TableCell>
+                                                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textAlign: 'right' }}>AREA</TableCell>
+                                                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textAlign: 'center' }}>FOR RENT?</TableCell>
+                                                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textAlign: 'center' }}>OCCUPANCY</TableCell>
+                                                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textAlign: 'center' }}>STATUS</TableCell>
+                                                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textAlign: 'center', width: 50 }}></TableCell>
+                                              </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                              {filteredUnits.map((unit) => {
+                                                const realIndex = (floor.units || []).indexOf(unit);
+                                                const isRented = Boolean(unit.isRented);
+                                                const isForRent = unit.isForRent !== false;
+                                                const isActive = unit.isActive !== false;
+                                                return (
+                                                  <TableRow key={unit.id || realIndex} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                                    <TableCell sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.82rem', minWidth: 130 }}>
+                                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        <Box sx={{ width: 24, height: 24, borderRadius: 1, backgroundColor: isRented ? '#f5f3ff' : isForRent ? '#ecfdf5' : '#f1f5f9', color: isRented ? '#7c3aed' : isForRent ? '#059669' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                          <UnitIcon sx={{ fontSize: 14 }} />
+                                                        </Box>
+                                                        <TextField
+                                                          size="small"
+                                                          value={unit.unitNumber}
+                                                          onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'unitNumber', e.target.value)}
+                                                          placeholder="Unit No."
+                                                          sx={{ minWidth: 80, '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.8rem', fontWeight: 700 } }}
+                                                        />
+                                                      </Box>
+                                                    </TableCell>
+                                                    <TableCell sx={{ minWidth: 150 }}>
+                                                      <TextField
+                                                        select size="small" fullWidth
+                                                        value={unit.unitUseType}
+                                                        onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'unitUseType', e.target.value)}
+                                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.78rem' } }}
+                                                      >
+                                                        <MenuItem value="Commercial">Commercial</MenuItem>
+                                                        <MenuItem value="Office">Office</MenuItem>
+                                                        <MenuItem value="Retail">Retail / Shop</MenuItem>
+                                                        <MenuItem value="Residential">Residential</MenuItem>
+                                                        <MenuItem value="Storage">Storage / Warehouse</MenuItem>
+                                                        <MenuItem value="Clinic">Clinic / Health</MenuItem>
+                                                        <MenuItem value="Restaurant">Restaurant / Cafe</MenuItem>
+                                                        <MenuItem value="Utility">Utility / Common Area</MenuItem>
+                                                        <MenuItem value="Other">Other</MenuItem>
+                                                      </TextField>
+                                                    </TableCell>
+                                                    <TableCell sx={{ textAlign: 'right', minWidth: 110 }}>
+                                                      <TextField
+                                                        type="number" size="small" fullWidth
+                                                        value={unit.areaValue}
+                                                        onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'areaValue', e.target.value)}
+                                                        placeholder="0"
+                                                        inputProps={{ min: 0, step: 'any', style: { textAlign: 'right' } }}
+                                                        InputProps={{ endAdornment: <InputAdornment position="end"><Typography sx={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>m²</Typography></InputAdornment> }}
+                                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.78rem' } }}
+                                                      />
+                                                    </TableCell>
+                                                    <TableCell sx={{ textAlign: 'center', minWidth: 90 }}>
+                                                      <TextField
+                                                        select size="small" fullWidth
+                                                        value={unit.isForRent !== false ? 'true' : 'false'}
+                                                        onChange={(e) => {
+                                                          const val = e.target.value === 'true';
+                                                          handleUnitFieldChange(floorIndex, realIndex, 'isForRent', val);
+                                                          if (!val) handleUnitFieldChange(floorIndex, realIndex, 'isRented', false);
+                                                        }}
+                                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.78rem' } }}
+                                                      >
+                                                        <MenuItem value="true">Yes</MenuItem>
+                                                        <MenuItem value="false">No</MenuItem>
+                                                      </TextField>
+                                                    </TableCell>
+                                                    <TableCell sx={{ textAlign: 'center', minWidth: 90 }}>
+                                                      <TextField
+                                                        select size="small" fullWidth
+                                                        disabled={unit.isForRent === false}
+                                                        value={unit.isRented ? 'true' : 'false'}
+                                                        onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'isRented', e.target.value === 'true')}
+                                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.78rem' } }}
+                                                      >
+                                                        <MenuItem value="false">Vacant</MenuItem>
+                                                        <MenuItem value="true">Rented</MenuItem>
+                                                      </TextField>
+                                                    </TableCell>
+                                                    <TableCell sx={{ textAlign: 'center', minWidth: 90 }}>
+                                                      <Chip
+                                                        label={isActive ? 'Active' : 'Inactive'}
+                                                        size="small"
+                                                        onClick={() => handleUnitFieldChange(floorIndex, realIndex, 'isActive', !isActive)}
+                                                        sx={{
+                                                          height: 22, fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer',
+                                                          backgroundColor: isActive ? '#dcfce7' : '#fee2e2',
+                                                          color: isActive ? '#15803d' : '#b91c1c',
+                                                          '&:hover': { opacity: 0.85 },
+                                                        }}
+                                                      />
+                                                    </TableCell>
+                                                    <TableCell sx={{ textAlign: 'center' }}>
+                                                      <Tooltip title="Remove unit">
+                                                        <IconButton size="small" onClick={() => handleRemoveUnitFromFloor(floorIndex, realIndex)} sx={{ color: '#ef4444' }}>
+                                                          <DeleteIcon sx={{ fontSize: 16 }} />
+                                                        </IconButton>
+                                                      </Tooltip>
+                                                    </TableCell>
+                                                  </TableRow>
+                                                );
+                                              })}
+                                            </TableBody>
+                                          </Table>
+                                        </TableContainer>
+                                      )}
+                                    </Box>
+                                  );
+                                })()}
                               </Collapse>
                             </TableCell>
                           </TableRow>
