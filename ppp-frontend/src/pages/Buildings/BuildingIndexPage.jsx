@@ -802,7 +802,7 @@ export const BuildingIndexPage = () => {
         confirmColor={selectedBuilding?.is_active ? 'warning' : 'primary'}
         loading={toggleLoading}
         onConfirm={handleToggleConfirm}
-        onCancel={() => setToggleDialogOpen(false)}
+        onClose={() => setToggleDialogOpen(false)}
       />
     </Box>
   );
