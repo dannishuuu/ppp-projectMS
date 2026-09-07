@@ -110,12 +110,12 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   ];
 
   const foundationSubItems = [
-    { text: 'Organization Types', icon: <CategoryIcon />, path: '/organization-types' },
-    { text: 'Tracking Types', icon: <CategoryIcon />, path: '/projects/tracking-types' },
-    { text: 'Project Categories', icon: <CategoryIcon />, path: '/project-categories' },
-    { text: 'Project Statuses', icon: <StatusIcon />, path: '/project-statuses' },
-    { text: 'Currencies', icon: <CurrencyIcon />, path: '/currencies' },
-    { text: 'Proposal Statuses', icon: <StatusIcon />, path: '/proposal-statuses' },
+    { text: 'Organization Types', icon: <CategoryIcon />, path: 'foundation/organization-types' },
+    { text: 'Tracking Types', icon: <CategoryIcon />, path: 'foundation/tracking-types' },
+    { text: 'Project Categories', icon: <CategoryIcon />, path: 'foundation/project-categories' },
+    { text: 'Project Statuses', icon: <StatusIcon />, path: 'foundation/project-statuses' },
+    { text: 'Currencies', icon: <CurrencyIcon />, path: 'foundation/currencies' },
+    { text: 'Proposal Statuses', icon: <StatusIcon />, path: 'foundation/proposal-statuses' },
     { text: 'Geographic Mngt', icon: <GeographicIcon />, path: '/foundation/geographical' },
     { text: 'Building Types', icon: <BuildingTypeIcon />, path: '/foundation/building-types' },
     { text: 'Shop Types', icon: <ShopServiceIcon />, path: '/foundation/shop-service-types' },

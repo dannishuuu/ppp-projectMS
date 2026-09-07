@@ -123,19 +123,19 @@ function App() {
                   <Route path="organizations/new" element={<OrganizationForm />} />
                   <Route path="organizations/:id" element={<OrganizationDetails />} />
                   <Route path="organizations/:id/edit" element={<OrganizationForm />} />
-                  <Route path="organization-types" element={<OrganizationTypePage />} />
-                  <Route path="currencies" element={<CurrenciesPage />} />
-                  <Route path="proposal-statuses" element={<ProposalStatusPage />} />
+
+                  {/* Foundation pages */}
+                  <Route path="foundation/organization-types" element={<OrganizationTypePage />} />
+                  <Route path="foundation/currencies" element={<CurrenciesPage />} />
+                  <Route path="foundation/proposal-statuses" element={<ProposalStatusPage />} />
                   <Route path="foundation/geographical" element={<GeographicManagement />} />
                   <Route path="foundation/building-types" element={<BuildingTypePage />} />
                   <Route path="foundation/shop-service-types" element={<ShopServiceTypePage />} />
                   <Route path="foundation/payment-timings" element={<PaymentTimingPage />} />
-                  <Route path="payment-timings" element={<PaymentTimingPage />} />
                   <Route path="foundation/rental-payment-types" element={<RentalPaymentTypePage />} />
-                  <Route path="rental-payment-types" element={<RentalPaymentTypePage />} />
                   <Route path="foundation/area-units" element={<AreaUnitPage />} />
                   <Route path="foundation/floor-types" element={<FloorTypePage />} />
-                  <Route path="floor-types" element={<FloorTypePage />} />
+                  <Route path="foundation/floor-types" element={<FloorTypePage />} />
                   <Route path="foundation/business-sectors" element={<BusinessSectorPage />} />
 
                   {/* Building Management pages */}
