@@ -23,6 +23,7 @@ import {
   Stack,
   Fade,
   FormHelperText,
+  Autocomplete,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -88,6 +89,8 @@ export const OrganizationForm = () => {
 
   const [orgTypes, setOrgTypes] = useState([]);
   const [businessSectors, setBusinessSectors] = useState([]);
+  const [businessSectorSearch, setBusinessSectorSearch] = useState('');
+  const [businessSectorLoading, setBusinessSectorLoading] = useState(false);
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -122,22 +125,44 @@ export const OrganizationForm = () => {
 
   const totalFields = useMemo(() => Object.keys(formData).length, []);
 
-  // Load Organization Types and Business Sectors
+  // Load Organization Types initially, Business Sectors loaded on search
   useEffect(() => {
     const fetchTypes = async () => {
       try {
-        const [orgTypesRes, businessSectorsRes] = await Promise.all([
-          organizationTypeService.getOrganizationTypes({ limit: 100, status: 'active' }),
-          businessSectorService.getBusinessSectors({ limit: 100, status: 'active' }),
-        ]);
+        const orgTypesRes = await organizationTypeService.getOrganizationTypes({ limit: 100, status: 'active' });
         setOrgTypes(orgTypesRes.organizationTypes || orgTypesRes.rows || []);
-        setBusinessSectors(businessSectorsRes.businessSectors || businessSectorsRes.rows || []);
       } catch (err) {
-        console.error('Failed to load lookups:', err);
+        console.error('Failed to load organization types:', err);
       }
     };
     fetchTypes();
   }, []);
+
+  // Debounced Business Sector search (min 3 characters)
+  useEffect(() => {
+    if (businessSectorSearch.length < 3) {
+      setBusinessSectors([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setBusinessSectorLoading(true);
+      try {
+        const res = await businessSectorService.getBusinessSectors({ 
+          limit: 50, 
+          status: 'active',
+          search: businessSectorSearch 
+        });
+        setBusinessSectors(res.businessSectors || res.rows || []);
+      } catch (err) {
+        console.error('Failed to load business sectors:', err);
+      } finally {
+        setBusinessSectorLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [businessSectorSearch]);
 
   // Fetch org data if in Edit mode
   useEffect(() => {
@@ -154,6 +179,16 @@ export const OrganizationForm = () => {
           typeIds = org.organization_types.map((t) => t.id);
         } else if (org.organization_type_id) {
           typeIds = [org.organization_type_id];
+        }
+
+        // Load selected business sector if exists
+        if (org.business_sector_id && org.business_sector_name) {
+          setBusinessSectors([{
+            id: org.business_sector_id,
+            eng_name: org.business_sector_name,
+            amh_name: org.business_sector_amh_name,
+            oro_name: org.business_sector_oro_name,
+          }]);
         }
 
         setFormData({
@@ -181,6 +216,23 @@ export const OrganizationForm = () => {
     };
     fetchOrgDetails();
   }, [id]);
+
+  // Auto-calculate years of experience from registration date
+  useEffect(() => {
+    if (formData.registrationDate) {
+      const regDate = new Date(formData.registrationDate);
+      const today = new Date();
+      const yearsDiff = today.getFullYear() - regDate.getFullYear();
+      const monthsDiff = today.getMonth() - regDate.getMonth();
+      
+      // Adjust if birthday hasn't occurred this year
+      const adjustedYears = monthsDiff < 0 || (monthsDiff === 0 && today.getDate() < regDate.getDate())
+        ? yearsDiff - 1
+        : yearsDiff;
+
+      setFormData((prev) => ({ ...prev, yearsOfExperience: Math.max(0, adjustedYears) }));
+    }
+  }, [formData.registrationDate]);
 
   const handleChange = (field) => (event) => {
     setFormData((prev) => ({ ...prev, [field]: event.target.value }));
@@ -508,26 +560,56 @@ export const OrganizationForm = () => {
               />
               <Divider sx={{ borderColor: '#e2e8f0' }} />
 
-              <TextField
-                select
+              <Autocomplete
                 fullWidth
-                label="Business Sector"
-                placeholder="Select business sector"
-                value={formData.businessSectorId}
-                onChange={handleChange('businessSectorId')}
+                options={businessSectors}
+                value={businessSectors.find(s => s.id === formData.businessSectorId) || null}
+                onChange={(event, newValue) => {
+                  setFormData((prev) => ({ ...prev, businessSectorId: newValue ? newValue.id : '' }));
+                  if (errorMsg) setErrorMsg('');
+                }}
+                onInputChange={(event, newInputValue) => {
+                  setBusinessSectorSearch(newInputValue);
+                }}
+                getOptionLabel={(option) => {
+                  if (option.amh_name) {
+                    return `${option.eng_name} (${option.amh_name})`;
+                  }
+                  return option.eng_name;
+                }}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                loading={businessSectorLoading}
+                noOptionsText={businessSectorSearch.length < 3 ? "Type 3+ characters to search" : "No sectors found"}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Business Sector"
+                    placeholder="Type to search..."
+                    size="small"
+                    sx={formFieldSx}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {businessSectorLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps?.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
+
+              <TextField
+                fullWidth
+                type="date"
+                label="Legal Registration Date"
+                slotProps={{ inputLabel: { shrink: true } }}
+                value={formData.registrationDate}
+                onChange={handleChange('registrationDate')}
                 size="small"
                 sx={formFieldSx}
-              >
-                <MenuItem value="">
-                  <em>None</em>
-                </MenuItem>
-                {businessSectors.map((sector) => (
-                  <MenuItem key={sector.id} value={sector.id}>
-                    {sector.eng_name}
-                    {sector.amh_name && ` (${sector.amh_name})`}
-                  </MenuItem>
-                ))}
-              </TextField>
+              />
 
                <TextField
                 fullWidth
@@ -543,23 +625,20 @@ export const OrganizationForm = () => {
                 fullWidth
                 type="number"
                 label="Years of Experience"
-                placeholder="e.g. 8"
+                placeholder="Auto-calculated from registration date"
                 value={formData.yearsOfExperience}
-                onChange={handleChange('yearsOfExperience')}
+                InputProps={{
+                  readOnly: true,
+                }}
                 size="small"
-                inputMode="numeric"
-                sx={formFieldSx}
-              />
-
-              <TextField
-                fullWidth
-                type="date"
-                label="Legal Registration Date"
-                slotProps={{ inputLabel: { shrink: true } }}
-                value={formData.registrationDate}
-                onChange={handleChange('registrationDate')}
-                size="small"
-                sx={formFieldSx}
+                helperText="Automatically calculated from registration date"
+                sx={{
+                  ...formFieldSx,
+                  '& .MuiInputBase-input': {
+                    backgroundColor: '#f1f5f9',
+                    cursor: 'not-allowed',
+                  }
+                }}
               />
             </Stack>
 
