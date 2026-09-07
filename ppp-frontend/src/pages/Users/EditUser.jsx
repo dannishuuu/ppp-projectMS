@@ -14,15 +14,28 @@ import {
   useTheme,
   Avatar,
   Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
   AccountCircle as AccountIcon,
+  Person as PersonIcon,
+  Email as EmailIcon,
+  Public as LocationIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { userService } from '../../services/userServices/userServices';
 import { useAuth } from '../../context/AuthContext';
+import {
+  countriesService,
+  regionsService,
+  zonesService,
+  woredasService,
+} from '../../services/foundationService';
 
 const inputSx = {
   borderRadius: 2,
@@ -88,7 +101,37 @@ export const EditUser = () => {
     display_name: '',
     phone: '',
     password: '',
+    countryId: '',
+    regionId: '',
+    zoneId: '',
+    woredaId: '',
   });
+
+  const [countries, setCountries] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [zones, setZones] = useState([]);
+  const [woredas, setWoredas] = useState([]);
+
+  const [loadingCountries, setLoadingCountries] = useState(false);
+  const [loadingRegions, setLoadingRegions] = useState(false);
+  const [loadingZones, setLoadingZones] = useState(false);
+  const [loadingWoredas, setLoadingWoredas] = useState(false);
+
+  // Fetch countries on component mount
+  useEffect(() => {
+    const fetchCountries = async () => {
+      setLoadingCountries(true);
+      try {
+        const res = await countriesService.getCountries({ limit: 1000, status: 'active' });
+        setCountries(res.countries || []);
+      } catch (err) {
+        console.error('Failed to load countries:', err);
+      } finally {
+        setLoadingCountries(false);
+      }
+    };
+    fetchCountries();
+  }, []);
 
   const fetchUser = async () => {
     setLoading(true);
@@ -102,6 +145,10 @@ export const EditUser = () => {
         display_name: user.display_name || '',
         phone: user.phone || '',
         password: '',
+        countryId: user.country_id || '',
+        regionId: user.region_id || '',
+        zoneId: user.zone_id || '',
+        woredaId: user.woreda_id || '',
       });
     } catch (err) {
       setError(err.message || 'Failed to load user');
@@ -116,8 +163,88 @@ export const EditUser = () => {
     }
   }, [id]);
 
+  // Fetch regions when country changes
+  useEffect(() => {
+    if (formData.countryId) {
+      const fetchRegions = async () => {
+        setLoadingRegions(true);
+        try {
+          const res = await regionsService.getRegions({ limit: 1000, status: 'active', countryId: formData.countryId });
+          setRegions(res.regions || []);
+        } catch (err) {
+          console.error('Failed to load regions:', err);
+        } finally {
+          setLoadingRegions(false);
+        }
+      };
+      fetchRegions();
+    } else {
+      setRegions([]);
+      setZones([]);
+      setWoredas([]);
+    }
+  }, [formData.countryId]);
+
+  // Fetch zones when region changes
+  useEffect(() => {
+    if (formData.regionId) {
+      const fetchZones = async () => {
+        setLoadingZones(true);
+        try {
+          const res = await zonesService.getZones({ limit: 1000, status: 'active', regionId: formData.regionId });
+          setZones(res.zones || []);
+        } catch (err) {
+          console.error('Failed to load zones:', err);
+        } finally {
+          setLoadingZones(false);
+        }
+      };
+      fetchZones();
+    } else {
+      setZones([]);
+      setWoredas([]);
+    }
+  }, [formData.regionId]);
+
+  // Fetch woredas when zone changes
+  useEffect(() => {
+    if (formData.zoneId) {
+      const fetchWoredas = async () => {
+        setLoadingWoredas(true);
+        try {
+          const res = await woredasService.getWoredas({ limit: 1000, status: 'active', zoneId: formData.zoneId });
+          setWoredas(res.woredas || []);
+        } catch (err) {
+          console.error('Failed to load woredas:', err);
+        } finally {
+          setLoadingWoredas(false);
+        }
+      };
+      fetchWoredas();
+    } else {
+      setWoredas([]);
+    }
+  }, [formData.zoneId]);
+
   const handleChange = (field) => (event) => {
     setFormData((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleLocationChange = (field, value) => {
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === 'countryId') {
+        next.regionId = '';
+        next.zoneId = '';
+        next.woredaId = '';
+      } else if (field === 'regionId') {
+        next.zoneId = '';
+        next.woredaId = '';
+      } else if (field === 'zoneId') {
+        next.woredaId = '';
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -132,6 +259,10 @@ export const EditUser = () => {
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone: formData.phone,
+        countryId: formData.countryId || null,
+        regionId: formData.regionId || null,
+        zoneId: formData.zoneId || null,
+        woredaId: formData.woredaId || null,
       };
       if (formData.password) {
         payload.password = formData.password;
@@ -248,8 +379,8 @@ export const EditUser = () => {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-              gap: { xs: 3, md: 4 },
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+              gap: { xs: 3, md: 3.5 },
               alignItems: 'start',
             }}
           >
@@ -315,7 +446,94 @@ export const EditUser = () => {
               />
             </Stack>
 
-            {/* Column 3: Account Information */}
+            {/* Column 3: Location Assignment */}
+            <Stack spacing={2.5}>
+              <SectionHeader icon={<LocationIcon />} title="Location Assignment" color="#0284c7" />
+              <Divider sx={{ borderColor: '#e2e8f0' }} />
+
+              <FormControl fullWidth size="small" sx={formFieldSx}>
+                <InputLabel id="country-select-label">Country</InputLabel>
+                <Select
+                  labelId="country-select-label"
+                  name="countryId"
+                  value={formData.countryId}
+                  label="Country"
+                  onChange={(e) => handleLocationChange('countryId', e.target.value)}
+                  disabled={loadingCountries}
+                >
+                  <MenuItem value="">
+                    <em>Select Country</em>
+                  </MenuItem>
+                  {countries.map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                      {c.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth size="small" sx={formFieldSx} disabled={!formData.countryId || loadingRegions}>
+                <InputLabel id="region-select-label">Region</InputLabel>
+                <Select
+                  labelId="region-select-label"
+                  name="regionId"
+                  value={formData.regionId}
+                  label="Region"
+                  onChange={(e) => handleLocationChange('regionId', e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>{loadingRegions ? 'Loading regions...' : 'Select Region'}</em>
+                  </MenuItem>
+                  {regions.map((r) => (
+                    <MenuItem key={r.id} value={r.id}>
+                      {r.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth size="small" sx={formFieldSx} disabled={!formData.regionId || loadingZones}>
+                <InputLabel id="zone-select-label">Zone (Optional)</InputLabel>
+                <Select
+                  labelId="zone-select-label"
+                  name="zoneId"
+                  value={formData.zoneId}
+                  label="Zone (Optional)"
+                  onChange={(e) => handleLocationChange('zoneId', e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>{loadingZones ? 'Loading zones...' : 'None / Select Zone'}</em>
+                  </MenuItem>
+                  {zones.map((z) => (
+                    <MenuItem key={z.id} value={z.id}>
+                      {z.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth size="small" sx={formFieldSx} disabled={!formData.zoneId || loadingWoredas}>
+                <InputLabel id="woreda-select-label">Woreda (Optional)</InputLabel>
+                <Select
+                  labelId="woreda-select-label"
+                  name="woredaId"
+                  value={formData.woredaId}
+                  label="Woreda (Optional)"
+                  onChange={(e) => handleLocationChange('woredaId', e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>{loadingWoredas ? 'Loading woredas...' : 'None / Select Woreda'}</em>
+                  </MenuItem>
+                  {woredas.map((w) => (
+                    <MenuItem key={w.id} value={w.id}>
+                      {w.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
+
+            {/* Column 4: Account Information */}
             <Stack spacing={2.5}>
               <SectionHeader icon={<AccountIcon />} title="Account Information" color="#7c3aed" />
               <Divider sx={{ borderColor: '#e2e8f0' }} />

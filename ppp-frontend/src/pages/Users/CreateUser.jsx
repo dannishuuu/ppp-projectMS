@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -25,9 +25,16 @@ import {
   ArrowBack as ArrowBackIcon,
   PersonAddAlt as AccountIcon,
   Security as SecurityIcon,
+  Public as LocationIcon,
 } from '@mui/icons-material';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { userService } from '../../services/userServices/userServices';
+import {
+  countriesService,
+  regionsService,
+  zonesService,
+  woredasService,
+} from '../../services/foundationService';
 
 const inputSx = {
   borderRadius: 2,
@@ -84,15 +91,108 @@ export const CreateUser = () => {
     phone: '',
     role: 'User',
     department: '',
+    countryId: '',
+    regionId: '',
+    zoneId: '',
+    woredaId: '',
     password: '',
     confirmPassword: '',
     sendActivationEmail: true,
   });
 
+  const [countries, setCountries] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [zones, setZones] = useState([]);
+  const [woredas, setWoredas] = useState([]);
+
+  const [loadingCountries, setLoadingCountries] = useState(false);
+  const [loadingRegions, setLoadingRegions] = useState(false);
+  const [loadingZones, setLoadingZones] = useState(false);
+  const [loadingWoredas, setLoadingWoredas] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [touched, setTouched] = useState({});
+
+  // Fetch countries on component mount
+  useEffect(() => {
+    const fetchCountries = async () => {
+      setLoadingCountries(true);
+      try {
+        const res = await countriesService.getCountries({ limit: 1000, status: 'active' });
+        setCountries(res.countries || []);
+      } catch (err) {
+        console.error('Failed to load countries:', err);
+      } finally {
+        setLoadingCountries(false);
+      }
+    };
+    fetchCountries();
+  }, []);
+
+  // Fetch regions when country changes
+  useEffect(() => {
+    if (formData.countryId) {
+      const fetchRegions = async () => {
+        setLoadingRegions(true);
+        try {
+          const res = await regionsService.getRegions({ limit: 1000, status: 'active', countryId: formData.countryId });
+          setRegions(res.regions || []);
+        } catch (err) {
+          console.error('Failed to load regions:', err);
+        } finally {
+          setLoadingRegions(false);
+        }
+      };
+      fetchRegions();
+    } else {
+      setRegions([]);
+      setZones([]);
+      setWoredas([]);
+    }
+  }, [formData.countryId]);
+
+  // Fetch zones when region changes
+  useEffect(() => {
+    if (formData.regionId) {
+      const fetchZones = async () => {
+        setLoadingZones(true);
+        try {
+          const res = await zonesService.getZones({ limit: 1000, status: 'active', regionId: formData.regionId });
+          setZones(res.zones || []);
+        } catch (err) {
+          console.error('Failed to load zones:', err);
+        } finally {
+          setLoadingZones(false);
+        }
+      };
+      fetchZones();
+    } else {
+      setZones([]);
+      setWoredas([]);
+    }
+  }, [formData.regionId]);
+
+  // Fetch woredas when zone changes
+  useEffect(() => {
+    if (formData.zoneId) {
+      const fetchWoredas = async () => {
+        setLoadingWoredas(true);
+        try {
+          const res = await woredasService.getWoredas({ limit: 1000, status: 'active', zoneId: formData.zoneId });
+          setWoredas(res.woredas || []);
+        } catch (err) {
+          console.error('Failed to load woredas:', err);
+        } finally {
+          setLoadingWoredas(false);
+        }
+      };
+      fetchWoredas();
+    } else {
+      setWoredas([]);
+    }
+  }, [formData.zoneId]);
 
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -102,6 +202,23 @@ export const CreateUser = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+  };
+
+  const handleLocationChange = (field, value) => {
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === 'countryId') {
+        next.regionId = '';
+        next.zoneId = '';
+        next.woredaId = '';
+      } else if (field === 'regionId') {
+        next.zoneId = '';
+        next.woredaId = '';
+      } else if (field === 'zoneId') {
+        next.woredaId = '';
+      }
+      return next;
+    });
   };
 
   const handleBlur = (field) => {
@@ -175,6 +292,10 @@ export const CreateUser = () => {
         phone: formData.phone || undefined,
         role: formData.role,
         department: formData.department || undefined,
+        countryId: formData.countryId || undefined,
+        regionId: formData.regionId || undefined,
+        zoneId: formData.zoneId || undefined,
+        woredaId: formData.woredaId || undefined,
         password: formData.password,
         sendActivationEmail: formData.sendActivationEmail,
       };
@@ -264,8 +385,8 @@ export const CreateUser = () => {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-              gap: { xs: 3, md: 4 },
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+              gap: { xs: 3, md: 3.5 },
               alignItems: 'start',
             }}
           >
@@ -383,7 +504,94 @@ export const CreateUser = () => {
               />
             </Stack>
 
-            {/* Column 3: Security Credentials */}
+            {/* Column 3: Location Assignment */}
+            <Stack spacing={2.5}>
+              <SectionHeader icon={<LocationIcon />} title="Location Assignment" color="#0284c7" />
+              <Divider sx={{ borderColor: '#e2e8f0' }} />
+
+              <FormControl fullWidth size="small" sx={formFieldSx}>
+                <InputLabel id="country-select-label">Country</InputLabel>
+                <Select
+                  labelId="country-select-label"
+                  name="countryId"
+                  value={formData.countryId}
+                  label="Country"
+                  onChange={(e) => handleLocationChange('countryId', e.target.value)}
+                  disabled={loadingCountries}
+                >
+                  <MenuItem value="">
+                    <em>Select Country</em>
+                  </MenuItem>
+                  {countries.map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                      {c.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth size="small" sx={formFieldSx} disabled={!formData.countryId || loadingRegions}>
+                <InputLabel id="region-select-label">Region</InputLabel>
+                <Select
+                  labelId="region-select-label"
+                  name="regionId"
+                  value={formData.regionId}
+                  label="Region"
+                  onChange={(e) => handleLocationChange('regionId', e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>{loadingRegions ? 'Loading regions...' : 'Select Region'}</em>
+                  </MenuItem>
+                  {regions.map((r) => (
+                    <MenuItem key={r.id} value={r.id}>
+                      {r.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth size="small" sx={formFieldSx} disabled={!formData.regionId || loadingZones}>
+                <InputLabel id="zone-select-label">Zone (Optional)</InputLabel>
+                <Select
+                  labelId="zone-select-label"
+                  name="zoneId"
+                  value={formData.zoneId}
+                  label="Zone (Optional)"
+                  onChange={(e) => handleLocationChange('zoneId', e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>{loadingZones ? 'Loading zones...' : 'None / Select Zone'}</em>
+                  </MenuItem>
+                  {zones.map((z) => (
+                    <MenuItem key={z.id} value={z.id}>
+                      {z.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth size="small" sx={formFieldSx} disabled={!formData.zoneId || loadingWoredas}>
+                <InputLabel id="woreda-select-label">Woreda (Optional)</InputLabel>
+                <Select
+                  labelId="woreda-select-label"
+                  name="woredaId"
+                  value={formData.woredaId}
+                  label="Woreda (Optional)"
+                  onChange={(e) => handleLocationChange('woredaId', e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>{loadingWoredas ? 'Loading woredas...' : 'None / Select Woreda'}</em>
+                  </MenuItem>
+                  {woredas.map((w) => (
+                    <MenuItem key={w.id} value={w.id}>
+                      {w.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
+
+            {/* Column 4: Security Credentials */}
             <Stack spacing={2.5}>
               <SectionHeader icon={<SecurityIcon />} title="Security Credentials" color="#7c3aed" />
               <Divider sx={{ borderColor: '#e2e8f0' }} />

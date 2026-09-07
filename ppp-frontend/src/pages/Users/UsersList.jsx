@@ -291,8 +291,9 @@ export const UsersList = () => {
               <TableRow>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>User</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rew' }}>Phone Number</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Username</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Phone Number</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Location</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Status</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Created</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }} align="right">Actions</TableCell>
@@ -301,13 +302,13 @@ export const UsersList = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
                     <CircularProgress size={36} sx={{ color: '#6366f1' }} />
                   </TableCell>
                 </TableRow>
               ) : users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6, color: '#94a3b8' }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#94a3b8' }}>
                     No users found
                   </TableCell>
                 </TableRow>
@@ -351,8 +352,15 @@ export const UsersList = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ color: '#64748b', fontSize: '0.82rem' }}>
-                            {user.phone || 'No phone'}
-                          </Typography>
+                        {user.phone || 'No phone'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.82rem' }}>
+                        {user.location_region_name
+                          ? `${user.location_region_name}${user.location_country_name ? `, ${user.location_country_name}` : ''}`
+                          : user.location_country_name || '—'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip

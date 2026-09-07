@@ -11,9 +11,26 @@ const PUBLIC_USER_FIELDS = `
 class UserModel {
   static async findById(id) {
     const query = `
-      SELECT ${PUBLIC_USER_FIELDS} 
-      FROM users 
-      WHERE id = ? AND is_deleted = FALSE;
+      SELECT 
+        u.id, u.email, u.username, u.first_name, u.last_name, u.display_name, u.phone, u.avatar_url, u.bio,
+        u.country, u.city, u.address, u.mfa_enabled, u.email_verified, u.timezone, u.locale,
+        u.notification_prefs, u.dashboard_layout, u.is_active, u.created_at, u.updated_at,
+        ul.id AS user_location_id,
+        ul.country_id,
+        ul.region_id,
+        ul.zone_id,
+        ul.woreda_id,
+        c.name AS location_country_name,
+        r.name AS location_region_name,
+        z.name AS location_zone_name,
+        w.name AS location_woreda_name
+      FROM users u
+      LEFT JOIN user_location ul ON ul.user_id = u.id AND ul.is_deleted = FALSE
+      LEFT JOIN countries c ON c.id = ul.country_id
+      LEFT JOIN regions r ON r.id = ul.region_id
+      LEFT JOIN zones z ON z.id = ul.zone_id
+      LEFT JOIN woredas w ON w.id = ul.woreda_id
+      WHERE u.id = ? AND u.is_deleted = FALSE;
     `;
     const rows = await db.query(query, {
       replacements: [id],

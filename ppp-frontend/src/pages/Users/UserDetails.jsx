@@ -30,6 +30,10 @@ import {
   LoginRounded as LastLoginIcon,
   HistoryOutlined as HistoryIcon,
   ContentCopy as CopyIcon,
+  Public as LocationIcon,
+  Map as RegionIcon,
+  Place as ZoneIcon,
+  HomeWork as WoredaIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -450,6 +454,16 @@ export const UserDetails = () => {
                     />
                   </SectionCard>
                 </Box>
+
+                {/* Location Details */}
+                <SectionCard icon={<LocationIcon />} title="Location Details">
+                  <Box sx={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 2 }}>
+                    <FieldRow icon={<LocationIcon />} label="Country" value={user.location_country_name || '—'} last={false} />
+                    <FieldRow icon={<RegionIcon />} label="Region" value={user.location_region_name || '—'} last={false} />
+                    <FieldRow icon={<ZoneIcon />} label="Zone" value={user.location_zone_name || '—'} last={false} />
+                    <FieldRow icon={<WoredaIcon />} label="Woreda" value={user.location_woreda_name || '—'} last={true} />
+                  </Box>
+                </SectionCard>
 
                 {/* Timeline */}
                 <SectionCard icon={<TimeIcon />} title="Timeline">

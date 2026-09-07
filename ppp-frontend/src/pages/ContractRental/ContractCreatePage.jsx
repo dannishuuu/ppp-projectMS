@@ -708,8 +708,7 @@ export const ContractCreatePage = () => {
         className="parent"
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', lg: 'repeat(5, 1fr)' },
-          gridTemplateRows: { xs: 'auto', lg: 'auto auto 1fr' },
+          gridTemplateColumns: { xs: '1fr', lg: 'repeat(4, 1fr)' },
           gap: '12px',
           width: '100%',
           alignItems: 'start',
@@ -719,8 +718,8 @@ export const ContractCreatePage = () => {
         <Box
           className="div1"
           sx={{
-            gridColumn: { xs: '1', lg: 'span 4 / span 4' },
-            gridRow: { xs: 'auto', lg: '1 / -1' },
+            gridColumn: { lg: 'span 4 / span 4' },
+            gridRow: { lg: 'span 2 / span 2' },
             display: 'flex',
             flexDirection: 'column',
             gap: 2.5,

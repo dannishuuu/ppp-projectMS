@@ -19,7 +19,8 @@ exports.getProfile = async (req, res, next) => {
 
 exports.register = async (req, res, next) => {
     try {
-        const newUser = await UserService.registerUser(req.body);
+        const actorId = req.user?.id;
+        const newUser = await UserService.registerUser(req.body, actorId);
         return res.status(201).json({ success: true, data: newUser });
     } catch (error) {
         next(error);
@@ -54,7 +55,8 @@ exports.getUserById = async (req, res, next) => {
 exports.updateUser = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const updatedUser = await UserService.updateUser(id, req.body);
+        const actorId = req.user?.id;
+        const updatedUser = await UserService.updateUser(id, req.body, actorId);
         return res.status(200).json({ success: true, data: updatedUser });
     } catch (error) {
         next(error);
