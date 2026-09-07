@@ -35,7 +35,7 @@ class RentalPaymentTypeService {
       name: name.trim(), 
       paymentTypeCode: cleanCode,
       nameAmharic: nameAmharic?.trim() || null, 
-      durationDays: parseInt(durationDays, 10), 
+      durationDays: parseFloat(durationDays), 
       description: description?.trim() || null, 
       createdBy: actorId 
     });
@@ -65,7 +65,7 @@ class RentalPaymentTypeService {
       name: name ? name.trim() : undefined,
       paymentTypeCode: paymentTypeCode ? paymentTypeCode.trim().toUpperCase().replace(/\s+/g, '') : undefined,
       nameAmharic: nameAmharic !== undefined ? (nameAmharic ? nameAmharic.trim() : null) : undefined,
-      durationDays: durationDays !== undefined ? parseInt(durationDays, 10) : undefined,
+      durationDays: durationDays !== undefined ? parseFloat(durationDays) : undefined,
       description: description !== undefined ? (description ? description.trim() : null) : undefined,
       updatedBy: actorId,
     });

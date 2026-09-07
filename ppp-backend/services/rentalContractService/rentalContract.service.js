@@ -397,7 +397,7 @@ class RentalContractService {
     if (!contract) return;
     const paymentTypeId = contract.rental_payment_type_id || contract.rentalPaymentTypeId;
     const paymentType = paymentTypeId ? await RentalPaymentTypeModel.findById(paymentTypeId) : null;
-    const durationDays = paymentType?.duration_days ? parseInt(paymentType.duration_days, 10) : (contract.payment_duration_days || 30);
+    const durationDays = paymentType?.duration_days ? parseFloat(paymentType.duration_days) : (contract.payment_duration_days || 30);
     const intervalDays = durationDays > 0 ? durationDays : 30;
 
     const startDateStr = contract.contract_start_date || contract.contractStartDate;
@@ -460,7 +460,7 @@ class RentalContractService {
     if (!contract) return;
     const paymentTypeId = contract.rental_payment_type_id || contract.rentalPaymentTypeId;
     const paymentType = paymentTypeId ? await RentalPaymentTypeModel.findById(paymentTypeId) : null;
-    const durationDays = paymentType?.duration_days ? parseInt(paymentType.duration_days, 10) : (contract.payment_duration_days || 30);
+    const durationDays = paymentType?.duration_days ? parseFloat(paymentType.duration_days) : (contract.payment_duration_days || 30);
     const intervalDays = durationDays > 0 ? durationDays : 30;
 
     const startDateStr = contract.contract_start_date || contract.contractStartDate;

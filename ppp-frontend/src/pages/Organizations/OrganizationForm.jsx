@@ -21,7 +21,6 @@ import {
   Checkbox,
   ListItemText,
   Stack,
-  Tooltip,
   Fade,
   FormHelperText,
 } from '@mui/material';
@@ -31,7 +30,6 @@ import {
   Business as BusinessIcon,
   Badge as LicenseIcon,
   Description as DescriptionIcon,
-  Info as InfoIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -435,22 +433,13 @@ export const OrganizationForm = () => {
                 )}
               </FormControl>
 
-              <TextField
+               <TextField
                 fullWidth
                 label="Phone Number"
                 placeholder="e.g. 0911517888"
                 value={formData.phone}
                 onChange={handleChange('phone')}
                 size="small"
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <Typography variant="body2" sx={{ color: '#94a3b8', mr: 0.5, userSelect: 'none' }}>
-                        +
-                      </Typography>
-                    ),
-                  },
-                }}
                 sx={formFieldSx}
               />
 
@@ -499,22 +488,13 @@ export const OrganizationForm = () => {
                 sx={formFieldSx}
               />
 
-              <TextField
+               <TextField
                 fullWidth
                 label="Trade License / Reg Number"
                 placeholder="e.g. BL-99201"
                 value={formData.licenseNumber}
                 onChange={handleChange('licenseNumber')}
                 size="small"
-                slotProps={{
-                  input: {
-                    endAdornment: (
-                      <Tooltip title="Official trade license or registration number" arrow placement="top">
-                        <InfoIcon sx={{ fontSize: 16, color: '#94a3b8', cursor: 'help' }} />
-                      </Tooltip>
-                    ),
-                  },
-                }}
                 sx={formFieldSx}
               />
 
@@ -526,7 +506,7 @@ export const OrganizationForm = () => {
                 value={formData.yearsOfExperience}
                 onChange={handleChange('yearsOfExperience')}
                 size="small"
-                slotProps={{ htmlInput: { min: 0 } }}
+                inputMode="numeric"
                 sx={formFieldSx}
               />
 
@@ -538,14 +518,7 @@ export const OrganizationForm = () => {
                 value={formData.registrationDate}
                 onChange={handleChange('registrationDate')}
                 size="small"
-                sx={{
-                  ...formFieldSx,
-                  '& input[type="date"]:not(.Mui-focused):not(:focus-within)': {
-                    '&::-webkit-datetime-edit': {
-                      color: 'transparent',
-                    },
-                  },
-                }}
+                sx={formFieldSx}
               />
             </Stack>
 

@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   Paper,
-  Grid,
   Chip,
   Button,
   CircularProgress,
@@ -12,6 +11,10 @@ import {
   Tab,
   Tabs,
   IconButton,
+  Stack,
+  Fade,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -142,7 +145,7 @@ const SectionCard = ({ icon, title, children }) => (
     elevation={0}
     sx={{
       p: 2.5,
-      borderRadius: '16px',
+      borderRadius: 3,
       border: '1px solid #eef2f7',
       backgroundColor: '#fff',
       boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
@@ -153,7 +156,7 @@ const SectionCard = ({ icon, title, children }) => (
         sx={{
           width: 32,
           height: 32,
-          borderRadius: '10px',
+          borderRadius: 2,
           background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(124,58,237,0.12))',
           display: 'flex',
           alignItems: 'center',
@@ -182,6 +185,8 @@ export const UserDetails = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState(0);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
     const fetch = async () => {
@@ -218,20 +223,11 @@ export const UserDetails = () => {
   const isMe = currentUser?.id === user?.id;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, width: '100%', pb: 6 }}>
+    <Box sx={{ width: '100%', pb: 6 }}>
 
       {/* ── Compact Top Bar ── */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 2,
-          flexWrap: 'wrap',
-        }}
-      >
-        {/* Left: back + breadcrumb */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
           <Button
             startIcon={<ArrowBackIcon sx={{ fontSize: '16px !important' }} />}
             onClick={() => navigate('/users/list')}
@@ -242,20 +238,21 @@ export const UserDetails = () => {
               fontSize: '0.8rem',
               px: 1.5,
               py: 0.6,
-              borderRadius: '8px',
+              borderRadius: 2,
               minHeight: 0,
-              '&:hover': { backgroundColor: 'rgba(99,102,241,0.06)', color: '#6366f1' },
+              textTransform: 'none',
+              borderColor: '#cbd5e1',
+              '&:hover': { backgroundColor: 'rgba(99,102,241,0.06)', color: '#6366f1', borderColor: '#94a3b8' },
             }}
           >
             Users
           </Button>
-          <Typography sx={{ color: '#cbd5e1', fontSize: '0.85rem' }}>/</Typography>
-          <Typography sx={{ color: '#64748b', fontWeight: 600, fontSize: '0.8rem' }}>
+          <Divider orientation="vertical" flexItem sx={{ borderColor: '#e2e8f0', mx: 0.5 }} />
+          <Typography sx={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
             {displayName}
           </Typography>
         </Box>
 
-        {/* Right: Edit button */}
         {!isMe && (
           <Button
             variant="contained"
@@ -265,9 +262,10 @@ export const UserDetails = () => {
             sx={{
               fontWeight: 700,
               fontSize: '0.82rem',
-              borderRadius: '10px',
+              borderRadius: 2,
               px: 2.5,
               py: 0.85,
+              textTransform: 'none',
               background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
               boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
               '&:hover': {
@@ -283,11 +281,16 @@ export const UserDetails = () => {
         )}
       </Box>
 
+      {/* Subtitle */}
+      <Typography variant="body2" sx={{ color: '#64748b', mb: 2.5 }}>
+        View and manage user profile details and account information.
+      </Typography>
+
       {/* ── Hero Profile Card ── */}
       <Paper
         elevation={0}
         sx={{
-          borderRadius: '20px',
+          borderRadius: 3,
           overflow: 'hidden',
           border: '1px solid #e2e8f0',
           boxShadow: '0 8px 32px rgba(0,0,0,0.06)',
@@ -411,98 +414,91 @@ export const UserDetails = () => {
 
           {/* OVERVIEW TAB */}
           {tab === 0 && (
-            <Grid container spacing={2.5}>
+            <Fade in>
+              <Stack spacing={2.5}>
 
-              {/* Personal Info */}
-              <Grid item xs={12} md={6}>
-                <SectionCard icon={<PersonIcon />} title="Personal Information">
-                  <FieldRow icon={<PersonIcon />} label="First Name" value={user.first_name} />
-                  <FieldRow icon={<PersonIcon />} label="Last Name" value={user.last_name} />
-                  <FieldRow icon={<BadgeIcon />} label="Display Name" value={user.display_name} />
-                  <FieldRow icon={<PhoneIcon />} label="Phone" value={user.phone} last />
-                </SectionCard>
-              </Grid>
+                {/* Personal Info + Account Details Row */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 2.5 }}>
+                  <SectionCard icon={<PersonIcon />} title="Personal Information">
+                    <FieldRow icon={<PersonIcon />} label="First Name" value={user.first_name} />
+                    <FieldRow icon={<PersonIcon />} label="Last Name" value={user.last_name} />
+                    <FieldRow icon={<BadgeIcon />} label="Display Name" value={user.display_name} />
+                    <FieldRow icon={<PhoneIcon />} label="Phone" value={user.phone} last />
+                  </SectionCard>
 
-              {/* Account Info */}
-              <Grid item xs={12} md={6}>
-                <SectionCard icon={<AccountIcon />} title="Account Details">
-                  <FieldRow icon={<EmailIcon />} label="Email" value={user.email} copyable />
-                  <FieldRow icon={<AccountIcon />} label="Username" value={user.username ? `@${user.username}` : '—'} />
-                  <FieldRow icon={<KeyIcon />} label="User ID" value={user.id} mono copyable />
-                  <FieldRow
-                    icon={<AccountIcon />}
-                    label="Status"
-                    last
-                    chip={
-                      <Chip
-                        label={user.is_active ? 'Active' : 'Inactive'}
-                        size="small"
-                        sx={{
-                          fontWeight: 700,
-                          fontSize: '0.72rem',
-                          borderRadius: '8px',
-                          backgroundColor: user.is_active ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                          color: user.is_active ? '#059669' : '#dc2626',
-                        }}
-                      />
-                    }
-                  />
-                </SectionCard>
-              </Grid>
+                  <SectionCard icon={<AccountIcon />} title="Account Details">
+                    <FieldRow icon={<EmailIcon />} label="Email" value={user.email} copyable />
+                    <FieldRow icon={<AccountIcon />} label="Username" value={user.username ? `@${user.username}` : '—'} />
+                    <FieldRow icon={<KeyIcon />} label="User ID" value={user.id} mono copyable />
+                    <FieldRow
+                      icon={<AccountIcon />}
+                      label="Status"
+                      last
+                      chip={
+                        <Chip
+                          label={user.is_active ? 'Active' : 'Inactive'}
+                          size="small"
+                          sx={{
+                            fontWeight: 700,
+                            fontSize: '0.72rem',
+                            borderRadius: '8px',
+                            backgroundColor: user.is_active ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                            color: user.is_active ? '#059669' : '#dc2626',
+                          }}
+                        />
+                      }
+                    />
+                  </SectionCard>
+                </Box>
 
-              {/* Dates */}
-              <Grid item xs={12}>
+                {/* Timeline */}
                 <SectionCard icon={<TimeIcon />} title="Timeline">
-                  <Grid container>
-                    <Grid item xs={12} sm={4}>
-                      <FieldRow icon={<CalendarIcon />} label="Created" value={formatDateTime(user.created_at)} />
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                      <FieldRow icon={<TimeIcon />} label="Last Updated" value={formatDateTime(user.updated_at)} />
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                      <FieldRow icon={<LastLoginIcon />} label="Last Login" value={user.last_login_at ? formatDateTime(user.last_login_at) : 'Never'} last />
-                    </Grid>
-                  </Grid>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 2 }}>
+                    <FieldRow icon={<CalendarIcon />} label="Created" value={formatDateTime(user.created_at)} last={false} />
+                    <FieldRow icon={<TimeIcon />} label="Last Updated" value={formatDateTime(user.updated_at)} last={false} />
+                    <FieldRow icon={<LastLoginIcon />} label="Last Login" value={user.last_login_at ? formatDateTime(user.last_login_at) : 'Never'} last />
+                  </Box>
                 </SectionCard>
-              </Grid>
-            </Grid>
+              </Stack>
+            </Fade>
           )}
 
           {/* ACTIVITY TAB */}
           {tab === 1 && (
-            <Box
-              sx={{
-                py: 8,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 1.5,
-                borderRadius: '16px',
-                border: '1px dashed #e2e8f0',
-                backgroundColor: '#fff',
-              }}
-            >
+            <Fade in>
               <Box
                 sx={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: '16px',
-                  background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(124,58,237,0.1))',
+                  py: 8,
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  justifyContent: 'center',
+                  gap: 1.5,
+                  borderRadius: 3,
+                  border: '1px dashed #e2e8f0',
+                  backgroundColor: '#fff',
                 }}
               >
-                <HistoryIcon sx={{ fontSize: 26, color: '#a5b4fc' }} />
+                <Box
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 3,
+                    background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(124,58,237,0.1))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <HistoryIcon sx={{ fontSize: 26, color: '#a5b4fc' }} />
+                </Box>
+                <Typography sx={{ fontWeight: 700, color: '#475569', fontSize: '0.95rem' }}>
+                  No Activity Yet
+                </Typography>
+                <Typography sx={{ color: '#94a3b8', fontSize: '0.83rem', textAlign: 'center', maxWidth: 280 }}>
+                  User activity history will appear here once actions are recorded.
+                </Typography>
               </Box>
-              <Typography sx={{ fontWeight: 700, color: '#475569', fontSize: '0.95rem' }}>
-                No Activity Yet
-              </Typography>
-              <Typography sx={{ color: '#94a3b8', fontSize: '0.83rem', textAlign: 'center', maxWidth: 280 }}>
-                User activity history will appear here once actions are recorded.
-              </Typography>
-            </Box>
+            </Fade>
           )}
         </Box>
       </Paper>

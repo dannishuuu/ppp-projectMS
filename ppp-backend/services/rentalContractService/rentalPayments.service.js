@@ -77,7 +77,7 @@ class RentalPaymentsService {
 
     // Calculate next payment date based on payment type duration
     const paymentType = await RentalPaymentTypeModel.findById(contract.rental_payment_type_id);
-    const durationDays = paymentType?.duration_days ? parseInt(paymentType.duration_days, 10) : 30;
+    const durationDays = paymentType?.duration_days ? parseFloat(paymentType.duration_days) : 30;
     
     let nextPaymentDate = payload.nextPaymentDate || null;
     if (!nextPaymentDate && dueDate) {
@@ -139,7 +139,7 @@ class RentalPaymentsService {
     const paymentDate = payload.paymentDate || new Date().toISOString().split('T')[0];
     const contract = await RentalContractModel.findById(current.rental_contract_id);
     const paymentType = contract ? await RentalPaymentTypeModel.findById(contract.rental_payment_type_id) : null;
-    const durationDays = paymentType?.duration_days ? parseInt(paymentType.duration_days, 10) : 30;
+    const durationDays = paymentType?.duration_days ? parseFloat(paymentType.duration_days) : 30;
 
     let nextPaymentDate = payload.nextPaymentDate || current.next_payment_date;
     if (!nextPaymentDate && current.due_date) {
@@ -167,7 +167,7 @@ class RentalPaymentsService {
     }
 
     const paymentType = await RentalPaymentTypeModel.findById(contract.rental_payment_type_id);
-    const durationDays = paymentType?.duration_days ? parseInt(paymentType.duration_days, 10) : 30;
+    const durationDays = paymentType?.duration_days ? parseFloat(paymentType.duration_days) : 30;
     const intervalDays = durationDays > 0 ? durationDays : 30;
 
     const startDateStr = contract.contract_start_date;

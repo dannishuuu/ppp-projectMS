@@ -62,42 +62,82 @@ const formatCurrency = (val) => {
   return Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-// Section Header Component
-const FormSectionHeader = ({ icon, title, subtitle, badge }) => (
-  <Box sx={{ mb: 2.5 }}>
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 28,
-            height: 28,
-            borderRadius: 1.5,
-            backgroundColor: '#eef2ff',
-            color: '#4f46e5',
-          }}
-        >
-          {icon}
-        </Box>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.95rem' }}>
+// Shared styling for form section cards
+const sectionPaperSx = {
+  p: { xs: 2.25, sm: 3 },
+  borderRadius: 3,
+  border: '1px solid #e2e8f0',
+  backgroundColor: '#ffffff',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+};
+
+// Field Label Component
+const FieldLabel = ({ children, required, sx }) => (
+  <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75, ...sx }}>
+    {children}
+    {required && <Box component="span" sx={{ color: '#dc2626' }}> *</Box>}
+  </Typography>
+);
+
+// Section Header Component — numbered step badge + gradient icon tile
+const FormSectionHeader = ({ step, icon, title, subtitle, badge }) => (
+  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 2.5 }}>
+    <Box sx={{ position: 'relative', flexShrink: 0 }}>
+      <Box
+        sx={{
+          width: 38,
+          height: 38,
+          borderRadius: 2,
+          background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+          color: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 3px 10px rgba(79, 70, 229, 0.28)',
+        }}
+      >
+        {icon}
+      </Box>
+      <Box
+        sx={{
+          position: 'absolute',
+          top: -6,
+          right: -8,
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          backgroundColor: '#0f172a',
+          color: '#ffffff',
+          fontSize: '0.6rem',
+          fontWeight: 800,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '2px solid #ffffff',
+        }}
+      >
+        {step}
+      </Box>
+    </Box>
+    <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.98rem' }}>
           {title}
         </Typography>
+        {badge && (
+          <Chip
+            label={badge}
+            size="small"
+            sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#eef2ff', color: '#4f46e5', border: '1px solid #e0e7ff' }}
+          />
+        )}
       </Box>
-      {badge && (
-        <Chip
-          label={badge}
-          size="small"
-          sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700, backgroundColor: '#f1f5f9', color: '#475569' }}
-        />
+      {subtitle && (
+        <Typography sx={{ fontSize: '0.76rem', color: '#64748b', mt: 0.25 }}>
+          {subtitle}
+        </Typography>
       )}
     </Box>
-    {subtitle && (
-      <Typography sx={{ fontSize: '0.78rem', color: '#64748b', ml: 4.5 }}>
-        {subtitle}
-      </Typography>
-    )}
   </Box>
 );
 
@@ -396,10 +436,12 @@ export const ContractCreatePage = () => {
       return [];
     }
 
+    // duration_days is numeric(10,2) — keep its decimal part (e.g. 15.50) in every schedule calculation
     const durationDays = selectedPaymentType?.duration_days
-      ? parseInt(selectedPaymentType.duration_days, 10)
+      ? parseFloat(selectedPaymentType.duration_days)
       : 30;
     const intervalDays = durationDays > 0 ? durationDays : 30;
+    const intervalMs = intervalDays * 24 * 60 * 60 * 1000;
 
     // Round up when decimal is >= 0.5 (e.g. 30.4 -> 30, but 30.5 or 30.6 -> 31)
     const totalDays = termCalculations.totalDays;
@@ -673,17 +715,9 @@ export const ContractCreatePage = () => {
           }}
         >
               {/* SECTION 1: PROPERTY & PREMISES */}
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  borderRadius: 3,
-                  border: '1px solid #e2e8f0',
-                  backgroundColor: '#ffffff',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                }}
-              >
+              <Paper elevation={0} sx={sectionPaperSx}>
                 <FormSectionHeader
+                  step={1}
                   icon={<BuildingIcon sx={{ fontSize: 18 }} />}
                   title="Premises & Space Selection"
                   subtitle="Select the specific building, floor level, and unit to be leased."
@@ -691,11 +725,9 @@ export const ContractCreatePage = () => {
                 />
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
-                  {/* Building Selection — searchable Autocomplete */}
-                  <Box sx={{ width: '100%' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Target Building <span style={{ color: '#dc2626' }}>*</span>
-                    </Typography>
+                  {/* Building Selection — searchable Autocomplete, full-width anchor */}
+                  <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
+                    <FieldLabel required>Target Building</FieldLabel>
                     <Autocomplete
                       fullWidth
                       size="small"
@@ -760,9 +792,7 @@ export const ContractCreatePage = () => {
 
                   {/* Floor Level Selection */}
                   <Box sx={{ width: '100%' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Floor Level <span style={{ color: '#dc2626' }}>*</span>
-                    </Typography>
+                    <FieldLabel required>Floor Level</FieldLabel>
                     <TextField
                       select
                       fullWidth
@@ -793,9 +823,7 @@ export const ContractCreatePage = () => {
 
                   {/* Unit Selection */}
                   <Box sx={{ width: '100%' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Building Unit <span style={{ color: '#dc2626' }}>*</span>
-                    </Typography>
+                    <FieldLabel required>Building Unit</FieldLabel>
                     <TextField
                       select
                       fullWidth
@@ -850,57 +878,9 @@ export const ContractCreatePage = () => {
                     </TextField>
                   </Box>
 
-                  {/* Unit Status Helper / Companion */}
-                  <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75, opacity: 0 }}>
-                      Status
-                    </Typography>
+                  {/* Unit Availability Strip / Selected Unit Snapshot */}
+                  <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
                     {selectedUnit ? (
-                      <Box
-                        sx={{
-                          height: 40,
-                          width: '100%',
-                          borderRadius: 2,
-                          px: 2,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          backgroundColor: selectedUnit.is_rented ? '#fee2e2' : '#f0fdf4',
-                          border: `1px solid ${selectedUnit.is_rented ? '#fecdd3' : '#bbf7d0'}`,
-                        }}
-                      >
-                        <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: selectedUnit.is_rented ? '#dc2626' : '#15803d' }}>
-                          {selectedUnit.is_rented ? '● Currently Leased' : '● Ready to Lease'}
-                        </Typography>
-                        {selectedUnit.area_value && (
-                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
-                            {selectedUnit.area_value} {selectedUnit.area_unit_name || 'm²'}
-                          </Typography>
-                        )}
-                      </Box>
-                    ) : (
-                      <Box
-                        sx={{
-                          height: 40,
-                          width: '100%',
-                          borderRadius: 2,
-                          border: '1px dashed #cbd5e1',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: '#f8fafc',
-                        }}
-                      >
-                        <Typography sx={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                          Select floor to view unit availability
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-
-                  {/* Selected Unit Snapshot Card */}
-                  {selectedUnit && (
-                    <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
                       <Box
                         sx={{
                           p: 2,
@@ -963,33 +943,43 @@ export const ContractCreatePage = () => {
                           />
                         </Box>
                       </Box>
-                    </Box>
-                  )}
+                    ) : (
+                      <Box
+                        sx={{
+                          p: 1.75,
+                          borderRadius: 2.5,
+                          border: '1px dashed #cbd5e1',
+                          backgroundColor: '#f8fafc',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 1,
+                        }}
+                      >
+                        <UnitIcon sx={{ fontSize: 16, color: '#94a3b8' }} />
+                        <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                          Select a floor level to view unit availability and area
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
                 </Box>
               </Paper>
 
               {/* SECTION 2: TENANT & LESSEE INFORMATION */}
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  borderRadius: 3,
-                  border: '1px solid #e2e8f0',
-                  backgroundColor: '#ffffff',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                }}
-              >
+              <Paper elevation={0} sx={sectionPaperSx}>
                 <FormSectionHeader
+                  step={2}
                   icon={<TenantIcon sx={{ fontSize: 18 }} />}
                   title="Tenant / Lessee Organization"
                   subtitle="Specify the tenant party legally bound to this lease agreement."
+                  badge="Required"
                 />
 
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%' }}>
+                  {/* Tenant Organization — searchable Autocomplete */}
                   <Box sx={{ width: '100%' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Tenant Organization <span style={{ color: '#dc2626' }}>*</span>
-                    </Typography>
+                    <FieldLabel required>Tenant Organization</FieldLabel>
                     <Autocomplete
                       fullWidth
                       size="small"
@@ -1052,29 +1042,11 @@ export const ContractCreatePage = () => {
                     />
                   </Box>
 
-                  <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75, opacity: 0 }}>
-                      Status
-                    </Typography>
-                    {selectedTenant ? (
-                      <Box sx={{ height: 40, width: '100%', borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', px: 2, backgroundColor: '#f8fafc', gap: 1 }}>
-                        <TenantIcon sx={{ fontSize: 16, color: '#4f46e5' }} />
-                        <Typography sx={{ fontSize: '0.78rem', color: '#334155', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {selectedTenant.name}
-                        </Typography>
-                      </Box>
-                    ) : (
-                      <Box sx={{ height: 40, width: '100%', borderRadius: 2, border: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
-                        <Typography sx={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                          Optional: Select tenant or leave unassigned
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-
+                  {/* Selected tenant contact strip */}
                   {selectedTenant && (
-                    <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
-                      <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <Box sx={{ width: '100%' }}>
+                      <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TenantIcon sx={{ fontSize: 15, color: '#4f46e5' }} />
                         <Typography sx={{ fontSize: '0.75rem', color: '#475569', fontWeight: 600 }}>
                           Selected Tenant: <strong>{selectedTenant.name}</strong>
                           {selectedTenant.email ? ` • Email: ${selectedTenant.email}` : ''}
@@ -1087,29 +1059,19 @@ export const ContractCreatePage = () => {
               </Paper>
 
               {/* SECTION 3: CONTRACT PERIOD & PAYMENT TERMS */}
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  borderRadius: 3,
-                  border: '1px solid #e2e8f0',
-                  backgroundColor: '#ffffff',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                }}
-              >
+              <Paper elevation={0} sx={sectionPaperSx}>
                 <FormSectionHeader
+                  step={3}
                   icon={<CalendarIcon sx={{ fontSize: 18 }} />}
                   title="Lease Term & Agreement Schedule"
                   subtitle="Define contract reference number, validity dates, and payment cycles."
                   badge="Required"
                 />
 
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2.5, width: '100%' }}>
                   {/* Contract Reference Number — backend-generated, display only */}
                   <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Contract Reference Number
-                    </Typography>
+                    <FieldLabel>Contract Reference Number</FieldLabel>
                     <Box
                       sx={{
                         height: 40,
@@ -1137,9 +1099,7 @@ export const ContractCreatePage = () => {
 
                   {/* Start Date */}
                   <Box sx={{ width: '100%' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Contract Start Date <span style={{ color: '#dc2626' }}>*</span>
-                    </Typography>
+                    <FieldLabel required>Contract Start Date</FieldLabel>
                     <TextField
                       fullWidth
                       size="small"
@@ -1151,11 +1111,9 @@ export const ContractCreatePage = () => {
                     />
                   </Box>
 
-                  {/* Quick Term: Year + Month integer inputs */}
+                  {/* Lease Duration: Year + Month integer inputs */}
                   <Box sx={{ width: '100%' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Quick Term <span style={{ color: '#dc2626' }}>*</span>
-                    </Typography>
+                    <FieldLabel required>Lease Duration</FieldLabel>
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                       <TextField
                         size="small"
@@ -1196,9 +1154,7 @@ export const ContractCreatePage = () => {
 
                   {/* Contract End Date — read-only, auto-calculated */}
                   <Box sx={{ width: '100%' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Contract End Date <span style={{ color: '#dc2626' }}>*</span>
-                    </Typography>
+                    <FieldLabel required>Contract End Date</FieldLabel>
                     <Box
                       sx={{
                         height: 40,
@@ -1220,45 +1176,26 @@ export const ContractCreatePage = () => {
                           color: formData.contractEndDate && termCalculations.isValidRange ? '#15803d' : '#94a3b8',
                         }}
                       >
-                        {formData.contractEndDate || 'Enter years/months above'}
+                        {formData.contractEndDate || 'Set lease duration'}
                       </Typography>
                       {termCalculations.totalMonths > 0 && termCalculations.isValidRange && (
                         <Chip
-                          label={`${termCalculations.totalMonths} mo`}
+                          label={`${termCalculations.totalMonths} mo • ${termCalculations.totalDays} d`}
                           size="small"
-                          sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, backgroundColor: '#dcfce7', color: '#15803d', ml: 'auto' }}
+                          sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, backgroundColor: '#dcfce7', color: '#15803d', ml: 'auto', flexShrink: 0 }}
                         />
                       )}
                     </Box>
                   </Box>
+                </Box>
 
-                  {/* Calculated Duration info row */}
-                  <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75, opacity: 0 }}>spacer</Typography>
-                    <Box sx={{ height: 40, width: '100%', borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', px: 2, backgroundColor: '#f8fafc', justifyContent: 'space-between' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ScheduleIcon sx={{ fontSize: 16, color: '#4f46e5' }} />
-                        <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>
-                          {termCalculations.totalMonths > 0 && termCalculations.isValidRange
-                            ? `${termCalculations.totalMonths} Months (${termCalculations.totalDays} Days)`
-                            : 'Enter term above'}
-                        </Typography>
-                      </Box>
-                      {termCalculations.totalMonths > 0 && (
-                        <Chip label="Valid" size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#dcfce7', color: '#15803d' }} />
-                      )}
-                    </Box>
-                  </Box>
+                <Divider sx={{ my: 2.5 }} />
 
-                  <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
-                    <Divider sx={{ my: 0.5 }} />
-                  </Box>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
 
                   {/* Payment Frequency (Rental Payment Type) */}
                   <Box sx={{ width: '100%' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Payment Frequency <span style={{ color: '#dc2626' }}>*</span>
-                    </Typography>
+                    <FieldLabel required>Payment Frequency</FieldLabel>
                     <TextField
                       select
                       fullWidth
@@ -1281,9 +1218,7 @@ export const ContractCreatePage = () => {
 
                   {/* Payment Timing */}
                   <Box sx={{ width: '100%' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Payment Timing <span style={{ color: '#dc2626' }}>*</span>
-                    </Typography>
+                    <FieldLabel required>Payment Timing</FieldLabel>
                     <TextField
                       select
                       fullWidth
@@ -1307,17 +1242,9 @@ export const ContractCreatePage = () => {
               </Paper>
 
               {/* SECTION 4: FINANCIAL TERMS & RENT COMPUTATION */}
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  borderRadius: 3,
-                  border: '1px solid #e2e8f0',
-                  backgroundColor: '#ffffff',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                }}
-              >
+              <Paper elevation={0} sx={sectionPaperSx}>
                 <FormSectionHeader
+                  step={4}
                   icon={<PaymentIcon sx={{ fontSize: 18 }} />}
                   title="Financial Terms & Rent Calculator"
                   subtitle="Specify monthly rent directly, or set the rate per square meter to auto-calculate."
@@ -1328,9 +1255,9 @@ export const ContractCreatePage = () => {
                   {/* Rent per Square Meter — user enters this */}
                   <Box sx={{ width: '100%' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
-                      <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155' }}>
-                        Rent per Square Meter <span style={{ color: '#dc2626' }}>*</span>
-                      </Typography>
+                      <FieldLabel required sx={{ mb: 0 }}>
+                        Rent per Square Meter
+                      </FieldLabel>
                       {selectedUnit?.area_value && (
                         <Typography sx={{ fontSize: '0.7rem', color: '#64748b' }}>
                           Unit Area: {selectedUnit.area_value} m²
@@ -1364,9 +1291,7 @@ export const ContractCreatePage = () => {
 
                   {/* Total Monthly Rent — auto-calculated, read-only */}
                   <Box sx={{ width: '100%' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Total Monthly Rent <span style={{ color: '#dc2626' }}>*</span>
-                    </Typography>
+                    <FieldLabel required>Total Monthly Rent</FieldLabel>
                     <Box
                       sx={{
                         height: 40,
@@ -1460,9 +1385,7 @@ export const ContractCreatePage = () => {
 
                   {/* Remarks / Special Stipulations */}
                   <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
-                    <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#334155', mb: 0.75 }}>
-                      Contract Remarks & Stipulations <Box component="span" sx={{ color: '#ef4444' }}>*</Box>
-                    </Typography>
+                    <FieldLabel required>Contract Remarks & Stipulations</FieldLabel>
                     <TextField
                       fullWidth
                       multiline
@@ -1511,17 +1434,9 @@ export const ContractCreatePage = () => {
               </Paper>
 
               {/* SECTION 5: CONTRACT EXECUTION OPTIONS */}
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  borderRadius: 3,
-                  border: '1px solid #e2e8f0',
-                  backgroundColor: '#ffffff',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                }}
-              >
+              <Paper elevation={0} sx={sectionPaperSx}>
                 <FormSectionHeader
+                  step={5}
                   icon={<ReceiptIcon sx={{ fontSize: 18 }} />}
                   title="Execution & Schedule Settings"
                   subtitle="Control contract status on creation and automated installment generation."

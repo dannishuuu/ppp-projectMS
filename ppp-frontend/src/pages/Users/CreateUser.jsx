@@ -5,8 +5,6 @@ import {
   Typography,
   TextField,
   Button,
-  InputAdornment,
-  IconButton,
   Alert,
   Divider,
   CircularProgress,
@@ -23,14 +21,7 @@ import {
   Stack,
 } from '@mui/material';
 import {
-  Visibility,
-  VisibilityOff,
-  LockOutlined as LockIcon,
-  PersonOutlined as PersonIcon,
-  EmailOutlined as EmailIcon,
-  PhoneOutlined as PhoneIcon,
   BadgeOutlined as RoleIcon,
-  BusinessOutlined as DepartmentIcon,
   ArrowBack as ArrowBackIcon,
   PersonAddAlt as AccountIcon,
   Security as SecurityIcon,
@@ -98,8 +89,6 @@ export const CreateUser = () => {
     sendActivationEmail: true,
   });
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -228,7 +217,7 @@ export const CreateUser = () => {
           variant="outlined"
           size="small"
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/users')}
+          onClick={() => navigate('/users/list')}
           sx={{
             borderRadius: 2,
             borderColor: '#cbd5e1',
@@ -296,15 +285,6 @@ export const CreateUser = () => {
                 fullWidth
                 required
                 autoComplete="given-name"
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <PersonIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
                 sx={formFieldSx}
               />
               <TextField
@@ -332,15 +312,6 @@ export const CreateUser = () => {
                 fullWidth
                 required
                 autoComplete="email"
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <EmailIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
                 sx={formFieldSx}
               />
               <TextField
@@ -364,15 +335,6 @@ export const CreateUser = () => {
                 onChange={handleChange}
                 fullWidth
                 autoComplete="tel"
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <PhoneIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
                 sx={formFieldSx}
               />
             </Stack>
@@ -390,11 +352,6 @@ export const CreateUser = () => {
                   value={formData.role}
                   label="System Role"
                   onChange={handleChange}
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <RoleIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                    </InputAdornment>
-                  }
                 >
                   <MenuItem value="User">User</MenuItem>
                   <MenuItem value="Manager">Manager</MenuItem>
@@ -409,15 +366,6 @@ export const CreateUser = () => {
                 fullWidth
                 placeholder="e.g. Infrastructure, Finance"
                 autoComplete="organization"
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <DepartmentIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
                 sx={formFieldSx}
               />
               <FormControlLabel
@@ -443,7 +391,7 @@ export const CreateUser = () => {
               <TextField
                 label="Initial Password"
                 name="password"
-                type={showPassword ? 'text' : 'password'}
+                type="password"
                 value={formData.password}
                 onChange={handleChange}
                 onBlur={() => handleBlur('password')}
@@ -452,33 +400,12 @@ export const CreateUser = () => {
                 fullWidth
                 required
                 autoComplete="new-password"
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LockIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                      </InputAdornment>
-                    ),
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowPassword((v) => !v)}
-                          edge="end"
-                          size="small"
-                          aria-label={showPassword ? 'Hide password' : 'Show password'}
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  },
-                }}
                 sx={formFieldSx}
               />
               <TextField
                 label="Confirm Password"
                 name="confirmPassword"
-                type={showConfirmPassword ? 'text' : 'password'}
+                type="password"
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 onBlur={() => handleBlur('confirmPassword')}
@@ -487,27 +414,6 @@ export const CreateUser = () => {
                 fullWidth
                 required
                 autoComplete="new-password"
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LockIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                      </InputAdornment>
-                    ),
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowConfirmPassword((v) => !v)}
-                          edge="end"
-                          size="small"
-                          aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                        >
-                          {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  },
-                }}
                 sx={formFieldSx}
               />
             </Stack>

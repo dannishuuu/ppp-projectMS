@@ -5,8 +5,6 @@ import {
   Typography,
   TextField,
   Button,
-  InputAdornment,
-  IconButton,
   Alert,
   Divider,
   CircularProgress,
@@ -15,19 +13,58 @@ import {
   useMediaQuery,
   useTheme,
   Avatar,
+  Stack,
 } from '@mui/material';
 import {
-  Visibility,
-  VisibilityOff,
-  PersonOutlined as PersonIcon,
-  EmailOutlined as EmailIcon,
-  PhoneOutlined as PhoneIcon,
   ArrowBack as ArrowBackIcon,
+  AccountCircle as AccountIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { userService } from '../../services/userServices/userServices';
 import { useAuth } from '../../context/AuthContext';
+
+const inputSx = {
+  borderRadius: 2,
+  backgroundColor: '#f8fafc',
+  '& fieldset': { borderColor: '#e2e8f0' },
+  '&:hover fieldset': { borderColor: '#94a3b8' },
+  '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+};
+
+const formFieldSx = { '& .MuiOutlinedInput-root': inputSx };
+
+const SectionHeader = ({ icon, title, color = '#1e40af' }) => (
+  <Stack direction="row" alignItems="center" spacing={1}>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 28,
+        height: 28,
+        borderRadius: 1.5,
+        backgroundColor: `${color}12`,
+        color,
+        '& svg': { fontSize: 16 },
+      }}
+    >
+      {icon}
+    </Box>
+    <Typography
+      variant="subtitle2"
+      sx={{
+        fontWeight: 700,
+        color,
+        letterSpacing: '0.3px',
+        fontSize: '0.78rem',
+        textTransform: 'uppercase',
+      }}
+    >
+      {title}
+    </Typography>
+  </Stack>
+);
 
 export const EditUser = () => {
   const { id } = useParams();
@@ -42,7 +79,6 @@ export const EditUser = () => {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -113,8 +149,11 @@ export const EditUser = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 400, gap: 2 }}>
         <CircularProgress size={36} sx={{ color: '#6366f1' }} />
+        <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+          Loading user details...
+        </Typography>
       </Box>
     );
   }
@@ -131,70 +170,73 @@ export const EditUser = () => {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, width: '100%' }}>
-      {/* Breadcrumbs & Header */}
-      <Box sx={{ mb: 4 }}>
-        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 1 }}>
-          <Link underline="hover" color="inherit" component={RouterLink} to="/dashboard">
-            Dashboard
-          </Link>
-          <Link underline="hover" color="inherit" component={RouterLink} to="/users">
-            Users Management
-          </Link>
-          <Typography color="text.primary">Edit User</Typography>
-        </Breadcrumbs>
+      {/* Header Bar */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+          <Avatar sx={{ width: 42, height: 42, backgroundColor: '#4f46e5', fontSize: '0.95rem', fontWeight: 700 }}>
+            {getUserInitials()}
+          </Avatar>
+          <Breadcrumbs aria-label="breadcrumb" sx={{ fontSize: '0.78rem' }}>
+            <Link underline="hover" color="inherit" component={RouterLink} to="/dashboard" sx={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
+              Dashboard
+            </Link>
+            <Link underline="hover" color="inherit" component={RouterLink} to="/users" sx={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 500 }}>
+              Users Management
+            </Link>
+            <Typography sx={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
+              Edit User
+            </Typography>
+          </Breadcrumbs>
 
-        {/* Self-edit warning alert */}
-        {isEditingSelf && (
-          <Alert severity="info" sx={{ mt: 3, mb: 0, borderRadius: 2 }}>
-            You are editing your own account.
-          </Alert>
-        )}
+          <Divider orientation="vertical" flexItem sx={{ borderColor: '#e2e8f0', mx: 0.5 }} />
 
-        <Box
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', lineHeight: 1 }}>
+            {formData.first_name ? `${formData.first_name} ${formData.last_name || ''}`.trim() : 'Edit User'}
+          </Typography>
+        </Box>
+
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate('/users/list')}
           sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 2,
+            borderRadius: 2,
+            borderColor: '#cbd5e1',
+            color: '#475569',
+            fontWeight: 600,
+            fontSize: '0.8rem',
+            textTransform: 'none',
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar sx={{ width: 56, height: 56, backgroundColor: '#1a237e', fontSize: '1.25rem', fontWeight: 700 }}>
-              {getUserInitials()}
-            </Avatar>
-            <Box>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: '#0f172a' }}>
-                Edit User
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#64748b', mt: 0.5 }}>
-                Update user information and account settings
-              </Typography>
-            </Box>
-          </Box>
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/users/list')}
-            sx={{ borderRadius: 2, flexShrink: 0 }}
-          >
-            Back to Users
-          </Button>
-        </Box>
+          Back to Users
+        </Button>
       </Box>
+
+      {/* Subtitle */}
+      <Typography variant="body2" sx={{ color: '#64748b', mb: 2.5 }}>
+        Update user information and account settings.
+      </Typography>
+
+      {/* Self-edit warning alert */}
+      {isEditingSelf && (
+        <Alert severity="info" sx={{ mb: 3, borderRadius: 2, border: '1px solid #bae6fd' }}>
+          You are editing your own account.
+        </Alert>
+      )}
 
       {/* Global feedback */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2, border: '1px solid #fecaca' }}>
           {error}
         </Alert>
       )}
 
-      {/* Main Form - using CSS Grid for 3 equal columns */}
+      {/* Main Form */}
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 2.5, sm: 4, md: 5 },
+          p: { xs: 2.5, sm: 3, md: 4 },
           borderRadius: 3,
           border: '1px solid #e2e8f0',
           backgroundColor: '#ffffff',
@@ -203,30 +245,19 @@ export const EditUser = () => {
         }}
       >
         <form onSubmit={handleSubmit} noValidate>
-          {/* Grid container with 3 columns */}
           <Box
             sx={{
               display: 'grid',
               gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-              gap: 4,
-              alignItems: 'stretch',
+              gap: { xs: 3, md: 4 },
+              alignItems: 'start',
             }}
           >
             {/* Column 1: Basic Information */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  fontWeight: 700,
-                  color: '#1a237e',
-                  letterSpacing: '0.5px',
-                  fontSize: '0.8rem',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Basic Information
-              </Typography>
-              <Divider sx={{ mb: 1 }} />
+            <Stack spacing={2.5}>
+              <SectionHeader icon={<PersonIcon />} title="Basic Information" color="#1e40af" />
+              <Divider sx={{ borderColor: '#e2e8f0' }} />
+
               <TextField
                 label="First Name"
                 name="first_name"
@@ -234,13 +265,7 @@ export const EditUser = () => {
                 onChange={handleChange('first_name')}
                 fullWidth
                 autoComplete="given-name"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <PersonIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                    </InputAdornment>
-                  ),
-                }}
+                sx={formFieldSx}
               />
               <TextField
                 label="Last Name"
@@ -249,6 +274,7 @@ export const EditUser = () => {
                 onChange={handleChange('last_name')}
                 fullWidth
                 autoComplete="family-name"
+                sx={formFieldSx}
               />
               <TextField
                 label="Display Name"
@@ -257,24 +283,15 @@ export const EditUser = () => {
                 fullWidth
                 disabled
                 helperText="Auto-generated from first and last name"
+                sx={formFieldSx}
               />
-            </Box>
+            </Stack>
 
             {/* Column 2: Contact Information */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  fontWeight: 700,
-                  color: '#1a237e',
-                  letterSpacing: '0.5px',
-                  fontSize: '0.8rem',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Contact Information
-              </Typography>
-              <Divider sx={{ mb: 1 }} />
+            <Stack spacing={2.5}>
+              <SectionHeader icon={<EmailIcon />} title="Contact Information" color="#047857" />
+              <Divider sx={{ borderColor: '#e2e8f0' }} />
+
               <TextField
                 label="Email Address"
                 name="email"
@@ -284,13 +301,7 @@ export const EditUser = () => {
                 fullWidth
                 required
                 autoComplete="email"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <EmailIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                    </InputAdornment>
-                  ),
-                }}
+                sx={formFieldSx}
               />
               <TextField
                 label="Phone Number (Optional)"
@@ -300,31 +311,15 @@ export const EditUser = () => {
                 onChange={handleChange('phone')}
                 fullWidth
                 autoComplete="tel"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <PhoneIcon sx={{ color: '#94a3b8', fontSize: 20 }} />
-                    </InputAdornment>
-                  ),
-                }}
+                sx={formFieldSx}
               />
-            </Box>
+            </Stack>
 
             {/* Column 3: Account Information */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  fontWeight: 700,
-                  color: '#1a237e',
-                  letterSpacing: '0.5px',
-                  fontSize: '0.8rem',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Account Information
-              </Typography>
-              <Divider sx={{ mb: 1 }} />
+            <Stack spacing={2.5}>
+              <SectionHeader icon={<AccountIcon />} title="Account Information" color="#7c3aed" />
+              <Divider sx={{ borderColor: '#e2e8f0' }} />
+
               <TextField
                 label="Username"
                 name="username"
@@ -333,67 +328,75 @@ export const EditUser = () => {
                 placeholder="Unique identifier for login"
                 fullWidth
                 autoComplete="username"
+                sx={formFieldSx}
               />
               <TextField
                 label={isEdit ? 'New Password (leave blank to keep current)' : 'Password'}
                 name="password"
-                type={showPassword ? 'text' : 'password'}
+                type="password"
                 value={formData.password}
                 onChange={handleChange('password')}
                 fullWidth
                 autoComplete="new-password"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword((v) => !v)}
-                        edge="end"
-                        size="small"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
+                sx={formFieldSx}
               />
-            </Box>
+            </Stack>
           </Box>
 
-          {/* Submit & Actions - full width row */}
+          {/* Submit & Actions */}
           <Box
             sx={{
               display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 2,
+              justifyContent: 'space-between',
+              alignItems: 'center',
               mt: 4,
               pt: 3,
               borderTop: '1px solid #e2e8f0',
+              flexWrap: 'wrap',
+              gap: 2,
             }}
           >
-            <Button
-              variant="outlined"
-              color="inherit"
-              onClick={() => navigate('/users/list')}
-              disabled={saving}
-              sx={{ borderRadius: 2, px: 3 }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={saving}
-              sx={{
-                px: 5,
-                py: 1.2,
-                borderRadius: 2,
-                fontWeight: 600,
-                background: 'linear-gradient(135deg, #1a237e, #283593)',
-              }}
-            >
-              {saving ? <CircularProgress size={22} sx={{ color: '#fff' }} /> : 'Save Changes'}
-            </Button>
+            <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
+              Password is optional — leave blank to keep the current one
+            </Typography>
+
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={() => navigate('/users/list')}
+                disabled={saving}
+                sx={{
+                  borderRadius: 2,
+                  px: 3,
+                  borderColor: '#cbd5e1',
+                  color: '#475569',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={saving}
+                sx={{
+                  px: 4,
+                  py: 1,
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  background: 'linear-gradient(135deg, #4f46e5, #4338ca)',
+                  '&:hover': { background: 'linear-gradient(135deg, #4338ca, #3730a3)' },
+                  boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)',
+                  '&:disabled': { backgroundColor: '#e2e8f0', color: '#94a3b8', boxShadow: 'none', backgroundImage: 'none' },
+                }}
+              >
+                {saving ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Save Changes'}
+              </Button>
+            </Stack>
           </Box>
         </form>
       </Paper>

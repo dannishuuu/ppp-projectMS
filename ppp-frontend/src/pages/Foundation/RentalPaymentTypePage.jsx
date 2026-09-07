@@ -196,7 +196,7 @@ export const RentalPaymentTypePage = () => {
       name: formData.name.trim(),
       paymentTypeCode: formData.paymentTypeCode.trim().toUpperCase().replace(/\s+/g, ''),
       nameAmharic: formData.nameAmharic.trim() || null,
-      durationDays: parseInt(formData.durationDays, 10),
+      durationDays: parseFloat(formData.durationDays),
       description: formData.description.trim() || null,
     };
 
@@ -820,7 +820,7 @@ export const RentalPaymentTypePage = () => {
                 onChange={handleChange('durationDays')}
                 size="small"
                 disabled={formLoading}
-                inputProps={{ min: 1 }}
+                inputProps={{ min: 0.01, step: 'any' }}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
 
