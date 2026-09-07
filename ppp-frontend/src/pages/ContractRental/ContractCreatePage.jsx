@@ -25,9 +25,12 @@ import {
   TableRow,
   TableCell,
   TableContainer,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
+  ArrowForward as ArrowForwardIcon,
   Save as SaveIcon,
   Description as ContractIcon,
   Payments as PaymentIcon,
@@ -189,6 +192,9 @@ export const ContractCreatePage = () => {
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Active tab index for the core form area (pure UI state — sections 1-5)
+  const [activeSection, setActiveSection] = useState(0);
 
   // Selected unit snapshot
   const [selectedUnit, setSelectedUnit] = useState(null);
@@ -460,14 +466,14 @@ export const ContractCreatePage = () => {
 
     const [sY, sM, sD] = formData.contractStartDate.split('-').map(Number);
     const [eY, eM, eD] = formData.contractEndDate.split('-').map(Number);
-    const endBound = new Date(eY, eM - 1, eD);
+    const endBound = new Date(eY, eM - 1, eD, 23, 59, 59, 999);
 
     const schedule = [];
-    let currentDue = new Date(sY, sM - 1, sD);
+    // Anchor at noon so fractional-day intervals and DST shifts never cross a calendar date boundary
+    let currentDue = new Date(sY, sM - 1, sD, 12);
 
     for (let count = 1; count <= numberOfSchedules; count++) {
-      const nextDue = new Date(currentDue);
-      nextDue.setDate(nextDue.getDate() + intervalDays);
+      const nextDue = new Date(currentDue.getTime() + intervalMs);
 
       const dueDateStr = formatYMD(currentDue);
       const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
@@ -703,7 +709,7 @@ export const ContractCreatePage = () => {
           alignItems: 'start',
         }}
       >
-        {/* DIV 1: The big form area */}
+        {/* DIV 1: The big form area — tabbed core form (Steps 1-5) */}
         <Box
           className="div1"
           sx={{
@@ -714,8 +720,68 @@ export const ContractCreatePage = () => {
             gap: 2.5,
           }}
         >
-              {/* SECTION 1: PROPERTY & PREMISES */}
-              <Paper elevation={0} sx={sectionPaperSx}>
+          <Paper
+            elevation={0}
+            sx={{
+              ...sectionPaperSx,
+              p: 0,
+              overflow: 'hidden',
+            }}
+          >
+            {/* Tab Bar — Steps 1-5 */}
+            <Tabs
+              value={activeSection}
+              onChange={(event, newValue) => setActiveSection(newValue)}
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
+              aria-label="Contract form sections"
+              sx={{
+                minHeight: 58,
+                pt: 1,
+                px: { xs: 0.5, sm: 1.5 },
+                borderBottom: '1px solid #e2e8f0',
+                backgroundColor: '#f8fafc',
+                '& .MuiTabs-indicator': { height: 3, borderRadius: '3px 3px 0 0', backgroundColor: '#4f46e5' },
+              }}
+            >
+              {[
+                { icon: <BuildingIcon sx={{ fontSize: 17 }} />, label: 'Premises' },
+                { icon: <TenantIcon sx={{ fontSize: 17 }} />, label: 'Tenant' },
+                { icon: <CalendarIcon sx={{ fontSize: 17 }} />, label: 'Lease Term' },
+                { icon: <PaymentIcon sx={{ fontSize: 17 }} />, label: 'Financials' },
+                { icon: <ReceiptIcon sx={{ fontSize: 17 }} />, label: 'Execution' },
+              ].map((tab, idx) => (
+                <Tab
+                  key={tab.label}
+                  value={idx}
+                  disableRipple
+                  icon={tab.icon}
+                  iconPosition="start"
+                  label={
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
+                      <Typography sx={{ fontSize: '0.56rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'inherit', opacity: 0.55, lineHeight: 1.2 }}>
+                        Step {idx + 1}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: 'inherit', lineHeight: 1.3 }}>
+                        {tab.label}
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{
+                    minHeight: 58,
+                    textTransform: 'none',
+                    color: '#94a3b8',
+                    '&.Mui-selected': { color: '#4f46e5' },
+                  }}
+                />
+              ))}
+            </Tabs>
+
+            {/* Active Section Content */}
+            <Box sx={{ p: { xs: 2.25, sm: 3 } }}>
+              {activeSection === 0 && (
+              <Box>
                 <FormSectionHeader
                   step={1}
                   icon={<BuildingIcon sx={{ fontSize: 18 }} />}
@@ -964,10 +1030,12 @@ export const ContractCreatePage = () => {
                     )}
                   </Box>
                 </Box>
-              </Paper>
+              </Box>
+              )}
 
               {/* SECTION 2: TENANT & LESSEE INFORMATION */}
-              <Paper elevation={0} sx={sectionPaperSx}>
+              {activeSection === 1 && (
+              <Box>
                 <FormSectionHeader
                   step={2}
                   icon={<TenantIcon sx={{ fontSize: 18 }} />}
@@ -1056,10 +1124,12 @@ export const ContractCreatePage = () => {
                     </Box>
                   )}
                 </Box>
-              </Paper>
+              </Box>
+              )}
 
               {/* SECTION 3: CONTRACT PERIOD & PAYMENT TERMS */}
-              <Paper elevation={0} sx={sectionPaperSx}>
+              {activeSection === 2 && (
+              <Box>
                 <FormSectionHeader
                   step={3}
                   icon={<CalendarIcon sx={{ fontSize: 18 }} />}
@@ -1239,10 +1309,12 @@ export const ContractCreatePage = () => {
                     </TextField>
                   </Box>
                 </Box>
-              </Paper>
+              </Box>
+              )}
 
               {/* SECTION 4: FINANCIAL TERMS & RENT COMPUTATION */}
-              <Paper elevation={0} sx={sectionPaperSx}>
+              {activeSection === 3 && (
+              <Box>
                 <FormSectionHeader
                   step={4}
                   icon={<PaymentIcon sx={{ fontSize: 18 }} />}
@@ -1431,10 +1503,12 @@ export const ContractCreatePage = () => {
                     </Box>
                   </Box>
                 </Box>
-              </Paper>
+              </Box>
+              )}
 
               {/* SECTION 5: CONTRACT EXECUTION OPTIONS */}
-              <Paper elevation={0} sx={sectionPaperSx}>
+              {activeSection === 4 && (
+              <Box>
                 <FormSectionHeader
                   step={5}
                   icon={<ReceiptIcon sx={{ fontSize: 18 }} />}
@@ -1510,8 +1584,67 @@ export const ContractCreatePage = () => {
                     />
                   </Box>
                 </Box>
-              </Paper>
-</Box>
+              </Box>
+              )}
+
+              {/* Panel footer navigation */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 2,
+                  mt: 3,
+                  pt: 2.5,
+                  borderTop: '1px dashed #e2e8f0',
+                }}
+              >
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
+                  disabled={activeSection === 0 || saving}
+                  onClick={() => setActiveSection((s) => Math.max(0, s - 1))}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: '#64748b',
+                    borderColor: '#cbd5e1',
+                    '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
+                  }}
+                >
+                  Previous Step
+                </Button>
+
+                <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8' }}>
+                  Step {activeSection + 1} of 5
+                </Typography>
+
+                <Button
+                  variant="outlined"
+                  size="small"
+                  endIcon={<ArrowForwardIcon sx={{ fontSize: 16 }} />}
+                  disabled={activeSection === 4 || saving}
+                  onClick={() => setActiveSection((s) => Math.min(4, s + 1))}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: '#4f46e5',
+                    borderColor: '#c7d2fe',
+                    backgroundColor: '#eef2ff',
+                    '&:hover': { borderColor: '#818cf8', backgroundColor: '#e0e7ff' },
+                  }}
+                >
+                  Next Step
+                </Button>
+              </Box>
+            </Box>
+          </Paper>
+        </Box>
 
         {/* DIV 2: LEASE AGREEMENT PREVIEW */}
         <Paper
