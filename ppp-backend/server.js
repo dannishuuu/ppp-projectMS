@@ -39,6 +39,7 @@ const buildingFloorRoutes = require('./routes/buildingRoutes/buildingFloors.rout
 const buildingUnitRoutes = require('./routes/buildingRoutes/buildingUnits.routes');
 const rentalContractRoutes = require('./routes/rentalContractRoutes/rentalContract.routes');
 const rentalPaymentRoutes = require('./routes/rentalContractRoutes/rentalPayments.routes');
+const businessSectorRoutes = require('./routes/foundationService/businessSector.routes');
 
 
 // Middleware
@@ -147,6 +148,9 @@ app.use('/api/v1/rental-contracts', rentalContractRoutes);
 
 // Rental Payments
 app.use('/api/v1/rental-payments', rentalPaymentRoutes);
+
+// Business Sectors
+app.use('/api/v1/business-sectors', businessSectorRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
