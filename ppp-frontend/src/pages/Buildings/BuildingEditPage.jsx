@@ -1221,30 +1221,24 @@ export const BuildingEditPage = () => {
                                                       </TextField>
                                                     </Box>
 
-                                                    {/* Occupancy */}
+                                                    {/* Occupancy — read-only, auto-set from For Rent */}
                                                     <Box sx={{ p: 1, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
-                                                      <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 0.25 }}>
+                                                      <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', mb: 0.5 }}>
                                                         Occupancy
                                                       </Typography>
-                                                      <TextField
-                                                        select
+                                                      <Chip
                                                         size="small"
-                                                        fullWidth
-                                                        disabled={unit.isForRent === false}
-                                                        value={unit.isRented ? 'true' : 'false'}
-                                                        onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'isRented', e.target.value === 'true')}
+                                                        label={unit.isRented ? 'Rented' : 'Vacant'}
                                                         sx={{
-                                                          '& .MuiOutlinedInput-root': { borderRadius: 1, fontSize: '0.74rem', fontWeight: 700, color: '#334155' },
-                                                          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
-                                                          '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
-                                                          '& .MuiSelect-select': { py: 0.4, px: 0.75 },
-                                                          backgroundColor: '#ffffff',
-                                                          borderRadius: 1,
+                                                          height: 22,
+                                                          fontSize: '0.7rem',
+                                                          fontWeight: 700,
+                                                          backgroundColor: unit.isRented ? '#f5f3ff' : '#f8fafc',
+                                                          color: unit.isRented ? '#6d28d9' : '#64748b',
+                                                          border: `1px solid ${unit.isRented ? '#ddd6fe' : '#cbd5e1'}`,
+                                                          '& .MuiChip-label': { px: 1 },
                                                         }}
-                                                      >
-                                                        <MenuItem value="false">Vacant</MenuItem>
-                                                        <MenuItem value="true">Rented</MenuItem>
-                                                      </TextField>
+                                                      />
                                                     </Box>
                                                   </Box>
 
@@ -1358,16 +1352,18 @@ export const BuildingEditPage = () => {
                                                       </TextField>
                                                     </TableCell>
                                                     <TableCell sx={{ textAlign: 'center', minWidth: 90 }}>
-                                                      <TextField
-                                                        select size="small" fullWidth
-                                                        disabled={unit.isForRent === false}
-                                                        value={unit.isRented ? 'true' : 'false'}
-                                                        onChange={(e) => handleUnitFieldChange(floorIndex, realIndex, 'isRented', e.target.value === 'true')}
-                                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5, fontSize: '0.78rem' } }}
-                                                      >
-                                                        <MenuItem value="false">Vacant</MenuItem>
-                                                        <MenuItem value="true">Rented</MenuItem>
-                                                      </TextField>
+                                                      <Chip
+                                                        size="small"
+                                                        label={unit.isRented ? 'Rented' : 'Vacant'}
+                                                        sx={{
+                                                          height: 22,
+                                                          fontSize: '0.68rem',
+                                                          fontWeight: 700,
+                                                          backgroundColor: unit.isRented ? '#f5f3ff' : '#f8fafc',
+                                                          color: unit.isRented ? '#6d28d9' : '#64748b',
+                                                          border: `1px solid ${unit.isRented ? '#ddd6fe' : '#cbd5e1'}`,
+                                                        }}
+                                                      />
                                                     </TableCell>
                                                     <TableCell sx={{ textAlign: 'center', minWidth: 90 }}>
                                                       <Chip

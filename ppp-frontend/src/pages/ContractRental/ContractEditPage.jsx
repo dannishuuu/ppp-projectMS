@@ -1091,7 +1091,10 @@ export const ContractEditPage = () => {
                         <MenuItem value="" disabled>
                           {!formData.floorId ? 'Select a floor first' : 'Select Unit...'}
                         </MenuItem>
-                        {units.map((u) => {
+                        {/* Units flagged not-for-rent are hidden — except this contract's own unit, which stays selectable */}
+                        {units
+                          .filter((u) => u.is_for_rent !== false || String(u.id) === String(original?.unit_id))
+                          .map((u) => {
                           const isCurrentUnit = String(u.id) === String(original?.unit_id);
                           const isOccupiedByOther = u.is_rented && !isCurrentUnit;
                           return (

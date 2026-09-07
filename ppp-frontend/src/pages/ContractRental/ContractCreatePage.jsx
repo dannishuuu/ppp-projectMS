@@ -910,7 +910,8 @@ export const ContractCreatePage = () => {
                       <MenuItem value="" disabled>
                         {!formData.floorId ? 'Select a floor level first' : 'Select Unit...'}
                       </MenuItem>
-                      {units.map((u) => {
+                      {/* Units flagged not-for-rent are hidden from the list */}
+                      {units.filter((u) => u.is_for_rent !== false).map((u) => {
                         const isRented = u.is_rented;
                         return (
                           <MenuItem key={u.id} value={u.id} disabled={isRented}>
