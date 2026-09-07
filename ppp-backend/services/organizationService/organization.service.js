@@ -90,14 +90,59 @@ class OrganizationService {
       typeIds = [organizationTypeId];
     }
 
-    // ── Validation ────────────────────────────────────────────────────────
+    // ── Validation (All fields mandatory except Experience & Track Record) ──
     if (!name || !name.trim()) {
       const err = new Error('Organization name is required.');
       err.status = 400;
       throw err;
     }
+    if (!amharicOrgName || !amharicOrgName.trim()) {
+      const err = new Error('Organization name (Amharic) is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!oromoOrgName || !oromoOrgName.trim()) {
+      const err = new Error('Organization name (Oromo) is required.');
+      err.status = 400;
+      throw err;
+    }
     if (typeIds.length === 0) {
       const err = new Error('At least one Organization Type is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!phone || !phone.trim()) {
+      const err = new Error('Phone number is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!email || !email.trim()) {
+      const err = new Error('Email address is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      const err = new Error('Please enter a valid email address.');
+      err.status = 400;
+      throw err;
+    }
+    if (!address || !address.trim()) {
+      const err = new Error('Office address is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!businessSectorId) {
+      const err = new Error('Business sector is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!registrationDate) {
+      const err = new Error('Legal registration date is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!licenseNumber || !licenseNumber.trim()) {
+      const err = new Error('Trade license / registration number is required.');
       err.status = 400;
       throw err;
     }
@@ -115,12 +160,12 @@ class OrganizationService {
     try {
       const orgId = await OrganizationModel.insertOrganization(t, {
         name: name.trim(),
-        amharicOrgName: amharicOrgName?.trim(),
-        oromoOrgName: oromoOrgName?.trim(),
-        phone,
-        email,
-        address,
-        profileExperience,
+        amharicOrgName: amharicOrgName.trim(),
+        oromoOrgName: oromoOrgName.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        address: address.trim(),
+        profileExperience: profileExperience ? profileExperience.trim() : null,
         createdBy: actorId,
       });
 
@@ -133,11 +178,11 @@ class OrganizationService {
       await OrganizationModel.insertProfile(t, {
         organizationId: orgId,
         businessSectorId,
-        yearsOfExperience,
+        yearsOfExperience: yearsOfExperience !== undefined && yearsOfExperience !== '' && yearsOfExperience !== null ? parseInt(yearsOfExperience, 10) : null,
         registrationDate,
-        licenseNumber,
-        bio,
-        pastProjectsSummary,
+        licenseNumber: licenseNumber.trim(),
+        bio: bio ? bio.trim() : null,
+        pastProjectsSummary: pastProjectsSummary ? pastProjectsSummary.trim() : null,
         createdBy: actorId,
       });
 
@@ -152,19 +197,14 @@ class OrganizationService {
   // ─── UPDATE ───────────────────────────────────────────────────────────────
 
   /**
-   * Update organization + profile fields + types in a single atomic transaction.
-   * Only fields present in the payload are updated (partial update supported).
-   *
-   * @param {string} id
-   * @param {object} payload
-   * @param {string} actorId
+   * Full atomic update of an organization and its associated types & profile.
+   * @param {string} id - Organization UUID
+   * @param {object} payload - Updated organization data
+   * @param {string} actorId - User ID making the update
    */
   static async updateOrganization(id, payload, actorId) {
-    // Confirm it exists
-    await this.getOrganizationById(id);
-
+    const org = await this.getOrganizationById(id);
     const {
-      // org fields
       name,
       amharicOrgName,
       oromoOrgName,
@@ -183,16 +223,6 @@ class OrganizationService {
       pastProjectsSummary,
     } = payload;
 
-    // Uniqueness check when renaming
-    if (name && name.trim()) {
-      const existing = await OrganizationModel.findByName(name.trim());
-      if (existing && existing.id !== id) {
-        const err = new Error(`An organization named "${name.trim()}" already exists.`);
-        err.status = 409;
-        throw err;
-      }
-    }
-
     // Normalize type IDs if present in payload
     let typeIds = undefined;
     if (Array.isArray(organizationTypeIds)) {
@@ -203,17 +233,84 @@ class OrganizationService {
       typeIds = organizationTypeId ? [organizationTypeId] : [];
     }
 
+    // ── Validation (All fields mandatory except Experience & Track Record) ──
+    if (!name || !name.trim()) {
+      const err = new Error('Organization name is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!amharicOrgName || !amharicOrgName.trim()) {
+      const err = new Error('Organization name (Amharic) is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!oromoOrgName || !oromoOrgName.trim()) {
+      const err = new Error('Organization name (Oromo) is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (typeIds !== undefined && typeIds.length === 0) {
+      const err = new Error('At least one Organization Type is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!phone || !phone.trim()) {
+      const err = new Error('Phone number is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!email || !email.trim()) {
+      const err = new Error('Email address is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      const err = new Error('Please enter a valid email address.');
+      err.status = 400;
+      throw err;
+    }
+    if (!address || !address.trim()) {
+      const err = new Error('Office address is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!businessSectorId) {
+      const err = new Error('Business sector is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!registrationDate) {
+      const err = new Error('Legal registration date is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!licenseNumber || !licenseNumber.trim()) {
+      const err = new Error('Trade license / registration number is required.');
+      err.status = 400;
+      throw err;
+    }
+
+    // Uniqueness check when renaming
+    if (name && name.trim()) {
+      const existing = await OrganizationModel.findByName(name.trim());
+      if (existing && existing.id !== id) {
+        const err = new Error(`An organization named "${name.trim()}" already exists.`);
+        err.status = 409;
+        throw err;
+      }
+    }
+
     const t = await db.transaction();
     try {
       // Map camelCase payload → snake_case column names
       await OrganizationModel.updateOrganization(t, id, {
-        name: name ? name.trim() : undefined,
-        amharic_org_name: amharicOrgName !== undefined ? (amharicOrgName ? amharicOrgName.trim() : null) : undefined,
-        oromo_org_name: oromoOrgName !== undefined ? (oromoOrgName ? oromoOrgName.trim() : null) : undefined,
-        phone,
-        email,
-        address,
-        profile_experience: profileExperience,
+        name: name.trim(),
+        amharic_org_name: amharicOrgName.trim(),
+        oromo_org_name: oromoOrgName.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        address: address.trim(),
+        profile_experience: profileExperience ? profileExperience.trim() : null,
       }, actorId);
 
       if (typeIds !== undefined) {

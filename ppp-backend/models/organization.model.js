@@ -229,7 +229,7 @@ class OrganizationModel {
     for (const [key, value] of Object.entries(fields)) {
       if (allowed.includes(key) && value !== undefined) {
         setClauses.push(`${key} = :${key}`);
-        replacements[key] = value;
+        replacements[key] = value === '' ? null : value;
       }
     }
     if (setClauses.length === 0) return;
@@ -289,10 +289,29 @@ class OrganizationModel {
     for (const [key, value] of Object.entries(fields)) {
       if (allowed.includes(key) && value !== undefined) {
         setClauses.push(`${key} = :${key}`);
-        replacements[key] = value;
+        replacements[key] = value === '' ? null : value;
       }
     }
     if (setClauses.length === 0) return;
+
+    // Verify if profile exists; insert if not present yet
+    const existing = await db.query(
+      `SELECT id FROM organization_profiles WHERE organization_id = :organizationId`,
+      { replacements: { organizationId }, type: QueryTypes.SELECT, transaction: t }
+    );
+    if (existing.length === 0) {
+      await this.insertProfile(t, {
+        organizationId,
+        businessSectorId: fields.business_sector_id,
+        yearsOfExperience: fields.years_of_experience,
+        registrationDate: fields.registration_date,
+        licenseNumber: fields.license_number,
+        bio: fields.bio,
+        pastProjectsSummary: fields.past_projects_summary,
+        createdBy: updatedBy,
+      });
+      return;
+    }
 
     setClauses.push('updated_at = NOW()', 'updated_by = :updatedBy');
     const query = `UPDATE organization_profiles SET ${setClauses.join(', ')} WHERE organization_id = :organizationId AND is_deleted = FALSE`;

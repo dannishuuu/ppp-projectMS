@@ -327,7 +327,7 @@ export const OrganizationList = () => {
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Business Sector</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Contact Info</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Created</TableCell>
+                {/* <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Created</TableCell> */}
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -452,11 +452,11 @@ export const OrganizationList = () => {
                         }}
                       />
                     </TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                       <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.82rem' }}>
                         {formatDate(org.created_at)}
                       </Typography>
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell align="right" sx={{ pr: 1 }}>
                       <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
                         <Tooltip title="View Details" arrow placement="top">
@@ -517,7 +517,7 @@ export const OrganizationList = () => {
                           </IconButton>
                         </Tooltip>
 
-                        <Tooltip title="Delete Organization" arrow placement="top">
+                        {/* <Tooltip title="Delete Organization" arrow placement="top">
                           <IconButton
                             size="small"
                             onClick={() => handleDeleteDialogOpen(org)}
@@ -533,7 +533,7 @@ export const OrganizationList = () => {
                           >
                             <DeleteIcon sx={{ fontSize: 15 }} />
                           </IconButton>
-                        </Tooltip>
+                        </Tooltip> */}
                       </Box>
                     </TableCell>
                   </TableRow>

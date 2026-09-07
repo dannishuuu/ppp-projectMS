@@ -89,6 +89,7 @@ export const OrganizationForm = () => {
 
   const [orgTypes, setOrgTypes] = useState([]);
   const [businessSectors, setBusinessSectors] = useState([]);
+  const [selectedBusinessSector, setSelectedBusinessSector] = useState(null);
   const [businessSectorSearch, setBusinessSectorSearch] = useState('');
   const [businessSectorLoading, setBusinessSectorLoading] = useState(false);
   const [loading, setLoading] = useState(isEditMode);
@@ -181,16 +182,6 @@ export const OrganizationForm = () => {
           typeIds = [org.organization_type_id];
         }
 
-        // Load selected business sector if exists
-        if (org.business_sector_id && org.business_sector_name) {
-          setBusinessSectors([{
-            id: org.business_sector_id,
-            eng_name: org.business_sector_name,
-            amh_name: org.business_sector_amh_name,
-            oro_name: org.business_sector_oro_name,
-          }]);
-        }
-
         setFormData({
           name: org.name || '',
           amharicOrgName: org.amharic_org_name || '',
@@ -207,6 +198,18 @@ export const OrganizationForm = () => {
           bio: org.bio || '',
           pastProjectsSummary: org.past_projects_summary || '',
         });
+
+        // Load selected business sector if exists - add it to the options
+        if (org.business_sector_id && org.business_sector_name) {
+          const sector = {
+            id: org.business_sector_id,
+            eng_name: org.business_sector_name,
+            amh_name: org.business_sector_amh_name,
+            oro_name: org.business_sector_oro_name,
+          };
+          setSelectedBusinessSector(sector);
+          setBusinessSectors([sector]);
+        }
       } catch (err) {
         enqueueSnackbar(err.message || 'Failed to load organization details', { variant: 'error' });
         navigate('/organizations');
@@ -237,27 +240,33 @@ export const OrganizationForm = () => {
   const handleChange = (field) => (event) => {
     setFormData((prev) => ({ ...prev, [field]: event.target.value }));
     if (errorMsg) setErrorMsg('');
-    if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: false }));
+    if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
   const validate = () => {
     const errors = {};
-    if (!formData.name.trim()) errors.name = true;
-    if (!formData.organizationTypeIds || formData.organizationTypeIds.length === 0) errors.organizationTypeIds = true;
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.email = true;
+    if (!formData.name?.trim()) errors.name = 'Organization name is required.';
+    if (!formData.amharicOrgName?.trim()) errors.amharicOrgName = 'Organization name (Amharic) is required.';
+    if (!formData.oromoOrgName?.trim()) errors.oromoOrgName = 'Organization name (Oromo) is required.';
+    if (!formData.organizationTypeIds || formData.organizationTypeIds.length === 0) {
+      errors.organizationTypeIds = 'Please select at least one Organization Type.';
+    }
+    if (!formData.phone?.trim()) errors.phone = 'Phone number is required.';
+    if (!formData.email?.trim()) {
+      errors.email = 'Email address is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      errors.email = 'Please enter a valid email address.';
+    }
+    if (!formData.address?.trim()) errors.address = 'Office address is required.';
+    if (!formData.businessSectorId) errors.businessSectorId = 'Business sector is required.';
+    if (!formData.registrationDate) errors.registrationDate = 'Legal registration date is required.';
+    if (!formData.licenseNumber?.trim()) errors.licenseNumber = 'Trade license / registration number is required.';
 
     setFieldErrors(errors);
 
-    if (errors.name) {
-      setErrorMsg('Organization name is required.');
-      return false;
-    }
-    if (errors.organizationTypeIds) {
-      setErrorMsg('Please select at least one Organization Type.');
-      return false;
-    }
-    if (errors.email) {
-      setErrorMsg('Please enter a valid email address.');
+    const firstError = Object.values(errors)[0];
+    if (firstError) {
+      setErrorMsg(firstError);
       return false;
     }
     return true;
@@ -432,28 +441,34 @@ export const OrganizationForm = () => {
                 value={formData.name}
                 onChange={handleChange('name')}
                 size="small"
-                error={fieldErrors.name}
-                helperText={fieldErrors.name ? 'This field is required' : ''}
+                error={Boolean(fieldErrors.name)}
+                helperText={fieldErrors.name || ''}
                 sx={formFieldSx}
               />
 
               <TextField
+                required
                 fullWidth
                 label="Organization Name (Amharic)"
                 placeholder="e.g. አዲስ ሪል እስቴት እና ልማት ድርጅት"
                 value={formData.amharicOrgName}
                 onChange={handleChange('amharicOrgName')}
                 size="small"
+                error={Boolean(fieldErrors.amharicOrgName)}
+                helperText={fieldErrors.amharicOrgName || ''}
                 sx={formFieldSx}
               />
 
               <TextField
+                required
                 fullWidth
                 label="Organization Name (Oromo)"
                 placeholder="e.g. Garee Qabeenya Dhalataa fi Guddinaa Addis"
                 value={formData.oromoOrgName}
                 onChange={handleChange('oromoOrgName')}
                 size="small"
+                error={Boolean(fieldErrors.oromoOrgName)}
+                helperText={fieldErrors.oromoOrgName || ''}
                 sx={formFieldSx}
               />
 
@@ -461,7 +476,7 @@ export const OrganizationForm = () => {
                 required
                 fullWidth
                 size="small"
-                error={fieldErrors.organizationTypeIds}
+                error={Boolean(fieldErrors.organizationTypeIds)}
                 sx={formFieldSx}
               >
                 <InputLabel id="org-types-label">Organization Types</InputLabel>
@@ -477,7 +492,7 @@ export const OrganizationForm = () => {
                       organizationTypeIds: typeof value === 'string' ? value.split(',') : value,
                     }));
                     if (errorMsg) setErrorMsg('');
-                    if (fieldErrors.organizationTypeIds) setFieldErrors((prev) => ({ ...prev, organizationTypeIds: false }));
+                    if (fieldErrors.organizationTypeIds) setFieldErrors((prev) => ({ ...prev, organizationTypeIds: undefined }));
                   }}
                   input={<OutlinedInput label="Organization Types" />}
                   renderValue={(selected) => (
@@ -511,21 +526,25 @@ export const OrganizationForm = () => {
                   ))}
                 </Select>
                 {fieldErrors.organizationTypeIds && (
-                  <FormHelperText>Please select at least one type</FormHelperText>
+                  <FormHelperText>{fieldErrors.organizationTypeIds}</FormHelperText>
                 )}
               </FormControl>
 
-               <TextField
+              <TextField
+                required
                 fullWidth
                 label="Phone Number"
                 placeholder="e.g. 0911517888"
                 value={formData.phone}
                 onChange={handleChange('phone')}
                 size="small"
+                error={Boolean(fieldErrors.phone)}
+                helperText={fieldErrors.phone || ''}
                 sx={formFieldSx}
               />
 
               <TextField
+                required
                 fullWidth
                 type="email"
                 label="Email Address"
@@ -533,12 +552,13 @@ export const OrganizationForm = () => {
                 value={formData.email}
                 onChange={handleChange('email')}
                 size="small"
-                error={fieldErrors.email}
-                helperText={fieldErrors.email ? 'Please enter a valid email' : ''}
+                error={Boolean(fieldErrors.email)}
+                helperText={fieldErrors.email || ''}
                 sx={formFieldSx}
               />
 
               <TextField
+                required
                 fullWidth
                 multiline
                 rows={2}
@@ -547,6 +567,8 @@ export const OrganizationForm = () => {
                 value={formData.address}
                 onChange={handleChange('address')}
                 size="small"
+                error={Boolean(fieldErrors.address)}
+                helperText={fieldErrors.address || ''}
                 sx={formFieldSx}
               />
             </Stack>
@@ -562,11 +584,16 @@ export const OrganizationForm = () => {
 
               <Autocomplete
                 fullWidth
-                options={businessSectors}
-                value={businessSectors.find(s => s.id === formData.businessSectorId) || null}
+                options={selectedBusinessSector && !businessSectors.find(s => s.id === selectedBusinessSector.id) 
+                  ? [selectedBusinessSector, ...businessSectors]
+                  : businessSectors
+                }
+                value={selectedBusinessSector}
                 onChange={(event, newValue) => {
+                  setSelectedBusinessSector(newValue);
                   setFormData((prev) => ({ ...prev, businessSectorId: newValue ? newValue.id : '' }));
                   if (errorMsg) setErrorMsg('');
+                  if (fieldErrors.businessSectorId) setFieldErrors((prev) => ({ ...prev, businessSectorId: undefined }));
                 }}
                 onInputChange={(event, newInputValue) => {
                   setBusinessSectorSearch(newInputValue);
@@ -583,9 +610,12 @@ export const OrganizationForm = () => {
                 renderInput={(params) => (
                   <TextField
                     {...params}
+                    required
                     label="Business Sector"
                     placeholder="Type to search..."
                     size="small"
+                    error={Boolean(fieldErrors.businessSectorId)}
+                    helperText={fieldErrors.businessSectorId || ''}
                     sx={formFieldSx}
                     InputProps={{
                       ...params.InputProps,
@@ -601,6 +631,7 @@ export const OrganizationForm = () => {
               />
 
               <TextField
+                required
                 fullWidth
                 type="date"
                 label="Legal Registration Date"
@@ -608,17 +639,30 @@ export const OrganizationForm = () => {
                 value={formData.registrationDate}
                 onChange={handleChange('registrationDate')}
                 size="small"
+                error={Boolean(fieldErrors.registrationDate)}
+                helperText={fieldErrors.registrationDate || ''}
                 sx={formFieldSx}
               />
 
-               <TextField
+              <TextField
+                required
                 fullWidth
                 label="Trade License / Reg Number"
                 placeholder="e.g. BL-99201"
                 value={formData.licenseNumber}
-                onChange={handleChange('licenseNumber')}
+                onChange={(e) => {
+                  const upperValue = e.target.value.toUpperCase();
+                  setFormData((prev) => ({ ...prev, licenseNumber: upperValue }));
+                  if (errorMsg) setErrorMsg('');
+                  if (fieldErrors.licenseNumber) setFieldErrors((prev) => ({ ...prev, licenseNumber: undefined }));
+                }}
                 size="small"
+                error={Boolean(fieldErrors.licenseNumber)}
+                helperText={fieldErrors.licenseNumber || ''}
                 sx={formFieldSx}
+                inputProps={{
+                  style: { textTransform: 'uppercase' }
+                }}
               />
 
               <TextField

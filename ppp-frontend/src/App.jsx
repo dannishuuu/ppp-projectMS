@@ -106,7 +106,6 @@ function App() {
                   <Route path="projects/proposals/:id/edit" element={<ProjectProposalEdit />} />
                   <Route path="projects/reviews" element={<ProjectReviewPage />} />
                   <Route path="projects/reviews/:id" element={<ProjectReviewApprovalPage />} />
-                  <Route path="projects/tracking-types" element={<ProjectTrackingTypePage />} />
                   <Route path="project-statuses" element={<ProjectStatusPage />} />
 
                   {/* Document management pages */}
@@ -137,6 +136,7 @@ function App() {
                   <Route path="foundation/floor-types" element={<FloorTypePage />} />
                   <Route path="foundation/floor-types" element={<FloorTypePage />} />
                   <Route path="foundation/business-sectors" element={<BusinessSectorPage />} />
+                  <Route path="foundation/tracking-types" element={<ProjectTrackingTypePage />} />
 
                   {/* Building Management pages */}
                   <Route path="buildings" element={<BuildingIndexPage />} />
