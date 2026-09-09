@@ -170,12 +170,12 @@ const DetailField = ({ label, value, highlight }) => (
   </Box>
 );
 
-const PaymentStatusChip = ({ isPaid, dueDate }) => {
+const PaymentStatusChip = ({ isPaid, dueDate, isGrace }) => {
   if (isPaid) {
     return (
       <Chip
         icon={<PaidIcon sx={{ fontSize: '14px !important' }} />}
-        label="Paid"
+        label={isGrace ? 'Paid • Grace' : 'Paid'}
         size="small"
         sx={{ backgroundColor: '#dcfce7', color: '#16a34a', fontWeight: 700, fontSize: '0.68rem' }}
       />
@@ -284,11 +284,19 @@ export const ContractDetailPage = () => {
     return { totalDays, totalMonths, isValidRange };
   }, [contract?.contract_start_date, contract?.contract_end_date]);
 
+  // Grace period: whole months at lease start with no rent due (0 when unset)
+  const gracePeriodMonths = useMemo(() => {
+    const raw = parseInt(contract?.grace_period, 10);
+    return Number.isFinite(raw) && raw > 0 ? raw : 0;
+  }, [contract?.grace_period]);
+
+  // Grace months carry zero rent, so the total value covers only the billable months
   const totalContractValue = useMemo(() => {
     const monthly = parseFloat(contract?.rent_amount_total_per_month) || 0;
-    if (monthly <= 0 || termCalculations.totalMonths <= 0) return 0;
-    return Math.round(monthly * termCalculations.totalMonths * 100) / 100;
-  }, [contract?.rent_amount_total_per_month, termCalculations.totalMonths]);
+    const billableMonths = Math.max(0, termCalculations.totalMonths - gracePeriodMonths);
+    if (monthly <= 0 || billableMonths <= 0) return 0;
+    return Math.round(monthly * billableMonths * 100) / 100;
+  }, [contract?.rent_amount_total_per_month, termCalculations.totalMonths, gracePeriodMonths]);
 
   const outstanding = useMemo(() => {
     const due = Number(contract?.total_amount_due) || Number(paymentStats?.totalAmountDue) || 0;
@@ -791,6 +799,10 @@ export const ContractDetailPage = () => {
                     : null
                 }
               />
+              <DetailField
+                label="Grace Period"
+                value={gracePeriodMonths > 0 ? `${gracePeriodMonths} Month(s) — No Charge` : 'None'}
+              />
             </Box>
 
             {termCalculations.totalDays > 0 && (
@@ -807,6 +819,19 @@ export const ContractDetailPage = () => {
                     border: `1px solid ${termCalculations.isValidRange ? '#bbf7d0' : '#fecaca'}`,
                   }}
                 />
+                {gracePeriodMonths > 0 && (
+                  <Chip
+                    label={`Grace Period: First ${gracePeriodMonths} Month(s) Rent-Free`}
+                    size="small"
+                    sx={{
+                      backgroundColor: '#e0e7ff',
+                      color: '#4338ca',
+                      fontWeight: 700,
+                      fontSize: '0.72rem',
+                      border: '1px solid #c7d2fe',
+                    }}
+                  />
+                )}
               </Box>
             )}
           </Box>
@@ -1135,30 +1160,33 @@ export const ContractDetailPage = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {payments.map((p, idx) => (
+                      {payments.map((p, idx) => {
+                        // Grace installments: pre-marked paid by the system with zero amount and no reference
+                        const isGrace = Boolean(p.is_paid) && Number(p.amount_due) === 0 && !p.transaction_reference;
+                        return (
                         <TableRow
                           key={p.id}
                           hover
                           sx={{
-                            backgroundColor: p.is_paid ? '#f0fdf4' : new Date(p.due_date) < new Date() && !p.is_paid ? '#fff7ed' : 'inherit',
+                            backgroundColor: isGrace ? '#eef2ff' : p.is_paid ? '#f0fdf4' : new Date(p.due_date) < new Date() && !p.is_paid ? '#fff7ed' : 'inherit',
                             '& td': { fontSize: '0.74rem', py: 0.85, px: 2 },
                           }}
                         >
                           <TableCell sx={{ fontWeight: 700, color: '#4f46e5' }}>#{idx + 1}</TableCell>
                           <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>{formatDate(p.due_date)}</TableCell>
                           <TableCell sx={{ color: '#64748b' }}>{formatDate(p.next_payment_date)}</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 700, color: '#dc2626' }}>
+                          <TableCell align="right" sx={{ fontWeight: 700, color: isGrace ? '#94a3b8' : '#dc2626' }}>
                             ETB {formatCurrency(p.amount_due)}
                           </TableCell>
                           <TableCell align="right" sx={{ fontWeight: 700, color: '#16a34a' }}>
                             {p.amount_paid ? `ETB ${formatCurrency(p.amount_paid)}` : '—'}
                           </TableCell>
                           <TableCell align="center">
-                            <PaymentStatusChip isPaid={p.is_paid} dueDate={p.due_date} />
+                            <PaymentStatusChip isPaid={p.is_paid} dueDate={p.due_date} isGrace={isGrace} />
                           </TableCell>
                           <TableCell>
                             <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
-                              {p.transaction_reference || '—'}
+                              {p.transaction_reference || (isGrace ? 'Grace — no reference' : '—')}
                             </Typography>
                             {p.payment_date && (
                               <Typography sx={{ fontSize: '0.68rem', color: '#94a3b8' }}>
@@ -1186,12 +1214,15 @@ export const ContractDetailPage = () => {
                               >
                                 Pay
                               </Button>
+                            ) : isGrace ? (
+                              <Chip label="Grace" size="small" sx={{ fontSize: '0.68rem', backgroundColor: '#e0e7ff', color: '#4338ca', fontWeight: 700 }} />
                             ) : (
                               <Chip label="Done" size="small" sx={{ fontSize: '0.68rem', backgroundColor: '#dcfce7', color: '#16a34a', fontWeight: 700 }} />
                             )}
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -1280,6 +1311,7 @@ export const ContractDetailPage = () => {
                 { label: 'Floor Area', value: contract.area_value ? `${contract.area_value} m²` : '—' },
                 { label: 'Rate per m²', value: contract.rent_amount_per_square_meter != null ? `ETB ${formatCurrency(contract.rent_amount_per_square_meter)}` : '—' },
                 { label: 'Payment Cycle', value: contract.rental_payment_type_name || '—' },
+                { label: 'Grace Period', value: gracePeriodMonths > 0 ? `${gracePeriodMonths} month(s) — no charge` : '—' },
               ].map((row, i, arr) => (
                 <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.85, borderBottom: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
                   <Typography sx={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 500 }}>{row.label}</Typography>
@@ -1310,7 +1342,9 @@ export const ContractDetailPage = () => {
               </Box>
               {termCalculations.totalMonths > 0 && contract.rent_amount_total_per_month && (
                 <Typography sx={{ fontSize: '0.7rem', color: '#6366f1', textAlign: 'center', mt: 0.75, fontWeight: 500 }}>
-                  {termCalculations.totalMonths} months × ETB {formatCurrency(contract.rent_amount_total_per_month)}
+                  {gracePeriodMonths > 0
+                    ? `${termCalculations.totalMonths} mo − ${gracePeriodMonths} grace = ${Math.max(0, termCalculations.totalMonths - gracePeriodMonths)} billable months × ETB ${formatCurrency(contract.rent_amount_total_per_month)}`
+                    : `${termCalculations.totalMonths} months × ETB ${formatCurrency(contract.rent_amount_total_per_month)}`}
                 </Typography>
               )}
             </Box>

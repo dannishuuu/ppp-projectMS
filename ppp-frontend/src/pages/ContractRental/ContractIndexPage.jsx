@@ -364,6 +364,7 @@ export const ContractIndexPage = () => {
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem' }}>BUILDING / UNIT</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem' }}>TENANT</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem' }}>CONTRACT PERIOD</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textAlign: 'center' }}>GRACE</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textAlign: 'right' }}>MONTHLY RENT</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textAlign: 'center' }}>STATUS</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.75rem', textAlign: 'center' }}>ACTIONS</TableCell>
@@ -372,7 +373,7 @@ export const ContractIndexPage = () => {
             <TableBody>
               {!loading && contracts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} sx={{ textAlign: 'center', py: 6, color: '#94a3b8' }}>
+                  <TableCell colSpan={8} sx={{ textAlign: 'center', py: 6, color: '#94a3b8' }}>
                     <ContractIcon sx={{ fontSize: 40, color: '#e2e8f0', display: 'block', mx: 'auto', mb: 1 }} />
                     No rental contracts found. Click "New Contract" to create one.
                   </TableCell>
@@ -421,6 +422,19 @@ export const ContractIndexPage = () => {
                         {formatDate(c.contract_start_date)} – {formatDate(c.contract_end_date)}
                       </Typography>
                     </Box>
+                  </TableCell>
+                  <TableCell sx={{ textAlign: 'center' }}>
+                    {Number(c.grace_period) > 0 ? (
+                      <Tooltip title={`First ${parseInt(c.grace_period, 10)} month(s) rent-free — installments pre-marked paid`}>
+                        <Chip
+                          label={`${parseInt(c.grace_period, 10)} mo`}
+                          size="small"
+                          sx={{ backgroundColor: '#e0e7ff', color: '#4338ca', fontWeight: 700, fontSize: '0.68rem' }}
+                        />
+                      </Tooltip>
+                    ) : (
+                      <Typography sx={{ fontSize: '0.72rem', color: '#94a3b8' }}>—</Typography>
+                    )}
                   </TableCell>
                   <TableCell sx={{ textAlign: 'right' }}>
                     <Typography sx={{ fontWeight: 700, fontSize: '0.82rem', color: '#16a34a' }}>

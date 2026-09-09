@@ -6,6 +6,15 @@ const PAYMENTS_BASE = '/rental-payments';
 /**
  * Rental Contract API Service
  */
+
+// Grace period: whole number of months (no decimals). Missing/empty values default to 0.
+const normalizeGracePeriod = (value) => {
+  if (value === undefined || value === null || String(value).trim() === '') return 0;
+  const str = String(value).trim();
+  if (!/^\d+$/.test(str)) return 0;
+  return parseInt(str, 10);
+};
+
 export const rentalContractService = {
   /**
    * Get paginated rental contracts with optional filters
@@ -73,7 +82,8 @@ export const rentalContractService = {
    * Create a new rental contract
    */
   async createContract(payload) {
-    const response = await apiClient.post(CONTRACTS_BASE, payload);
+    const body = { ...payload, gracePeriod: normalizeGracePeriod(payload.gracePeriod) };
+    const response = await apiClient.post(CONTRACTS_BASE, body);
     return response.data;
   },
 
@@ -81,7 +91,8 @@ export const rentalContractService = {
    * Update an existing rental contract
    */
   async updateContract(id, payload) {
-    const response = await apiClient.put(`${CONTRACTS_BASE}/${id}`, payload);
+    const body = { ...payload, gracePeriod: normalizeGracePeriod(payload.gracePeriod) };
+    const response = await apiClient.put(`${CONTRACTS_BASE}/${id}`, body);
     return response.data;
   },
 

@@ -68,6 +68,7 @@ class RentalContractService {
       remarks,
       isActive = true,
       generateSchedule = true,
+      gracePeriod = 0,
     } = payload;
 
     // 1. Mandatory Validations
@@ -89,7 +90,16 @@ class RentalContractService {
       throw this._validationError('Contract remarks & stipulations is required');
     }
 
-    // 2. Auto-generate contract number via document sequences
+    // 2. Grace period validation: whole number of months, never greater than the contract duration
+    const graceMonths = this._normalizeGracePeriod(gracePeriod);
+    const term = this._calculateContractTerm(contractStartDate, contractEndDate);
+    if (graceMonths > term.totalMonths) {
+      throw this._validationError(
+        `Grace period cannot be greater than the contract duration (${term.totalMonths} months)`
+      );
+    }
+
+    // 3. Auto-generate contract number via document sequences
     const contractNumber = await DocumentSequenceService.generateNextNumber('contract_number', actorId);
 
     // 3. Unit validation & snapshot
@@ -142,6 +152,7 @@ class RentalContractService {
           remarks,
           isActive,
           createdBy: actorId,
+          gracePeriod: graceMonths,
         },
         transaction
       );
@@ -195,6 +206,18 @@ class RentalContractService {
     if (new Date(endDate) < new Date(startDate)) {
       throw this._validationError('contractEndDate cannot be earlier than contractStartDate');
     }
+
+    // Grace period validation: whole number of months, never greater than the contract duration
+    const graceMonths = payload.gracePeriod !== undefined
+      ? this._normalizeGracePeriod(payload.gracePeriod)
+      : this._normalizeGracePeriod(current.grace_period);
+    const term = this._calculateContractTerm(startDate, endDate);
+    if (graceMonths > term.totalMonths) {
+      throw this._validationError(
+        `Grace period cannot be greater than the contract duration (${term.totalMonths} months)`
+      );
+    }
+
     if (payload.remarks !== undefined && (!payload.remarks || !payload.remarks.trim())) {
       throw this._validationError('Contract remarks & stipulations cannot be empty');
     }
@@ -258,6 +281,7 @@ class RentalContractService {
           remarks: payload.remarks,
           isActive,
           updatedBy: actorId,
+          gracePeriod: graceMonths,
         },
         transaction
       );
@@ -270,15 +294,16 @@ class RentalContractService {
 
       // Synchronize automated payment schedule if requested (default true)
       if (payload.generateSchedule !== false) {
-        // Delete unpaid payments
+        // Delete unpaid payments plus previously generated grace placeholders
+        // (zero-amount installments pre-marked as paid) so the grace window is rebuilt
         await db.query(
-          `DELETE FROM rental_payments WHERE rental_contract_id = :id AND is_paid = false`,
+          `DELETE FROM rental_payments WHERE rental_contract_id = :id AND (is_paid = false OR (is_paid = true AND amount_due = 0))`,
           { replacements: { id }, type: QueryTypes.DELETE, transaction }
         );
 
-        // Check if there are any remaining paid payments
+        // Check if there are any remaining real (non-grace) paid payments
         const remainingPaid = await db.query(
-          `SELECT COUNT(*)::int as count FROM rental_payments WHERE rental_contract_id = :id AND is_paid = true AND is_deleted = false`,
+          `SELECT COUNT(*)::int as count FROM rental_payments WHERE rental_contract_id = :id AND is_paid = true AND amount_due > 0 AND is_deleted = false`,
           { replacements: { id }, type: QueryTypes.SELECT, transaction }
         );
         const paidCount = remainingPaid[0]?.count || 0;
@@ -380,6 +405,30 @@ class RentalContractService {
   }
 
   // ── Private helpers ────────────────────────────────────────────────────────
+  // Grace period must be a whole number of months (integer, no decimals, no negatives).
+  // Empty/missing values default to 0.
+  static _normalizeGracePeriod(raw) {
+    if (raw === undefined || raw === null || String(raw).trim() === '') return 0;
+    const str = String(raw).trim();
+    if (!/^\d+$/.test(str)) {
+      throw this._validationError('Grace period must be a whole number of months (integer without decimals)');
+    }
+    return parseInt(str, 10);
+  }
+
+  // Contract duration in days and months (1 month = 30.4375 days average, rounded to 1 decimal —
+  // matches the lease term display used by the frontend).
+  static _calculateContractTerm(startDate, endDate) {
+    if (!startDate || !endDate) return { totalDays: 0, totalMonths: 0 };
+    const [sY, sM, sD] = String(startDate).split('T')[0].split('-').map(Number);
+    const [eY, eM, eD] = String(endDate).split('T')[0].split('-').map(Number);
+    const startUTC = Date.UTC(sY, sM - 1, sD);
+    const endUTC = Date.UTC(eY, eM - 1, eD);
+    const totalDays = Math.ceil((endUTC - startUTC) / (1000 * 60 * 60 * 24)) + 1;
+    const totalMonths = Math.max(0, Math.round((totalDays / 30.4375) * 10) / 10);
+    return { totalDays, totalMonths };
+  }
+
   static async _syncUnitRentedStatus(unitId, transaction, actorId) {
     if (!unitId) return;
     const activeContracts = await db.query(
@@ -420,6 +469,11 @@ class RentalContractService {
     // Amount per cycle based on duration ratio (assuming monthly rent = 30 days)
     const amountPerCycle = parseFloat(((monthlyRent / 30) * intervalDays).toFixed(2));
 
+    // Grace period: the first N scheduled installments get a zero amount and are marked as paid
+    // without any transaction reference, so the tenant is never billed for those months.
+    const rawGrace = parseInt(contract.grace_period ?? contract.gracePeriod, 10);
+    const graceCycles = Number.isFinite(rawGrace) && rawGrace > 0 ? Math.min(rawGrace, numberOfSchedules) : 0;
+
     const formatYMD = (d) => {
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -436,17 +490,18 @@ class RentalContractService {
 
       const dueDateStr = formatYMD(currentDue);
       const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
+      const isGraceCycle = count <= graceCycles;
 
       await RentalPaymentsModel.create(
         {
           rentalContractId: contract.id,
-          amountDue: amountPerCycle > 0 ? amountPerCycle : monthlyRent,
+          amountDue: isGraceCycle ? 0 : (amountPerCycle > 0 ? amountPerCycle : monthlyRent),
           amountPaid: 0,
           dueDate: dueDateStr,
           nextPaymentDate: nextDateStr,
-          isPaid: false,
+          isPaid: isGraceCycle,
           transactionReference: null,
-          remarks: `Scheduled payment #${count}`,
+          remarks: isGraceCycle ? `Grace period #${count} (no charge)` : `Scheduled payment #${count}`,
           createdBy: actorId,
         },
         transaction
@@ -481,6 +536,12 @@ class RentalContractService {
     const monthlyRent = parseFloat(contract.rent_amount_total_per_month || contract.rentAmountTotalPerMonth) || 0;
     const amountPerCycle = parseFloat(((monthlyRent / 30) * intervalDays).toFixed(2));
 
+    // Grace period: installments within the grace window that were not already covered by real
+    // paid payments are generated as zero-amount, pre-paid records without any reference.
+    const rawGrace = parseInt(contract.grace_period ?? contract.gracePeriod, 10);
+    const graceCycles = Number.isFinite(rawGrace) && rawGrace > 0 ? rawGrace : 0;
+    const graceRemaining = Math.max(0, Math.min(graceCycles - paidCount, numberOfSchedules - paidCount));
+
     const formatYMD = (d) => {
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -502,17 +563,18 @@ class RentalContractService {
 
       const dueDateStr = formatYMD(currentDue);
       const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
+      const isGraceCycle = count - paidCount <= graceRemaining;
 
       await RentalPaymentsModel.create(
         {
           rentalContractId: contract.id,
-          amountDue: amountPerCycle > 0 ? amountPerCycle : monthlyRent,
+          amountDue: isGraceCycle ? 0 : (amountPerCycle > 0 ? amountPerCycle : monthlyRent),
           amountPaid: 0,
           dueDate: dueDateStr,
           nextPaymentDate: nextDateStr,
-          isPaid: false,
+          isPaid: isGraceCycle,
           transactionReference: null,
-          remarks: `Scheduled payment #${count}`,
+          remarks: isGraceCycle ? `Grace period #${count} (no charge)` : `Scheduled payment #${count}`,
           createdBy: actorId,
         },
         transaction

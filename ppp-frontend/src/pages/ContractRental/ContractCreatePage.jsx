@@ -170,6 +170,7 @@ export const ContractCreatePage = () => {
     remarks: '',
     isActive: true,
     generateSchedule: true,
+    gracePeriod: '0',
   };
 
   // Lease duration inputs (year + month fields)
@@ -392,6 +393,14 @@ export const ContractCreatePage = () => {
     if (errorMsg) setErrorMsg('');
   };
 
+  // Grace period: whole months only (no decimals, no negatives). Empty value falls back to 0.
+  const handleGracePeriodChange = (e) => {
+    const raw = e.target.value;
+    if (raw !== '' && !/^\d+$/.test(raw)) return;
+    setFormData((p) => ({ ...p, gracePeriod: raw }));
+    if (errorMsg) setErrorMsg('');
+  };
+
   // Calculate lease term duration in months and days
   const termCalculations = useMemo(() => {
     if (!formData.contractStartDate || !formData.contractEndDate) {
@@ -408,6 +417,12 @@ export const ContractCreatePage = () => {
     return { totalDays, totalMonths, isValidRange };
   }, [formData.contractStartDate, formData.contractEndDate]);
 
+  // Grace period: whole months at the start of the lease with no rent due (defaults to 0)
+  const gracePeriodMonths = useMemo(() => {
+    const str = String(formData.gracePeriod ?? '').trim();
+    return /^\d+$/.test(str) ? parseInt(str, 10) : 0;
+  }, [formData.gracePeriod]);
+
   // Selected payment type object
   const selectedPaymentType = useMemo(() => {
     return paymentTypes.find((pt) => pt.id === formData.rentalPaymentTypeId) || null;
@@ -423,12 +438,18 @@ export const ContractCreatePage = () => {
     return organizations.find((o) => o.id === formData.tenantOrganizationId) || null;
   }, [organizations, formData.tenantOrganizationId]);
 
+  // Billable lease months: the grace months carry zero rent, so they are excluded from the total
+  const billableMonths = useMemo(
+    () => Math.max(0, termCalculations.totalMonths - gracePeriodMonths),
+    [termCalculations.totalMonths, gracePeriodMonths]
+  );
+
   // Compute Total Contract Value
   const totalContractValue = useMemo(() => {
     const monthly = parseFloat(formData.rentAmountTotalPerMonth) || 0;
-    if (monthly <= 0 || termCalculations.totalMonths <= 0) return 0;
-    return Math.round(monthly * termCalculations.totalMonths * 100) / 100;
-  }, [formData.rentAmountTotalPerMonth, termCalculations.totalMonths]);
+    if (monthly <= 0 || billableMonths <= 0) return 0;
+    return Math.round(monthly * billableMonths * 100) / 100;
+  }, [formData.rentAmountTotalPerMonth, billableMonths]);
 
   // Live Payment Schedule Simulator
   const simulatedSchedule = useMemo(() => {
@@ -454,13 +475,16 @@ export const ContractCreatePage = () => {
     const numberOfSchedules = Math.round(totalDays / intervalDays);
     if (numberOfSchedules <= 0) return [];
 
-    // The Lease Agreement Preview's "Total Contract Value" (monthly rent × lease months) is the
-    // authoritative amount — distribute it evenly across the installments so the schedule total
-    // matches it exactly. Rounding cents are absorbed by the final installment.
+    // The Lease Agreement Preview's "Total Contract Value" (monthly rent × billable months) is the
+    // authoritative amount — distribute it evenly across the chargeable installments so the
+    // schedule total matches it exactly. Rounding cents are absorbed by the final installment.
     const contractTotal = totalContractValue;
-    if (contractTotal <= 0) return [];
-    const baseAmount = Math.floor((contractTotal / numberOfSchedules) * 100) / 100;
-    const finalAmount = Math.round((contractTotal - baseAmount * (numberOfSchedules - 1)) * 100) / 100;
+    const graceCount = Math.min(gracePeriodMonths, numberOfSchedules);
+    const chargeableCount = numberOfSchedules - graceCount;
+    const baseAmount = chargeableCount > 1 ? Math.floor((contractTotal / chargeableCount) * 100) / 100 : 0;
+    const finalAmount = chargeableCount > 0
+      ? Math.round((contractTotal - baseAmount * (chargeableCount - 1)) * 100) / 100
+      : 0;
 
     const formatYMD = (d) => {
       const year = d.getFullYear();
@@ -482,12 +506,14 @@ export const ContractCreatePage = () => {
 
       const dueDateStr = formatYMD(currentDue);
       const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
+      const isGrace = count <= graceCount;
 
       schedule.push({
         installmentNumber: count,
         dueDate: dueDateStr,
         nextDate: nextDateStr,
-        amount: count === numberOfSchedules ? finalAmount : baseAmount,
+        amount: isGrace ? 0 : (count === numberOfSchedules ? finalAmount : baseAmount),
+        isGrace,
       });
 
       currentDue = nextDue;
@@ -501,6 +527,7 @@ export const ContractCreatePage = () => {
     formData.rentAmountTotalPerMonth,
     selectedPaymentType,
     totalContractValue,
+    gracePeriodMonths,
   ]);
 
   // Validation
@@ -523,6 +550,9 @@ export const ContractCreatePage = () => {
     if (!formData.contractEndDate) return 'Lease end date could not be calculated.';
     if (new Date(formData.contractEndDate) <= new Date(formData.contractStartDate)) {
       return 'Contract end date must be strictly after the start date.';
+    }
+    if (gracePeriodMonths > termCalculations.totalMonths) {
+      return `Grace period cannot be greater than the contract duration (${termCalculations.totalMonths} months).`;
     }
     if (!formData.rentalPaymentTypeId) return 'Please select a payment frequency (Rental Payment Type).';
     if (!formData.paymentTimingId) return 'Please select payment timing (e.g. In Advance).';
@@ -572,6 +602,7 @@ export const ContractCreatePage = () => {
         remarks: formData.remarks.trim(),
         isActive: formData.isActive,
         generateSchedule: formData.generateSchedule,
+        gracePeriod: gracePeriodMonths,
       };
 
       const res = await rentalContractService.createContract(payload);
@@ -1314,6 +1345,35 @@ export const ContractCreatePage = () => {
                       ))}
                     </TextField>
                   </Box>
+
+                  {/* Grace Period — whole months with no rent due at lease start */}
+                  <Box sx={{ width: '100%' }}>
+                    <FieldLabel>Grace Period</FieldLabel>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="number"
+                      placeholder="0"
+                      value={formData.gracePeriod}
+                      onChange={handleGracePeriodChange}
+                      disabled={saving}
+                      inputProps={{ min: 0, step: 1 }}
+                      error={termCalculations.totalMonths > 0 && gracePeriodMonths > termCalculations.totalMonths}
+                      helperText={
+                        termCalculations.totalMonths > 0 && gracePeriodMonths > termCalculations.totalMonths
+                          ? `Cannot exceed the ${termCalculations.totalMonths} months contract duration`
+                          : 'Whole number of months (no decimals) with no rent charged at lease start. Defaults to 0.'
+                      }
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <Typography sx={{ fontSize: '0.72rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>months</Typography>
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
+                    />
+                  </Box>
                 </Box>
               </Box>
               )}
@@ -1733,6 +1793,7 @@ export const ContractCreatePage = () => {
                     { label: 'Floor Area', value: selectedUnit?.area_value ? `${selectedUnit.area_value} ${selectedUnit.area_unit_name || 'm²'}` : '—' },
                     { label: 'Rate per m²', value: formData.rentAmountPerSquareMeter ? `ETB ${formatCurrency(formData.rentAmountPerSquareMeter)}` : '—' },
                     { label: 'Payment Cycle', value: selectedPaymentType?.name || '—' },
+                    { label: 'Grace Period', value: `${gracePeriodMonths} month(s) — no charge` },
                   ].map((row, i, arr) => (
                     <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.85, borderBottom: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
                       <Typography sx={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 500 }}>{row.label}</Typography>
@@ -1763,7 +1824,9 @@ export const ContractCreatePage = () => {
                   </Box>
                   {termCalculations.totalMonths > 0 && formData.rentAmountTotalPerMonth && (
                     <Typography sx={{ fontSize: '0.7rem', color: '#6366f1', textAlign: 'center', mt: 0.75, fontWeight: 500 }}>
-                      {termCalculations.totalMonths} months × ETB {formatCurrency(formData.rentAmountTotalPerMonth)}
+                      {gracePeriodMonths > 0
+                        ? `${termCalculations.totalMonths} mo − ${gracePeriodMonths} grace = ${billableMonths} billable months × ETB ${formatCurrency(formData.rentAmountTotalPerMonth)}`
+                        : `${termCalculations.totalMonths} months × ETB ${formatCurrency(formData.rentAmountTotalPerMonth)}`}
                     </Typography>
                   )}
                 </Box>
@@ -1914,6 +1977,7 @@ export const ContractCreatePage = () => {
                     <Box sx={{ px: 3, py: 1.25, backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
                         {simulatedSchedule.length} installments scheduled
+                        {gracePeriodMonths > 0 ? ` • first ${Math.min(gracePeriodMonths, simulatedSchedule.length)} pre-paid (grace)` : ''}
                       </Typography>
                       <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: '#16a34a' }}>
                         Total: ETB {formatCurrency(simulatedSchedule.reduce((acc, s) => acc + s.amount, 0))}
@@ -1940,11 +2004,17 @@ export const ContractCreatePage = () => {
                               <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>
                                 {item.dueDate}
                               </TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 700, color: '#16a34a' }}>
+                              <TableCell align="right" sx={{ fontWeight: 700, color: item.isGrace ? '#94a3b8' : '#16a34a' }}>
                                 ETB {formatCurrency(item.amount)}
                               </TableCell>
                               <TableCell align="right">
-                                <Chip label="Pending" size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#fef9c3', color: '#ca8a04' }} />
+                                {item.isGrace ? (
+                                  <Tooltip title="Grace period installment — marked paid with no transaction reference">
+                                    <Chip label="Paid • Grace" size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#dcfce7', color: '#16a34a' }} />
+                                  </Tooltip>
+                                ) : (
+                                  <Chip label="Pending" size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#fef9c3', color: '#ca8a04' }} />
+                                )}
                               </TableCell>
                             </TableRow>
                           ))}

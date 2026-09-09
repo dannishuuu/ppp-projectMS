@@ -23,6 +23,7 @@ const PUBLIC_RENTAL_CONTRACT_FIELDS = `
   rc.updated_at,
   rc.created_by,
   rc.updated_by,
+  rc.grace_period,
   b.name AS building_name,
   bf.name AS floor_name,
   bu.unit_number AS current_unit_number,
@@ -196,7 +197,7 @@ class RentalContractModel {
         rent_amount_per_square_meter, rent_amount_total_per_month,
         rental_payment_type_id, payment_timing_id,
         contract_number, contract_start_date, contract_end_date,
-        remarks, is_active, is_deleted, created_by, updated_by
+        remarks, is_active, is_deleted, created_by, updated_by,grace_period
       ) VALUES (
         :buildingId, :floorId, :unitId,
         :unitNumber, :floorNumber, :areaValue,
@@ -204,7 +205,7 @@ class RentalContractModel {
         :rentAmountPerSqm, :rentAmountTotalPerMonth,
         :rentalPaymentTypeId, :paymentTimingId,
         :contractNumber, :contractStartDate, :contractEndDate,
-        :remarks, COALESCE(:isActive, true), false, :createdBy, :createdBy
+        :remarks, COALESCE(:isActive, true), false, :createdBy, :createdBy, :gracePeriod
       )
       RETURNING id`,
       {
@@ -226,6 +227,7 @@ class RentalContractModel {
           remarks: data.remarks || null,
           isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
           createdBy: data.createdBy || null,
+          gracePeriod: Number.isFinite(parseInt(data.gracePeriod, 10)) ? Math.max(0, parseInt(data.gracePeriod, 10)) : 0,
         },
         type: QueryTypes.SELECT,
         transaction,
@@ -257,7 +259,8 @@ class RentalContractModel {
         updated_at = NOW(),
         is_deleted = false,
         deleted_at = NULL,
-        deleted_by = NULL
+        deleted_by = NULL,
+        grace_period = COALESCE(:gracePeriod, grace_period)
       WHERE id = :id AND is_deleted = false`,
       {
         replacements: {
@@ -279,6 +282,10 @@ class RentalContractModel {
           remarks: data.remarks !== undefined ? data.remarks : null,
           isActive: data.isActive !== undefined ? Boolean(data.isActive) : null,
           updatedBy: data.updatedBy || null,
+          gracePeriod:
+            data.gracePeriod !== undefined && data.gracePeriod !== null && Number.isFinite(parseInt(data.gracePeriod, 10))
+              ? Math.max(0, parseInt(data.gracePeriod, 10))
+              : null,
         },
         type: QueryTypes.UPDATE,
         transaction,
