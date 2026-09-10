@@ -575,10 +575,11 @@ export const ContractEditPage = () => {
       formData.contractStartDate !== savedStart ||
       formData.contractEndDate !== savedEnd ||
       String(formData.rentalPaymentTypeId) !== String(original.rental_payment_type_id ?? '') ||
+      String(formData.paymentTimingId) !== String(original.payment_timing_id ?? '') ||
       round2(parseFloat(formData.rentAmountTotalPerMonth) || 0) !== round2(parseFloat(original.rent_amount_total_per_month) || 0) ||
       gracePeriodMonths !== (parseInt(original.grace_period, 10) || 0)
     );
-  }, [original, formData.contractStartDate, formData.contractEndDate, formData.rentalPaymentTypeId, formData.rentAmountTotalPerMonth, gracePeriodMonths]);
+  }, [original, formData.contractStartDate, formData.contractEndDate, formData.rentalPaymentTypeId, formData.paymentTimingId, formData.rentAmountTotalPerMonth, gracePeriodMonths]);
 
   // Show the database schedule when nothing schedule-affecting has been modified
   const showSavedSchedule = !scheduleDirty && savedPayments.length > 0;
@@ -694,9 +695,15 @@ export const ContractEditPage = () => {
     const [eY, eM, eD] = formData.contractEndDate.split('-').map(Number);
     const endBound = new Date(eY, eM - 1, eD, 23, 59, 59, 999);
 
+    // Payment timing: ADVANCE bills from the contract start; AFTER_USAGE bills exactly one
+    // month (the payment-type month unit nearest to 30) after the contract start.
+    const selectedTiming = paymentTimings.find((t) => String(t.id) === String(formData.paymentTimingId));
+    const afterUsage = String(selectedTiming?.timing_code || '').trim().toUpperCase() === 'AFTER_USAGE';
+
     const schedule = [];
     // Anchor at noon so fractional-day intervals and DST shifts never cross a calendar date boundary
     let currentDue = new Date(sY, sM - 1, sD, 12);
+    if (afterUsage) currentDue = new Date(currentDue.getTime() + monthDays * 24 * 60 * 60 * 1000);
 
     for (let count = 1; count <= numberOfSchedules; count++) {
       const nextDue = new Date(currentDue.getTime() + intervalMs);
@@ -719,10 +726,12 @@ export const ContractEditPage = () => {
   }, [
     formData.contractStartDate,
     formData.contractEndDate,
+    formData.paymentTimingId,
     termCalculations.totalDays,
     termCalculations.isValidRange,
     formData.rentAmountTotalPerMonth,
     selectedPaymentType,
+    paymentTimings,
     totalContractValue,
     gracePeriodMonths,
     monthDays,

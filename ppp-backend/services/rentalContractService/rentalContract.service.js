@@ -419,7 +419,10 @@ class RentalContractService {
             AND rp.payment_date < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month') AS monthly_income,
         (SELECT COALESCE(SUM(rp.amount_due - rp.amount_paid), 0)::numeric
            FROM rental_payments rp
+           JOIN rental_contracts oc ON oc.id = rp.rental_contract_id
           WHERE rp.is_deleted = false
+            AND oc.is_deleted = false
+            AND oc.is_active = true
             AND rp.is_paid = false
             AND rp.due_date <= CURRENT_DATE
             AND (rp.amount_due - rp.amount_paid) <> 0) AS monthly_overdue
@@ -476,6 +479,16 @@ class RentalContractService {
       if (Number.isFinite(d) && d > 0 && Math.abs(d - 30) < Math.abs(monthDays - 30)) monthDays = d;
     }
     return monthDays;
+  }
+
+  // Payment timing code for a contract (e.g. ADVANCE, AFTER_USAGE)
+  static async _resolveTimingCode(timingId, transaction = null) {
+    if (!timingId) return null;
+    const rows = await db.query(
+      `SELECT timing_code FROM payment_timings WHERE id = :timingId AND is_deleted = false LIMIT 1`,
+      { replacements: { timingId }, type: QueryTypes.SELECT, ...(transaction ? { transaction } : {}) }
+    );
+    return rows[0]?.timing_code ? String(rows[0].timing_code).trim().toUpperCase() : null;
   }
 
   // Days of an installment cycle starting at offsetDays (each cycle is intervalDays long)
@@ -593,7 +606,12 @@ class RentalContractService {
     // annual cycle loses one month of rent, not the whole year.
     const rawGrace = parseInt(contract.grace_period ?? contract.gracePeriod, 10);
     const graceMonths = Number.isFinite(rawGrace) && rawGrace > 0 ? rawGrace : 0;
-    const monthDays = graceMonths > 0 ? await this._resolveMonthDurationDays(transaction) : 30;
+
+    // Payment timing: ADVANCE bills from the contract start; AFTER_USAGE bills exactly one
+    // month (the payment-type month unit) after the contract start.
+    const timingCode = await this._resolveTimingCode(contract.payment_timing_id || contract.paymentTimingId, transaction);
+    const afterUsage = timingCode === 'AFTER_USAGE';
+    const monthDays = graceMonths > 0 || afterUsage ? await this._resolveMonthDurationDays(transaction) : 30;
     const graceDays = graceMonths * monthDays;
 
     // The contract total (monthly rent × billable months) is the authoritative amount — the same
@@ -640,7 +658,10 @@ class RentalContractService {
       return `${year}-${month}-${day}`;
     };
 
+    // Billing anchor: the contract start date for ADVANCE timing, exactly one month later
+    // for AFTER_USAGE timing; next payment dates follow from there per interval.
     let currentDue = new Date(sY, sM - 1, sD);
+    if (afterUsage) currentDue = new Date(currentDue.getTime() + monthDays * 24 * 60 * 60 * 1000);
     const endBound = new Date(eY, eM - 1, eD);
 
     for (let count = 1; count <= numberOfSchedules; count++) {
@@ -697,7 +718,12 @@ class RentalContractService {
     // graceDays days regardless of how many real payments already exist.
     const rawGrace = parseInt(contract.grace_period ?? contract.gracePeriod, 10);
     const graceMonths = Number.isFinite(rawGrace) && rawGrace > 0 ? rawGrace : 0;
-    const monthDays = graceMonths > 0 ? await this._resolveMonthDurationDays(transaction) : 30;
+
+    // Payment timing: ADVANCE bills from the contract start; AFTER_USAGE bills exactly one
+    // month (the payment-type month unit) after the contract start.
+    const timingCode = await this._resolveTimingCode(contract.payment_timing_id || contract.paymentTimingId, transaction);
+    const afterUsage = timingCode === 'AFTER_USAGE';
+    const monthDays = graceMonths > 0 || afterUsage ? await this._resolveMonthDurationDays(transaction) : 30;
     const graceDays = graceMonths * monthDays;
 
     const contractTotal = round2(monthlyRent * Math.max(0, term.totalMonths - graceMonths));
@@ -740,7 +766,10 @@ class RentalContractService {
       return `${year}-${month}-${day}`;
     };
 
+    // Billing anchor: the contract start date for ADVANCE timing, exactly one month later
+    // for AFTER_USAGE timing; next payment dates follow from there per interval.
     let currentDue = new Date(sY, sM - 1, sD);
+    if (afterUsage) currentDue = new Date(currentDue.getTime() + monthDays * 24 * 60 * 60 * 1000);
     const endBound = new Date(eY, eM - 1, eD);
 
     // Fast-forward past the paid installments

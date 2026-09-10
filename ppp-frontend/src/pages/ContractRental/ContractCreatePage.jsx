@@ -537,9 +537,15 @@ export const ContractCreatePage = () => {
     const [eY, eM, eD] = formData.contractEndDate.split('-').map(Number);
     const endBound = new Date(eY, eM - 1, eD, 23, 59, 59, 999);
 
+    // Payment timing: ADVANCE bills from the contract start; AFTER_USAGE bills exactly one
+    // month (the payment-type month unit nearest to 30) after the contract start.
+    const selectedTiming = paymentTimings.find((t) => String(t.id) === String(formData.paymentTimingId));
+    const afterUsage = String(selectedTiming?.timing_code || '').trim().toUpperCase() === 'AFTER_USAGE';
+
     const schedule = [];
     // Anchor at noon so fractional-day intervals and DST shifts never cross a calendar date boundary
     let currentDue = new Date(sY, sM - 1, sD, 12);
+    if (afterUsage) currentDue = new Date(currentDue.getTime() + monthDays * 24 * 60 * 60 * 1000);
 
     for (let count = 1; count <= numberOfSchedules; count++) {
       const nextDue = new Date(currentDue.getTime() + intervalMs);
@@ -562,10 +568,12 @@ export const ContractCreatePage = () => {
   }, [
     formData.contractStartDate,
     formData.contractEndDate,
+    formData.paymentTimingId,
     termCalculations.totalDays,
     termCalculations.isValidRange,
     formData.rentAmountTotalPerMonth,
     selectedPaymentType,
+    paymentTimings,
     totalContractValue,
     gracePeriodMonths,
     monthDays,
