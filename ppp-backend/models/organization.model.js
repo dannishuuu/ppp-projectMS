@@ -12,8 +12,16 @@ const ORG_FIELDS = `
   o.oromo_org_name,
   o.phone,
   o.email,
-  o.address,
   o.profile_experience,
+  o.country_id,
+  o.region_id,
+  o.zone_id,
+  o.woreda_id,
+  cn.name AS country_name,
+  cn.code AS country_code,
+  r.name AS region_name,
+  z.name AS zone_name,
+  w.name AS woreda_name,
   o.is_active,
   o.created_at,
   o.updated_at,
@@ -65,6 +73,10 @@ const BASE_JOIN = `
   FROM organizations o
   LEFT JOIN organization_profiles op   ON op.organization_id = o.id
   LEFT JOIN business_sectors bs        ON bs.id = op.business_sector_id AND bs.is_deleted = FALSE
+  LEFT JOIN countries cn               ON cn.id = o.country_id
+  LEFT JOIN regions r                  ON r.id = o.region_id
+  LEFT JOIN zones z                    ON z.id = o.zone_id
+  LEFT JOIN woredas w                  ON w.id = o.woreda_id
   LEFT JOIN users creator              ON creator.id = o.created_by
   LEFT JOIN users updater              ON updater.id = o.updated_by
 `;
@@ -139,12 +151,12 @@ class OrganizationModel {
    * Insert a row into `organizations`.
    * Returns the new org id.
    */
-  static async insertOrganization(t, { name, amharicOrgName, oromoOrgName, phone, email, address, profileExperience, createdBy }) {
+  static async insertOrganization(t, { name, amharicOrgName, oromoOrgName, phone, email, countryId, regionId, zoneId, woredaId, profileExperience, createdBy }) {
     const query = `
       INSERT INTO organizations
-        (name, amharic_org_name, oromo_org_name, phone, email, address, profile_experience, created_by, updated_by)
+        (name, amharic_org_name, oromo_org_name, phone, email, country_id, region_id, zone_id, woreda_id, profile_experience, created_by, updated_by)
       VALUES
-        (:name, :amharicOrgName, :oromoOrgName, :phone, :email, :address, :profileExperience, :createdBy, :createdBy)
+        (:name, :amharicOrgName, :oromoOrgName, :phone, :email, :countryId, :regionId, :zoneId, :woredaId, :profileExperience, :createdBy, :createdBy)
       RETURNING id
     `;
     const rows = await db.query(query, {
@@ -154,7 +166,10 @@ class OrganizationModel {
         oromoOrgName: oromoOrgName || null,
         phone: phone || null,
         email: email || null,
-        address: address || null,
+        countryId: countryId || null,
+        regionId: regionId || null,
+        zoneId: zoneId || null,
+        woredaId: woredaId || null,
         profileExperience: profileExperience || null,
         createdBy,
       },
@@ -222,7 +237,7 @@ class OrganizationModel {
   // ─── UPDATE (called inside a transaction) ───────────────────
 
   static async updateOrganization(t, id, fields, updatedBy) {
-    const allowed = ['name', 'amharic_org_name', 'oromo_org_name', 'phone', 'email', 'address', 'profile_experience'];
+    const allowed = ['name', 'amharic_org_name', 'oromo_org_name', 'phone', 'email', 'country_id', 'region_id', 'zone_id', 'woreda_id', 'profile_experience'];
     const setClauses = [];
     const replacements = { id, updatedBy };
 

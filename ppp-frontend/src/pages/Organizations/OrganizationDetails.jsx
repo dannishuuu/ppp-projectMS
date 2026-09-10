@@ -258,11 +258,11 @@ export const OrganizationDetails = () => {
                 </Box>
               )}
 
-              {org.address && (
+              {[org.region_name, org.zone_name, org.woreda_name].filter(Boolean).length > 0 && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                   <LocationIcon sx={{ fontSize: 16, color: '#94a3b8' }} />
                   <Typography variant="body2" sx={{ color: '#334155', fontSize: '0.82rem' }}>
-                    {org.address}
+                    {[org.region_name, org.zone_name, org.woreda_name].filter(Boolean).join(', ')}
                   </Typography>
                 </Box>
               )}
@@ -360,10 +360,12 @@ export const OrganizationDetails = () => {
 
               <Box>
                 <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
-                  Office Address
+                  Location
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 600, fontSize: '0.85rem' }}>
-                  {org.address || '-'}
+                  {org.country_name || org.region_name
+                    ? [org.country_name, org.region_name, org.zone_name, org.woreda_name].filter(Boolean).join(' • ')
+                    : '-'}
                 </Typography>
               </Box>
             </Box>

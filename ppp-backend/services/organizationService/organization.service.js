@@ -50,7 +50,8 @@ class OrganizationService {
    * Expected payload shape:
    * {
    *   // organizations table fields
-   *   name, organizationTypeIds?, organizationTypeId?, phone?, email?, address?, profileExperience?,
+   *   name, organizationTypeIds?, organizationTypeId?, phone?, email?,
+   *   countryId, regionId, zoneId?, woredaId?, profileExperience?,
    *
    *   // organization_profiles table fields
    *   businessSector?, yearsOfExperience?, registrationDate?,
@@ -69,7 +70,10 @@ class OrganizationService {
       organizationTypeId,
       phone,
       email,
-      address,
+      countryId,
+      regionId,
+      zoneId,
+      woredaId,
       profileExperience,
       // profile fields
       businessSectorId,
@@ -126,8 +130,13 @@ class OrganizationService {
       err.status = 400;
       throw err;
     }
-    if (!address || !address.trim()) {
-      const err = new Error('Office address is required.');
+    if (!countryId) {
+      const err = new Error('Country is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!regionId) {
+      const err = new Error('Region is required.');
       err.status = 400;
       throw err;
     }
@@ -164,7 +173,10 @@ class OrganizationService {
         oromoOrgName: oromoOrgName.trim(),
         phone: phone.trim(),
         email: email.trim(),
-        address: address.trim(),
+        countryId,
+        regionId,
+        zoneId: zoneId || null,
+        woredaId: woredaId || null,
         profileExperience: profileExperience ? profileExperience.trim() : null,
         createdBy: actorId,
       });
@@ -212,7 +224,10 @@ class OrganizationService {
       organizationTypeId,
       phone,
       email,
-      address,
+      countryId,
+      regionId,
+      zoneId,
+      woredaId,
       profileExperience,
       // profile fields
       businessSectorId,
@@ -269,8 +284,13 @@ class OrganizationService {
       err.status = 400;
       throw err;
     }
-    if (!address || !address.trim()) {
-      const err = new Error('Office address is required.');
+    if (!countryId) {
+      const err = new Error('Country is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!regionId) {
+      const err = new Error('Region is required.');
       err.status = 400;
       throw err;
     }
@@ -309,7 +329,10 @@ class OrganizationService {
         oromo_org_name: oromoOrgName.trim(),
         phone: phone.trim(),
         email: email.trim(),
-        address: address.trim(),
+        country_id: countryId || null,
+        region_id: regionId || null,
+        zone_id: zoneId || null,
+        woreda_id: woredaId || null,
         profile_experience: profileExperience ? profileExperience.trim() : null,
       }, actorId);
 

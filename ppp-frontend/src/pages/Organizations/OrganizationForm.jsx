@@ -36,6 +36,10 @@ import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { organizationService, organizationTypeService } from '../../services/organizationService';
 import { businessSectorService } from '../../services/foundationService/businessSectorService';
+import { countriesService } from '../../services/foundationService/countriesService';
+import { regionsService } from '../../services/foundationService/regionsService';
+import { zonesService } from '../../services/foundationService/zonesService';
+import { woredasService } from '../../services/foundationService/woredasService';
 
 const inputSx = {
   borderRadius: 2,
@@ -92,6 +96,12 @@ export const OrganizationForm = () => {
   const [selectedBusinessSector, setSelectedBusinessSector] = useState(null);
   const [businessSectorSearch, setBusinessSectorSearch] = useState('');
   const [businessSectorLoading, setBusinessSectorLoading] = useState(false);
+
+  // Location cascading lookups (Country → Region → Zone/Sub-city → Woreda)
+  const [countries, setCountries] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [zones, setZones] = useState([]);
+  const [woredas, setWoredas] = useState([]);
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -105,7 +115,10 @@ export const OrganizationForm = () => {
     organizationTypeIds: [],
     phone: '',
     email: '',
-    address: '',
+    countryId: '',
+    regionId: '',
+    zoneId: '',
+    woredaId: '',
     profileExperience: '',
 
     // Organization Profile
@@ -138,6 +151,67 @@ export const OrganizationForm = () => {
     };
     fetchTypes();
   }, []);
+
+  // Load countries once (for the location cascade)
+  useEffect(() => {
+    countriesService.getCountries({ limit: 100, status: 'active' }).then((res) => {
+      setCountries(res.countries || res.rows || []);
+    }).catch(() => setCountries([]));
+  }, []);
+
+  // Load regions (options for the Region select)
+  useEffect(() => {
+    if (!formData.countryId) {
+      setRegions([]);
+      return;
+    }
+    regionsService.getRegions({ limit: 200, status: 'active' }).then((res) => {
+      setRegions(res.regions || res.rows || []);
+    }).catch(() => setRegions([]));
+  }, [formData.countryId]);
+
+  // Load zones for the selected region
+  useEffect(() => {
+    if (!formData.regionId) {
+      setZones([]);
+      return;
+    }
+    zonesService.getZones({ regionId: formData.regionId, limit: 200, status: 'active' }).then((res) => {
+      setZones(res.zones || res.rows || []);
+    }).catch(() => setZones([]));
+  }, [formData.regionId]);
+
+  // Load woredas for the selected zone
+  useEffect(() => {
+    if (!formData.zoneId) {
+      setWoredas([]);
+      return;
+    }
+    woredasService.getWoredas({ zoneId: formData.zoneId, limit: 200, status: 'active' }).then((res) => {
+      setWoredas(res.woredas || res.rows || []);
+    }).catch(() => setWoredas([]));
+  }, [formData.zoneId]);
+
+  // Location cascade handlers — changing a parent clears its children
+  const handleCountryChange = (event) => {
+    const value = event.target.value;
+    setFormData((prev) => ({ ...prev, countryId: value, regionId: '', zoneId: '', woredaId: '' }));
+    if (errorMsg) setErrorMsg('');
+    if (fieldErrors.countryId) setFieldErrors((prev) => ({ ...prev, countryId: undefined }));
+  };
+
+  const handleRegionChange = (event) => {
+    const value = event.target.value;
+    setFormData((prev) => ({ ...prev, regionId: value, zoneId: '', woredaId: '' }));
+    if (errorMsg) setErrorMsg('');
+    if (fieldErrors.regionId) setFieldErrors((prev) => ({ ...prev, regionId: undefined }));
+  };
+
+  const handleZoneChange = (event) => {
+    const value = event.target.value;
+    setFormData((prev) => ({ ...prev, zoneId: value, woredaId: '' }));
+    if (errorMsg) setErrorMsg('');
+  };
 
   // Debounced Business Sector search (min 3 characters)
   useEffect(() => {
@@ -189,7 +263,10 @@ export const OrganizationForm = () => {
           organizationTypeIds: typeIds,
           phone: org.phone || '',
           email: org.email || '',
-          address: org.address || '',
+          countryId: org.country_id || '',
+          regionId: org.region_id || '',
+          zoneId: org.zone_id || '',
+          woredaId: org.woreda_id || '',
           profileExperience: org.profile_experience || '',
           businessSectorId: org.business_sector_id || '',
           yearsOfExperience: org.years_of_experience ?? '',
@@ -257,7 +334,8 @@ export const OrganizationForm = () => {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       errors.email = 'Please enter a valid email address.';
     }
-    if (!formData.address?.trim()) errors.address = 'Office address is required.';
+    if (!formData.countryId) errors.countryId = 'Country is required.';
+    if (!formData.regionId) errors.regionId = 'Region is required.';
     if (!formData.businessSectorId) errors.businessSectorId = 'Business sector is required.';
     if (!formData.registrationDate) errors.registrationDate = 'Legal registration date is required.';
     if (!formData.licenseNumber?.trim()) errors.licenseNumber = 'Trade license / registration number is required.';
@@ -557,20 +635,79 @@ export const OrganizationForm = () => {
                 sx={formFieldSx}
               />
 
-              <TextField
-                required
-                fullWidth
-                multiline
-                rows={2}
-                label="Office Address"
-                placeholder="e.g. Kirkos Sub City, Woreda 03, Addis Ababa"
-                value={formData.address}
-                onChange={handleChange('address')}
-                size="small"
-                error={Boolean(fieldErrors.address)}
-                helperText={fieldErrors.address || ''}
-                sx={formFieldSx}
-              />
+              {/* Location — Country → Region → Zone/Sub-city → Woreda cascade */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                <TextField
+                  select
+                  required
+                  fullWidth
+                  label="Country"
+                  value={formData.countryId}
+                  onChange={handleCountryChange}
+                  size="small"
+                  error={Boolean(fieldErrors.countryId)}
+                  helperText={fieldErrors.countryId || ''}
+                  sx={formFieldSx}
+                >
+                  <MenuItem value="">Select Country...</MenuItem>
+                  {countries.map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                      {c.name}{c.code ? ` (${c.code})` : ''}
+                    </MenuItem>
+                  ))}
+                </TextField>
+
+                <TextField
+                  select
+                  required
+                  fullWidth
+                  label="Region"
+                  value={formData.regionId}
+                  onChange={handleRegionChange}
+                  disabled={!formData.countryId}
+                  size="small"
+                  error={Boolean(fieldErrors.regionId)}
+                  helperText={fieldErrors.regionId || ''}
+                  sx={formFieldSx}
+                >
+                  <MenuItem value="">Select Region...</MenuItem>
+                  {regions.map((r) => (
+                    <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
+                  ))}
+                </TextField>
+
+                <TextField
+                  select
+                  fullWidth
+                  label="Zone / Sub-city"
+                  value={formData.zoneId}
+                  onChange={handleZoneChange}
+                  disabled={!formData.regionId}
+                  size="small"
+                  sx={formFieldSx}
+                >
+                  <MenuItem value="">Select Zone / Sub-city...</MenuItem>
+                  {zones.map((z) => (
+                    <MenuItem key={z.id} value={z.id}>{z.name}</MenuItem>
+                  ))}
+                </TextField>
+
+                <TextField
+                  select
+                  fullWidth
+                  label="Woreda"
+                  value={formData.woredaId}
+                  onChange={handleChange('woredaId')}
+                  disabled={!formData.zoneId}
+                  size="small"
+                  sx={formFieldSx}
+                >
+                  <MenuItem value="">Select Woreda...</MenuItem>
+                  {woredas.map((w) => (
+                    <MenuItem key={w.id} value={w.id}>{w.name}</MenuItem>
+                  ))}
+                </TextField>
+              </Box>
             </Stack>
 
             {/* Column 2: Licensing & Profile */}
