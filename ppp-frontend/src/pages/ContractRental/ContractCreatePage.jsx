@@ -58,6 +58,7 @@ import { buildingUnitsService } from '../../services/buildingServices/buildingUn
 import { rentalPaymentTypesService } from '../../services/foundationService/rentalPaymentTypesService';
 import { paymentTimingsService } from '../../services/foundationService/paymentTimingsService';
 import { organizationService } from '../../services/organizationService/organizationService';
+import { currencyService } from '../../services/foundationService/currencyService';
 
 // Format currency
 const formatCurrency = (val) => {
@@ -171,9 +172,10 @@ export const ContractCreatePage = () => {
     rentAmountPerSquareMeter: '',
     rentAmountTotalPerMonth: '',
     remarks: '',
-    isActive: true,
+    isActive: false,
     generateSchedule: true,
     gracePeriod: '0',
+    currencyId: '',
   };
 
   // Lease duration inputs (year + month fields)
@@ -189,6 +191,7 @@ export const ContractCreatePage = () => {
   const [paymentTypes, setPaymentTypes] = useState([]);
   const [paymentTimings, setPaymentTimings] = useState([]);
   const [organizations, setOrganizations] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
 
   // Loading and error states
   const [loadingLookups, setLoadingLookups] = useState(true);
@@ -208,22 +211,25 @@ export const ContractCreatePage = () => {
     const init = async () => {
       setLoadingLookups(true);
       try {
-        const [bRes, ptRes, timRes, orgRes] = await Promise.all([
+        const [bRes, ptRes, timRes, orgRes, curRes] = await Promise.all([
           buildingsService.getBuildings({ limit: 200, status: 'active' }),
           rentalPaymentTypesService.getRentalPaymentTypes({ limit: 100, status: 'active' }),
           paymentTimingsService.getPaymentTimings({ limit: 100, status: 'active' }),
           organizationService.getOrganizations({ limit: 200, status: 'active' }),
+          currencyService.getCurrencies({ limit: 100, status: 'active' }).catch(() => null),
         ]);
 
         const buildingsList = bRes?.buildings || bRes?.rows || (Array.isArray(bRes) ? bRes : []);
         const pTypes = ptRes?.rentalPaymentTypes || ptRes?.rows || (Array.isArray(ptRes) ? ptRes : []);
         const pTimings = timRes?.paymentTimings || timRes?.rows || (Array.isArray(timRes) ? timRes : []);
         const orgs = orgRes?.organizations || orgRes?.rows || (Array.isArray(orgRes) ? orgRes : []);
+        const curList = curRes?.currencies || curRes?.rows || (Array.isArray(curRes) ? curRes : []);
 
         setBuildings(buildingsList);
         setPaymentTypes(pTypes);
         setPaymentTimings(pTimings);
         setOrganizations(orgs);
+        setCurrencies(curList);
 
         // Auto-select standard defaults if available
         setFormData((prev) => {
@@ -236,6 +242,11 @@ export const ContractCreatePage = () => {
           if (!next.paymentTimingId && pTimings.length > 0) {
             const advance = pTimings.find((p) => p.name.toLowerCase().includes('advance')) || pTimings[0];
             next.paymentTimingId = advance.id;
+          }
+          if (!next.currencyId && curList.length > 0) {
+            // Default to ETB when available, otherwise the first active currency
+            const etb = curList.find((c) => String(c.code).toUpperCase() === 'ETB');
+            next.currencyId = (etb || curList[0]).id;
           }
           return next;
         });
@@ -650,9 +661,11 @@ export const ContractCreatePage = () => {
           : null,
         rentAmountTotalPerMonth: parseFloat(formData.rentAmountTotalPerMonth),
         remarks: formData.remarks.trim(),
-        isActive: formData.isActive,
+        isActive: false,
         generateSchedule: formData.generateSchedule,
         gracePeriod: gracePeriodMonths,
+        currencyId: formData.currencyId || null,
+        contractStatus: 'DRAFT',
       };
 
       const res = await rentalContractService.createContract(payload);
@@ -942,93 +955,137 @@ export const ContractCreatePage = () => {
                     />
                   </Box>
 
-                  {/* Floor Level Selection */}
+                  {/* Floor Level Selection — searchable Autocomplete */}
                   <Box sx={{ width: '100%' }}>
                     <FieldLabel required>Floor Level</FieldLabel>
-                    <TextField
-                      select
+                    <Autocomplete
                       fullWidth
                       size="small"
-                      value={formData.floorId}
-                      onChange={handleChange('floorId')}
                       disabled={saving || !formData.buildingId || loadingFloors}
-                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
-                      InputProps={{
-                        endAdornment: loadingFloors ? <CircularProgress size={16} sx={{ mr: 2 }} /> : null,
+                      options={floors}
+                      getOptionLabel={(option) => (typeof option === 'string' ? option : `${option.name || 'Floor'} (Level ${option.floor_number ?? '—'})`)}
+                      isOptionEqualToValue={(option, val) => option?.id === (val?.id || val)}
+                      value={floors.find((f) => f.id === formData.floorId) || null}
+                      onChange={(event, newValue) => {
+                        const newFloorId = newValue ? newValue.id : '';
+                        setFormData((p) => (p.floorId === newFloorId ? p : { ...p, floorId: newFloorId, unitId: '' }));
+                        setSelectedUnit(null);
+                        if (errorMsg) setErrorMsg('');
                       }}
-                    >
-                      <MenuItem value="" disabled>
-                        {!formData.buildingId ? 'Select a building first' : 'Select Floor Level...'}
-                      </MenuItem>
-                      {floors.map((f) => (
-                        <MenuItem key={f.id} value={f.id}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <FloorIcon sx={{ fontSize: 16, color: '#4f46e5' }} />
+                      renderOption={(props, option) => {
+                        const { key, ...restProps } = props;
+                        return (
+                          <Box component="li" key={option.id || key} {...restProps} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.75 }}>
+                            <FloorIcon sx={{ fontSize: 16, color: '#4f46e5', flexShrink: 0 }} />
                             <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                              {f.name} (Level {f.floor_number})
+                              {option.name} (Level {option.floor_number})
                             </Typography>
                           </Box>
-                        </MenuItem>
-                      ))}
-                    </TextField>
+                        );
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder={!formData.buildingId ? 'Select a building first' : 'Search & select floor level...'}
+                          sx={{
+                            width: '100%',
+                            '& .MuiOutlinedInput-root': {
+                              width: '100%',
+                              borderRadius: 2,
+                              backgroundColor: '#ffffff',
+                            },
+                          }}
+                          InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                              <>
+                                {loadingFloors ? <CircularProgress size={16} sx={{ mr: 2 }} /> : null}
+                                {params.InputProps?.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
+                    />
                   </Box>
 
-                  {/* Unit Selection */}
+                  {/* Unit Selection — searchable Autocomplete */}
                   <Box sx={{ width: '100%' }}>
                     <FieldLabel required>Building Unit</FieldLabel>
-                    <TextField
-                      select
+                    <Autocomplete
                       fullWidth
                       size="small"
-                      value={formData.unitId}
-                      onChange={handleChange('unitId')}
                       disabled={saving || !formData.floorId || loadingUnits}
-                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
-                      InputProps={{
-                        endAdornment: loadingUnits ? <CircularProgress size={16} sx={{ mr: 2 }} /> : null,
+                      options={units.filter((u) => u.is_for_rent !== false)}
+                      getOptionLabel={(option) => (typeof option === 'string' ? option : `Unit ${option.unit_number}`)}
+                      isOptionEqualToValue={(option, val) => option?.id === (val?.id || val)}
+                      getOptionDisabled={(option) => Boolean(option.is_rented)}
+                      value={units.find((u) => u.id === formData.unitId) || null}
+                      onChange={(event, newValue) => {
+                        setFormData((p) => ({ ...p, unitId: newValue ? newValue.id : '' }));
+                        if (errorMsg) setErrorMsg('');
                       }}
-                    >
-                      <MenuItem value="" disabled>
-                        {!formData.floorId ? 'Select a floor level first' : 'Select Unit...'}
-                      </MenuItem>
-                      {/* Units flagged not-for-rent are hidden from the list */}
-                      {units.filter((u) => u.is_for_rent !== false).map((u) => {
-                        const isRented = u.is_rented;
+                      renderOption={(props, option) => {
+                        const { key, ...restProps } = props;
+                        const isRented = option.is_rented;
                         return (
-                          <MenuItem key={u.id} value={u.id} disabled={isRented}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', py: 0.25 }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <UnitIcon sx={{ fontSize: 16, color: isRented ? '#cbd5e1' : '#10b981' }} />
-                                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: isRented ? '#94a3b8' : '#0f172a' }}>
-                                  Unit {u.unit_number}
-                                </Typography>
+                          <Box component="li" key={option.id || key} {...restProps} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', py: 0.5, gap: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                              <UnitIcon sx={{ fontSize: 16, color: isRented ? '#cbd5e1' : '#10b981', flexShrink: 0 }} />
+                              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: isRented ? '#94a3b8' : '#0f172a' }}>
+                                Unit {option.unit_number}
+                              </Typography>
+                              <Typography sx={{ fontSize: '0.78rem', color: '#64748b' }}>
+                                • {option.unit_use_type || 'General Use'}
+                              </Typography>
+                              {option.area_value && (
                                 <Typography sx={{ fontSize: '0.78rem', color: '#64748b' }}>
-                                  • {u.unit_use_type || 'General Use'}
+                                  • {option.area_value} {option.area_unit_name || option.area_unit_code || 'm²'}
                                 </Typography>
-                                {u.area_value && (
-                                  <Typography sx={{ fontSize: '0.78rem', color: '#64748b' }}>
-                                    • {u.area_value} {u.area_unit_name || u.area_unit_code || 'm²'}
-                                  </Typography>
-                                )}
-                              </Box>
-                              {isRented ? (
-                                <Chip
-                                  label="Already Rented"
-                                  size="small"
-                                  sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#fee2e2', color: '#dc2626' }}
-                                />
-                              ) : (
-                                <Chip
-                                  label="Available"
-                                  size="small"
-                                  sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#f0fdf4', color: '#16a34a' }}
-                                />
                               )}
                             </Box>
-                          </MenuItem>
+                            {isRented ? (
+                              <Chip
+                                label="Already Rented"
+                                size="small"
+                                sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#fee2e2', color: '#dc2626', flexShrink: 0 }}
+                              />
+                            ) : (
+                              <Chip
+                                label="Available"
+                                size="small"
+                                sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#f0fdf4', color: '#16a34a', flexShrink: 0 }}
+                              />
+                            )}
+                          </Box>
                         );
-                      })}
-                    </TextField>
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder={!formData.floorId ? 'Select a floor level first' : 'Search & select unit...'}
+                          sx={{
+                            width: '100%',
+                            '& .MuiOutlinedInput-root': {
+                              width: '100%',
+                              borderRadius: 2,
+                              backgroundColor: '#ffffff',
+                            },
+                          }}
+                          InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                              <>
+                                {loadingUnits ? <CircularProgress size={16} sx={{ mr: 2 }} /> : null}
+                                {params.InputProps?.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
+                    />
                   </Box>
 
                   {/* Unit Availability Strip / Selected Unit Snapshot */}
@@ -1529,6 +1586,57 @@ export const ContractCreatePage = () => {
                     </Typography>
                   </Box>
 
+                  {/* Currency — searchable Autocomplete */}
+                  <Box sx={{ width: '100%' }}>
+                    <FieldLabel required>Currency</FieldLabel>
+                    <Autocomplete
+                      fullWidth
+                      size="small"
+                      disabled={saving || loadingLookups}
+                      options={currencies}
+                      getOptionLabel={(option) => {
+                        if (typeof option === 'string') return option;
+                        return `${option.code} — ${option.name}${option.symbol ? ` (${option.symbol})` : ''}`;
+                      }}
+                      isOptionEqualToValue={(option, val) => option?.id === (val?.id || val)}
+                      value={currencies.find((c) => c.id === formData.currencyId) || null}
+                      onChange={(event, newValue) => {
+                        setFormData((p) => ({ ...p, currencyId: newValue ? newValue.id : '' }));
+                        if (errorMsg) setErrorMsg('');
+                      }}
+                      renderOption={(props, option) => {
+                        const { key, ...restProps } = props;
+                        return (
+                          <Box component="li" key={option.id || key} {...restProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.25, py: 0.75 }}>
+                            <Typography sx={{ fontSize: '0.8rem', fontWeight: 800, color: '#4f46e5', minWidth: 44 }}>{option.code}</Typography>
+                            <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: '#0f172a' }}>{option.name}</Typography>
+                            {option.symbol && (
+                              <Typography sx={{ fontSize: '0.72rem', color: '#94a3b8' }}>{option.symbol}</Typography>
+                            )}
+                          </Box>
+                        );
+                      }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder="Search & select currency..."
+                          sx={{
+                            width: '100%',
+                            '& .MuiOutlinedInput-root': {
+                              width: '100%',
+                              borderRadius: 2,
+                              backgroundColor: '#ffffff',
+                            },
+                          }}
+                        />
+                      )}
+                      sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
+                    />
+                    <Typography sx={{ fontSize: '0.68rem', color: '#64748b', mt: 0.5 }}>
+                      Currency all rent amounts are billed in
+                    </Typography>
+                  </Box>
+
                   {/* Live Financial Projection Card */}
                   {formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0 && (
                     <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
@@ -1634,25 +1742,29 @@ export const ContractCreatePage = () => {
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
                   <Box sx={{ width: '100%', p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', height: '100%' }}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={formData.isActive}
-                          onChange={(e) => setFormData((p) => ({ ...p, isActive: e.target.checked }))}
-                          color="primary"
-                        />
-                      }
-                      label={
-                        <Box>
-                          <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                            Activate Contract Immediately
-                          </Typography>
-                          <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
-                            When enabled, marks the leased unit as &quot;Rented&quot; and enables billing immediately.
-                          </Typography>
-                        </Box>
-                      }
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Chip
+                        label="○ Draft"
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          backgroundColor: '#f1f5f9',
+                          color: '#64748b',
+                          border: '1px solid #e2e8f0',
+                        }}
+                      />
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        Initial Status
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
+                      New Contracts Start as Draft
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.72rem', color: '#64748b', mt: 0.5 }}>
+                      Every contract is created inactive with status DRAFT. Once the lease is signed, activate it from the contract details page — the unit is then marked as rented and billing begins.
+                    </Typography>
                   </Box>
 
                   <Box sx={{ width: '100%', p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', height: '100%' }}>

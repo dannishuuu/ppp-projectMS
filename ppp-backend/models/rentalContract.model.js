@@ -24,6 +24,8 @@ const PUBLIC_RENTAL_CONTRACT_FIELDS = `
   rc.created_by,
   rc.updated_by,
   rc.grace_period,
+  rc.currency_id,
+  rc.contract_status,
   b.name AS building_name,
   bf.name AS floor_name,
   bu.unit_number AS current_unit_number,
@@ -32,6 +34,9 @@ const PUBLIC_RENTAL_CONTRACT_FIELDS = `
   rpt.name AS rental_payment_type_name,
   rpt.duration_days AS payment_duration_days,
   pt.name AS payment_timing_name,
+  cur.name AS currency_name,
+  cur.code AS currency_code,
+  cur.symbol AS currency_symbol,
   creator.first_name || ' ' || creator.last_name AS created_by_name,
   updater.first_name || ' ' || updater.last_name AS updated_by_name,
   (SELECT COUNT(*)::int FROM rental_payments rp WHERE rp.rental_contract_id = rc.id AND rp.is_deleted = false) AS payments_count,
@@ -46,6 +51,7 @@ const CONTRACT_JOINS = `
   LEFT JOIN organizations org ON org.id = rc.tenant_organization_id
   LEFT JOIN rental_payment_types rpt ON rpt.id = rc.rental_payment_type_id
   LEFT JOIN payment_timings pt ON pt.id = rc.payment_timing_id
+  LEFT JOIN currencies cur ON cur.id = rc.currency_id
   LEFT JOIN users creator ON creator.id = rc.created_by
   LEFT JOIN users updater ON updater.id = rc.updated_by
 `;
@@ -197,7 +203,8 @@ class RentalContractModel {
         rent_amount_per_square_meter, rent_amount_total_per_month,
         rental_payment_type_id, payment_timing_id,
         contract_number, contract_start_date, contract_end_date,
-        remarks, is_active, is_deleted, created_by, updated_by,grace_period
+        remarks, is_active, is_deleted, created_by, updated_by, grace_period,
+        currency_id, contract_status
       ) VALUES (
         :buildingId, :floorId, :unitId,
         :unitNumber, :floorNumber, :areaValue,
@@ -205,7 +212,8 @@ class RentalContractModel {
         :rentAmountPerSqm, :rentAmountTotalPerMonth,
         :rentalPaymentTypeId, :paymentTimingId,
         :contractNumber, :contractStartDate, :contractEndDate,
-        :remarks, COALESCE(:isActive, true), false, :createdBy, :createdBy, :gracePeriod
+        :remarks, COALESCE(:isActive, true), false, :createdBy, :createdBy, :gracePeriod,
+        :currencyId, COALESCE(CAST(:contractStatus AS contract_status_enum), 'DRAFT')
       )
       RETURNING id`,
       {
@@ -228,6 +236,8 @@ class RentalContractModel {
           isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
           createdBy: data.createdBy || null,
           gracePeriod: Number.isFinite(parseInt(data.gracePeriod, 10)) ? Math.max(0, parseInt(data.gracePeriod, 10)) : 0,
+          currencyId: data.currencyId || null,
+          contractStatus: data.contractStatus || null,
         },
         type: QueryTypes.SELECT,
         transaction,
@@ -260,7 +270,9 @@ class RentalContractModel {
         is_deleted = false,
         deleted_at = NULL,
         deleted_by = NULL,
-        grace_period = COALESCE(:gracePeriod, grace_period)
+        grace_period = COALESCE(:gracePeriod, grace_period),
+        currency_id = COALESCE(:currencyId, currency_id),
+        contract_status = COALESCE(CAST(:contractStatus AS contract_status_enum), contract_status)
       WHERE id = :id AND is_deleted = false`,
       {
         replacements: {
@@ -286,6 +298,8 @@ class RentalContractModel {
             data.gracePeriod !== undefined && data.gracePeriod !== null && Number.isFinite(parseInt(data.gracePeriod, 10))
               ? Math.max(0, parseInt(data.gracePeriod, 10))
               : null,
+          currencyId: data.currencyId !== undefined ? (data.currencyId || null) : null,
+          contractStatus: data.contractStatus !== undefined ? (data.contractStatus || null) : null,
         },
         type: QueryTypes.UPDATE,
         transaction,
@@ -298,10 +312,11 @@ class RentalContractModel {
     const rows = await db.query(
       `UPDATE rental_contracts SET
         is_active = NOT is_active,
+        contract_status = CASE WHEN NOT is_active THEN 'ACTIVE'::contract_status_enum ELSE 'DRAFT'::contract_status_enum END,
         updated_by = :updatedBy,
         updated_at = NOW()
        WHERE id = :id AND is_deleted = false
-       RETURNING id, is_active`,
+       RETURNING id, is_active, contract_status`,
       {
         replacements: { id, updatedBy },
         type: QueryTypes.SELECT,

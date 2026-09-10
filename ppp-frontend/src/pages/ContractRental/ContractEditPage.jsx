@@ -56,6 +56,8 @@ import { buildingUnitsService } from '../../services/buildingServices/buildingUn
 import { rentalPaymentTypesService } from '../../services/foundationService/rentalPaymentTypesService';
 import { paymentTimingsService } from '../../services/foundationService/paymentTimingsService';
 import { organizationService } from '../../services/organizationService/organizationService';
+import { currencyService } from '../../services/foundationService/currencyService';
+import { contractStatusMeta } from '../../utils/formatters';
 
 // Format currency
 const formatCurrency = (val) => {
@@ -194,6 +196,7 @@ export const ContractEditPage = () => {
 
   const [original, setOriginal] = useState(null);
   const [savedPayments, setSavedPayments] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
 
   const [formData, setFormData] = useState({
     buildingId: '',
@@ -211,6 +214,7 @@ export const ContractEditPage = () => {
     isActive: true,
     generateSchedule: true,
     gracePeriod: '0',
+    currencyId: '',
   });
 
   // Lease duration inputs (year + month fields)
@@ -242,7 +246,7 @@ export const ContractEditPage = () => {
       setLoadingPage(true);
       setErrorMsg('');
       try {
-        const [contractRes, bldgRes, ptRes, timRes, orgRes, payRes] = await Promise.all([
+        const [contractRes, bldgRes, ptRes, timRes, orgRes, payRes, curRes] = await Promise.all([
           rentalContractService.getContractById(id),
           buildingsService.getBuildings({ limit: 100, is_active: true }),
           rentalPaymentTypesService.getRentalPaymentTypes({ limit: 100, status: 'active' }),
@@ -250,11 +254,13 @@ export const ContractEditPage = () => {
           organizationService.getOrganizations({ limit: 200, status: 'active' }),
           // Saved installments for this contract (shown until the schedule inputs change)
           rentalContractService.getContractPayments(id).catch(() => null),
+          currencyService.getCurrencies({ limit: 100, status: 'all' }).catch(() => null),
         ]);
 
         const c = contractRes?.contract || contractRes;
         setOriginal(c);
         setSavedPayments(payRes?.payments || payRes?.rows || (Array.isArray(payRes) ? payRes : []));
+        setCurrencies(curRes?.currencies || curRes?.rows || (Array.isArray(curRes) ? curRes : []));
 
         const bldgs = bldgRes?.buildings || bldgRes?.rows || [];
         setBuildings(bldgs);
@@ -296,6 +302,7 @@ export const ContractEditPage = () => {
           isActive: c.is_active !== undefined ? Boolean(c.is_active) : true,
           generateSchedule: true,
           gracePeriod: c.grace_period != null ? String(Math.max(0, parseInt(c.grace_period, 10) || 0)) : '0',
+          currencyId: c.currency_id || '',
         });
 
         // Fetch dependent floors and units for current building
@@ -451,9 +458,8 @@ export const ContractEditPage = () => {
     }
   };
 
-  // Floor selection
-  const handleFloorChange = async (e) => {
-    const floorId = e.target.value;
+  // Floor selection (accepts the floor id directly)
+  const handleFloorChange = async (floorId) => {
     setFormData((p) => ({
       ...p,
       floorId,
@@ -482,10 +488,9 @@ export const ContractEditPage = () => {
     }
   };
 
-  // Unit selection
-  const handleUnitChange = (e) => {
-    const unitId = e.target.value;
-    const unit = units.find((u) => u.id === unitId) || null;
+  // Unit selection (accepts the unit id directly)
+  const handleUnitChange = (unitId) => {
+    const unit = units.find((u) => String(u.id) === String(unitId)) || null;
     setSelectedUnit(unit);
 
     let newTotal = formData.rentAmountTotalPerMonth;
@@ -765,6 +770,7 @@ export const ContractEditPage = () => {
       isActive: original.is_active !== undefined ? Boolean(original.is_active) : true,
       generateSchedule: true,
       gracePeriod: original.grace_period != null ? String(Math.max(0, parseInt(original.grace_period, 10) || 0)) : '0',
+      currencyId: original.currency_id || '',
     });
     setErrorMsg('');
     enqueueSnackbar('Reset form to original contract values', { variant: 'info' });
@@ -852,9 +858,12 @@ export const ContractEditPage = () => {
           : null,
         rentAmountTotalPerMonth: parseFloat(formData.rentAmountTotalPerMonth),
         remarks: formData.remarks.trim(),
+        // is_active / contract_status are locked on the edit page: the value passes through
+        // unchanged, so the backend never syncs or alters the status from here.
         isActive: formData.isActive,
-        generateSchedule: formData.generateSchedule,
+        generateSchedule: true,
         gracePeriod: gracePeriodMonths,
+        currencyId: formData.currencyId || null,
         // When nothing schedule-affecting changed, re-send the saved installments so an
         // unchanged save does not recompute or clobber the existing schedule (the backend
         // falls back to regeneration when real payments exist).
@@ -1185,97 +1194,135 @@ export const ContractEditPage = () => {
                       />
                     </Box>
 
-                    {/* Floor Level Selection */}
+                    {/* Floor Level Selection — searchable Autocomplete */}
                     <Box sx={{ width: '100%' }}>
                       <FieldLabel required>Floor Level</FieldLabel>
-                      <TextField
-                        select
+                      <Autocomplete
                         fullWidth
                         size="small"
-                        value={formData.floorId}
-                        onChange={handleFloorChange}
                         disabled={saving || !formData.buildingId || loadingFloors || Boolean(original?.is_active)}
-                        sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
-                        InputProps={{
-                          endAdornment: loadingFloors ? <CircularProgress size={16} sx={{ mr: 2 }} /> : null,
+                        options={floors}
+                        getOptionLabel={(option) => (typeof option === 'string' ? option : `${option.name || 'Floor'} (Level ${option.floor_number ?? '—'})`)}
+                        isOptionEqualToValue={(option, val) => String(option?.id) === String(val?.id || val)}
+                        value={floors.find((f) => String(f.id) === String(formData.floorId)) || null}
+                        onChange={(event, newValue) => {
+                          handleFloorChange(newValue ? newValue.id : '');
                         }}
-                      >
-                        <MenuItem value="" disabled>
-                          {!formData.buildingId ? 'Select a building first' : 'Select Floor Level...'}
-                        </MenuItem>
-                        {floors.map((f) => (
-                          <MenuItem key={f.id} value={f.id}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <FloorIcon sx={{ fontSize: 16, color: '#4f46e5' }} />
+                        renderOption={(props, option) => {
+                          const { key, ...restProps } = props;
+                          return (
+                            <Box component="li" key={option.id || key} {...restProps} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.75 }}>
+                              <FloorIcon sx={{ fontSize: 16, color: '#4f46e5', flexShrink: 0 }} />
                               <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                                {f.name || `Floor ${f.floor_number}`} (Level {f.floor_number})
+                                {option.name || `Floor ${option.floor_number}`} (Level {option.floor_number})
                               </Typography>
                             </Box>
-                          </MenuItem>
-                        ))}
-                      </TextField>
+                          );
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder={!formData.buildingId ? 'Select a building first' : 'Search & select floor level...'}
+                            sx={{
+                              width: '100%',
+                              '& .MuiOutlinedInput-root': {
+                                width: '100%',
+                                borderRadius: 2,
+                                backgroundColor: '#ffffff',
+                              },
+                            }}
+                            InputProps={{
+                              ...params.InputProps,
+                              endAdornment: (
+                                <>
+                                  {loadingFloors ? <CircularProgress size={16} sx={{ mr: 2 }} /> : null}
+                                  {params.InputProps?.endAdornment}
+                                </>
+                              ),
+                            }}
+                          />
+                        )}
+                        sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
+                      />
                     </Box>
 
-                    {/* Unit Selection */}
+                    {/* Unit Selection — searchable Autocomplete */}
                     <Box sx={{ width: '100%' }}>
                       <FieldLabel required>Building Unit</FieldLabel>
-                      <TextField
-                        select
+                      <Autocomplete
                         fullWidth
                         size="small"
-                        value={formData.unitId}
-                        onChange={handleUnitChange}
                         disabled={saving || !formData.floorId || loadingUnits || Boolean(original?.is_active)}
-                        sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
-                        InputProps={{
-                          endAdornment: loadingUnits ? <CircularProgress size={16} sx={{ mr: 2 }} /> : null,
+                        options={units.filter((u) => u.is_for_rent !== false || String(u.id) === String(original?.unit_id))}
+                        getOptionLabel={(option) => (typeof option === 'string' ? option : `Unit ${option.unit_number}`)}
+                        isOptionEqualToValue={(option, val) => String(option?.id) === String(val?.id || val)}
+                        getOptionDisabled={(option) => Boolean(option.is_rented) && String(option.id) !== String(original?.unit_id)}
+                        value={units.find((u) => String(u.id) === String(formData.unitId)) || null}
+                        onChange={(event, newValue) => {
+                          handleUnitChange(newValue ? newValue.id : '');
                         }}
-                      >
-                        <MenuItem value="" disabled>
-                          {!formData.floorId ? 'Select a floor first' : 'Select Unit...'}
-                        </MenuItem>
-                        {/* Units flagged not-for-rent are hidden — except this contract's own unit, which stays selectable */}
-                        {units
-                          .filter((u) => u.is_for_rent !== false || String(u.id) === String(original?.unit_id))
-                          .map((u) => {
-                          const isCurrentUnit = String(u.id) === String(original?.unit_id);
-                          const isOccupiedByOther = u.is_rented && !isCurrentUnit;
+                        renderOption={(props, option) => {
+                          const { key, ...restProps } = props;
+                          const isCurrentUnit = String(option.id) === String(original?.unit_id);
+                          const isOccupiedByOther = option.is_rented && !isCurrentUnit;
                           return (
-                            <MenuItem key={u.id} value={u.id} disabled={isOccupiedByOther}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 1 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <UnitIcon sx={{ fontSize: 16, color: isOccupiedByOther ? '#94a3b8' : '#4f46e5' }} />
-                                  <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                                    Unit {u.unit_number} {isCurrentUnit ? '(Current Unit)' : ''}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                                  {u.area_value && (
-                                    <Chip
-                                      label={`${u.area_value} ${u.area_unit_name || 'm²'}`}
-                                      size="small"
-                                      sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, backgroundColor: '#f1f5f9' }}
-                                    />
-                                  )}
-                                  {isOccupiedByOther ? (
-                                    <Chip
-                                      label="Leased"
-                                      size="small"
-                                      sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, backgroundColor: '#fee2e2', color: '#dc2626' }}
-                                    />
-                                  ) : (
-                                    <Chip
-                                      label={isCurrentUnit ? 'Current Lease' : 'Available'}
-                                      size="small"
-                                      sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, backgroundColor: isCurrentUnit ? '#e0e7ff' : '#dcfce7', color: isCurrentUnit ? '#4338ca' : '#15803d' }}
-                                    />
-                                  )}
-                                </Box>
+                            <Box component="li" key={option.id || key} {...restProps} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', py: 0.5, gap: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                                <UnitIcon sx={{ fontSize: 16, color: isOccupiedByOther ? '#94a3b8' : '#4f46e5', flexShrink: 0 }} />
+                                <Typography sx={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                                  Unit {option.unit_number} {isCurrentUnit ? '(Current Unit)' : ''}
+                                </Typography>
                               </Box>
-                            </MenuItem>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
+                                {option.area_value && (
+                                  <Chip
+                                    label={`${option.area_value} ${option.area_unit_name || 'm²'}`}
+                                    size="small"
+                                    sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, backgroundColor: '#f1f5f9' }}
+                                  />
+                                )}
+                                {isOccupiedByOther ? (
+                                  <Chip
+                                    label="Leased"
+                                    size="small"
+                                    sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, backgroundColor: '#fee2e2', color: '#dc2626' }}
+                                  />
+                                ) : (
+                                  <Chip
+                                    label={isCurrentUnit ? 'Current Lease' : 'Available'}
+                                    size="small"
+                                    sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, backgroundColor: isCurrentUnit ? '#e0e7ff' : '#dcfce7', color: isCurrentUnit ? '#4338ca' : '#15803d' }}
+                                  />
+                                )}
+                              </Box>
+                            </Box>
                           );
-                        })}
-                      </TextField>
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder={!formData.floorId ? 'Select a floor first' : 'Search & select unit...'}
+                            sx={{
+                              width: '100%',
+                              '& .MuiOutlinedInput-root': {
+                                width: '100%',
+                                borderRadius: 2,
+                                backgroundColor: '#ffffff',
+                              },
+                            }}
+                            InputProps={{
+                              ...params.InputProps,
+                              endAdornment: (
+                                <>
+                                  {loadingUnits ? <CircularProgress size={16} sx={{ mr: 2 }} /> : null}
+                                  {params.InputProps?.endAdornment}
+                                </>
+                              ),
+                            }}
+                          />
+                        )}
+                        sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
+                      />
                     </Box>
 
                     {/* Selected Unit Snapshot Card */}
@@ -1602,6 +1649,57 @@ export const ContractEditPage = () => {
                       </TextField>
                     </Box>
 
+                    {/* Currency — searchable Autocomplete */}
+                    <Box sx={{ width: '100%' }}>
+                      <FieldLabel required>Currency</FieldLabel>
+                      <Autocomplete
+                        fullWidth
+                        size="small"
+                        disabled={saving || Boolean(original?.is_active)}
+                        options={currencies}
+                        getOptionLabel={(option) => {
+                          if (typeof option === 'string') return option;
+                          return `${option.code} — ${option.name}${option.symbol ? ` (${option.symbol})` : ''}`;
+                        }}
+                        isOptionEqualToValue={(option, val) => option?.id === (val?.id || val)}
+                        value={currencies.find((c) => c.id === formData.currencyId) || null}
+                        onChange={(event, newValue) => {
+                          setFormData((p) => ({ ...p, currencyId: newValue ? newValue.id : '' }));
+                          if (errorMsg) setErrorMsg('');
+                        }}
+                        renderOption={(props, option) => {
+                          const { key, ...restProps } = props;
+                          return (
+                            <Box component="li" key={option.id || key} {...restProps} sx={{ display: 'flex', alignItems: 'center', gap: 1.25, py: 0.75 }}>
+                              <Typography sx={{ fontSize: '0.8rem', fontWeight: 800, color: '#4f46e5', minWidth: 44 }}>{option.code}</Typography>
+                              <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: '#0f172a' }}>{option.name}</Typography>
+                              {option.symbol && (
+                                <Typography sx={{ fontSize: '0.72rem', color: '#94a3b8' }}>{option.symbol}</Typography>
+                              )}
+                            </Box>
+                          );
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="Search & select currency..."
+                            sx={{
+                              width: '100%',
+                              '& .MuiOutlinedInput-root': {
+                                width: '100%',
+                                borderRadius: 2,
+                                backgroundColor: '#ffffff',
+                              },
+                            }}
+                          />
+                        )}
+                        sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
+                      />
+                      <Typography sx={{ fontSize: '0.68rem', color: '#64748b', mt: 0.5 }}>
+                        Currency all rent amounts are billed in
+                      </Typography>
+                    </Box>
+
                     {/* Grace Period — whole months with no rent due at lease start */}
                     <Box sx={{ width: '100%' }}>
                       <FieldLabel>Grace Period (Months)</FieldLabel>
@@ -1816,39 +1914,67 @@ export const ContractEditPage = () => {
                       </Typography>
                     </Box>
 
-                    {/* Activation switch */}
+                    {/* Account & Lease Status — read-only, cannot be changed here */}
                     <Box sx={{ width: '100%', p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', height: '100%' }}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={formData.isActive}
-                            onChange={(e) => setFormData((p) => ({ ...p, isActive: e.target.checked }))}
-                            disabled={saving || Boolean(original?.is_active)}
-                            color="primary"
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1.5 }}>
+                        Account &amp; Lease Status
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                          <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#475569' }}>
+                            Account Status
+                          </Typography>
+                          <Chip
+                            label={formData.isActive ? 'Active' : 'Inactive'}
+                            size="small"
+                            sx={{
+                              height: 20,
+                              fontSize: '0.65rem',
+                              fontWeight: 700,
+                              backgroundColor: formData.isActive ? '#dcfce7' : '#f1f5f9',
+                              color: formData.isActive ? '#16a34a' : '#64748b',
+                              border: `1px solid ${formData.isActive ? '#bbf7d0' : '#e2e8f0'}`,
+                            }}
                           />
-                        }
-                        label={
-                          <Box>
-                            <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a' }}>
-                              Contract Active Status
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
-                              {formData.isActive ? 'Contract is marked active and unit is leased.' : 'Contract is in draft/inactive mode.'}
-                            </Typography>
-                          </Box>
-                        }
-                      />
+                        </Box>
+                        {(() => {
+                          const meta = contractStatusMeta(original?.contract_status, formData.isActive);
+                          return (
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#475569' }}>
+                                Lease Status
+                              </Typography>
+                              <Chip
+                                label={meta.label}
+                                size="small"
+                                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: meta.bg, color: meta.color, border: `1px solid ${meta.border}` }}
+                              />
+                            </Box>
+                          );
+                        })()}
+                      </Box>
+                      <Typography sx={{ fontSize: '0.68rem', color: '#94a3b8', mt: 1.5, pt: 1.5, borderTop: '1px dashed #e2e8f0' }}>
+                        Status is locked here — it cannot be changed from the edit page.
+                      </Typography>
                     </Box>
 
-                    {/* Schedule Generation switch */}
+                    {/* Schedule Generation switch — always active, cannot be turned off */}
                     <Box sx={{ width: '100%', p: 2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', height: '100%' }}>
                       <FormControlLabel
                         control={
                           <Switch
-                            checked={formData.generateSchedule}
-                            onChange={(e) => setFormData((p) => ({ ...p, generateSchedule: e.target.checked }))}
-                            disabled={saving || Boolean(original?.is_active)}
+                            checked
+                            disabled
                             color="primary"
+                            sx={{
+                              '& .MuiSwitch-switchBase.Mui-checked': {
+                                color: '#4f46e5',
+                              },
+                              '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                backgroundColor: '#4f46e5',
+                                opacity: 0.6,
+                              },
+                            }}
                           />
                         }
                         label={
@@ -1858,7 +1984,7 @@ export const ContractEditPage = () => {
                                 Regenerate Payment Schedule
                               </Typography>
                               <Chip
-                                label="Recommended"
+                                label="Always Active"
                                 size="small"
                                 sx={{
                                   height: 18,
@@ -1871,7 +1997,7 @@ export const ContractEditPage = () => {
                               />
                             </Box>
                             <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
-                              Recalculates and updates payment installments based on modified rent and duration.
+                              Recalculates and updates payment installments based on modified rent and duration. Saving the contract keeps the existing schedule when nothing changed.
                             </Typography>
                           </Box>
                         }

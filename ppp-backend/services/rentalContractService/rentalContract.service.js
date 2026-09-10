@@ -9,6 +9,9 @@ const DocumentSequenceService = require('../projectService/documentSequence.serv
 // Round money to 2 decimal places (cent precision)
 const round2 = (v) => Math.round(v * 100) / 100;
 
+// Allowed values of the contract_status_enum type on rental_contracts
+const CONTRACT_STATUS_VALUES = ['DRAFT', 'PENDING', 'ACTIVE', 'EXPIRED', 'TERMINATED', 'CANCELLED', 'SUSPENDED', 'RENEWED'];
+
 class RentalContractService {
   static async getContracts(options = {}) {
     const page = parseInt(options.page, 10) || 1;
@@ -69,10 +72,10 @@ class RentalContractService {
       rentAmountTotalPerMonth,
       rentAmountPerSquareMeter,
       remarks,
-      isActive = true,
       generateSchedule = true,
       gracePeriod = 0,
       customSchedule = null,
+      currencyId = null,
     } = payload;
 
     // 1. Mandatory Validations
@@ -103,7 +106,13 @@ class RentalContractService {
       );
     }
 
-    // 2b. Custom schedule override (installment amounts tuned in the preview): per-installment
+    // 2b. New contracts are ALWAYS created as inactive drafts (is_active = false, status 'DRAFT');
+    // activation happens later from the contract details page. Currency must exist.
+    const isActive = false;
+    const status = 'DRAFT';
+    const validatedCurrencyId = await this._validateCurrencyId(currencyId);
+
+    // 2c. Custom schedule override (installment amounts tuned in the preview): per-installment
     // amounts may differ, but their total must equal the contract total (monthly rent × billable months)
     let scheduleOverride = this._normalizeCustomSchedule(customSchedule, rentAmountTotalPerMonth, term.totalMonths, graceMonths);
 
@@ -161,6 +170,8 @@ class RentalContractService {
           isActive,
           createdBy: actorId,
           gracePeriod: graceMonths,
+          contractStatus: status,
+          currencyId: validatedCurrencyId,
         },
         transaction
       );
@@ -234,6 +245,20 @@ class RentalContractService {
     const totalRent = payload.rentAmountTotalPerMonth !== undefined ? parseFloat(payload.rentAmountTotalPerMonth) : parseFloat(current.rent_amount_total_per_month);
     const scheduleOverride = this._normalizeCustomSchedule(payload.customSchedule, totalRent, term.totalMonths, graceMonths);
 
+    // Contract status: explicit updates win; otherwise it syncs with activation changes only
+    let contractStatusUpdate;
+    if (payload.contractStatus !== undefined) {
+      contractStatusUpdate = this._normalizeContractStatus(payload.contractStatus);
+    } else if (payload.isActive !== undefined && Boolean(payload.isActive) !== Boolean(current.is_active)) {
+      contractStatusUpdate = payload.isActive ? 'ACTIVE' : 'DRAFT';
+    }
+
+    // Currency update (must exist in the currencies table)
+    let currencyUpdate;
+    if (payload.currencyId !== undefined) {
+      currencyUpdate = await this._validateCurrencyId(payload.currencyId);
+    }
+
     if (payload.remarks !== undefined && (!payload.remarks || !payload.remarks.trim())) {
       throw this._validationError('Contract remarks & stipulations cannot be empty');
     }
@@ -297,6 +322,8 @@ class RentalContractService {
           isActive,
           updatedBy: actorId,
           gracePeriod: graceMonths,
+          contractStatus: contractStatusUpdate !== undefined ? contractStatusUpdate : undefined,
+          currencyId: currencyUpdate !== undefined ? currencyUpdate : undefined,
         },
         transaction
       );
@@ -450,6 +477,34 @@ class RentalContractService {
       throw this._validationError('Grace period must be a whole number of months (integer without decimals)');
     }
     return parseInt(str, 10);
+  }
+
+  // Contract status must be one of the contract_status_enum values (DRAFT, PENDING, ACTIVE,
+  // EXPIRED, TERMINATED, CANCELLED, SUSPENDED, RENEWED). Empty/missing returns null (keep current).
+  static _normalizeContractStatus(raw) {
+    if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+    const value = String(raw).trim().toUpperCase();
+    if (!CONTRACT_STATUS_VALUES.includes(value)) {
+      throw this._validationError(`Invalid contract status "${value}". Allowed values: ${CONTRACT_STATUS_VALUES.join(', ')}`);
+    }
+    return value;
+  }
+
+  // Currency must reference an existing row in the currencies table. Empty/missing returns null.
+  static async _validateCurrencyId(currencyId) {
+    if (currencyId === undefined || currencyId === null || String(currencyId).trim() === '') return null;
+    const value = String(currencyId).trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+      throw this._validationError('currencyId must be a valid currency identifier');
+    }
+    const rows = await db.query(
+      `SELECT id FROM currencies WHERE id = :currencyId AND is_deleted = FALSE LIMIT 1`,
+      { replacements: { currencyId: value }, type: QueryTypes.SELECT }
+    );
+    if (!rows[0]) {
+      throw this._validationError('Selected currency not found');
+    }
+    return value;
   }
 
   // Contract duration in days and months (1 month = 30.4375 days average, rounded to 1 decimal —

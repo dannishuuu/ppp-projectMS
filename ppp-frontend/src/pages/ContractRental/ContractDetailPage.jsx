@@ -41,8 +41,6 @@ import {
   CalendarMonth as CalendarIcon,
   Apartment as BuildingIcon,
   Autorenew as GenerateIcon,
-  Block as DeactivateIcon,
-  TaskAlt as ActivateIcon,
   Close as CloseIcon,
   ReceiptLong as ReceiptIcon,
   TrendingDown as OutstandingIcon,
@@ -56,7 +54,7 @@ import {
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { rentalContractService, rentalPaymentsService } from '../../services/rentalContractServices';
-import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
+import { contractStatusMeta } from '../../utils/formatters';
 
 const formatCurrency = (val) => {
   if (val == null || val === '') return '0.00';
@@ -213,8 +211,6 @@ export const ContractDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [loadingPayments, setLoadingPayments] = useState(false);
 
-  const [toggleModalOpen, setToggleModalOpen] = useState(false);
-  const [toggling, setToggling] = useState(false);
   const [generating, setGenerating] = useState(false);
 
   const [payDialog, setPayDialog] = useState({ open: false, payment: null });
@@ -310,20 +306,6 @@ export const ContractDetailPage = () => {
     if (due <= 0) return 0;
     return Math.min(100, (paid / due) * 100);
   }, [contract, paymentStats]);
-
-  const handleToggleStatus = async () => {
-    setToggling(true);
-    try {
-      await rentalContractService.toggleContractStatus(id);
-      enqueueSnackbar(`Contract ${contract?.is_active ? 'deactivated' : 'activated'} successfully.`, { variant: 'success' });
-      setToggleModalOpen(false);
-      fetchContract();
-    } catch (err) {
-      enqueueSnackbar(err.message || 'Failed to toggle status.', { variant: 'error' });
-    } finally {
-      setToggling(false);
-    }
-  };
 
   const handleGenerateSchedule = async () => {
     setGenerating(true);
@@ -488,25 +470,6 @@ export const ContractDetailPage = () => {
                 </Button>
               </span>
             </Tooltip>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={contract.is_active ? <DeactivateIcon sx={{ fontSize: 16 }} /> : <ActivateIcon sx={{ fontSize: 16 }} />}
-              onClick={() => setToggleModalOpen(true)}
-              sx={{
-                borderRadius: 2,
-                fontSize: '0.78rem',
-                textTransform: 'none',
-                borderColor: contract.is_active ? '#fecaca' : '#bbf7d0',
-                color: contract.is_active ? '#dc2626' : '#16a34a',
-                '&:hover': {
-                  borderColor: contract.is_active ? '#fca5a5' : '#86efac',
-                  backgroundColor: contract.is_active ? '#fef2f2' : '#f0fdf4',
-                },
-              }}
-            >
-              {contract.is_active ? 'Deactivate' : 'Activate'}
-            </Button>
           </Box>
         </Box>
 
@@ -520,10 +483,15 @@ export const ContractDetailPage = () => {
             </Typography>
           </Box>
           <Chip
-            label={contract.is_active ? 'Active Contract' : 'Inactive / Draft'}
-            color={contract.is_active ? 'success' : 'default'}
+            label={`${contractStatusMeta(contract.contract_status, contract.is_active).label} Contract`}
             size="small"
-            sx={{ fontWeight: 700, fontSize: '0.72rem' }}
+            sx={{
+              fontWeight: 700,
+              fontSize: '0.72rem',
+              backgroundColor: contractStatusMeta(contract.contract_status, contract.is_active).bg,
+              color: contractStatusMeta(contract.contract_status, contract.is_active).color,
+              border: `1px solid ${contractStatusMeta(contract.contract_status, contract.is_active).border}`,
+            }}
           />
         </Box>
       </Box>
@@ -878,6 +846,14 @@ export const ContractDetailPage = () => {
                 value={`ETB ${formatCurrency(contract.rent_amount_total_per_month)}`}
                 highlight
               />
+              <DetailField
+                label="Currency"
+                value={
+                  contract.currency_name
+                    ? `${contract.currency_name}${contract.currency_code ? ` (${contract.currency_code})` : ''}`
+                    : null
+                }
+              />
             </Box>
 
             <Box
@@ -916,7 +892,12 @@ export const ContractDetailPage = () => {
             />
 
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, mb: 2 }}>
-              <DetailField label="Contract Status" value={contract.is_active ? 'Active' : 'Inactive'} highlight={contract.is_active} />
+              <DetailField label="Account Status" value={contract.is_active ? 'Active' : 'Inactive'} highlight={contract.is_active} />
+              <DetailField
+                label="Lease Status"
+                value={contractStatusMeta(contract.contract_status, contract.is_active).label}
+                highlight={String(contract.contract_status || '').toUpperCase() === 'ACTIVE'}
+              />
               <DetailField label="Payment Records" value={`${contract.payments_count || payments.length || 0} installment(s)`} />
             </Box>
 
@@ -1197,24 +1178,37 @@ export const ContractDetailPage = () => {
                           </TableCell>
                           <TableCell align="center">
                             {!p.is_paid ? (
-                              <Button
-                                size="small"
-                                variant="contained"
-                                onClick={() => openPayDialog(p)}
-                                sx={{
-                                  fontSize: '0.68rem',
-                                  fontWeight: 700,
-                                  borderRadius: 1.5,
-                                  px: 1.5,
-                                  py: 0.25,
-                                  textTransform: 'none',
-                                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                                  boxShadow: 'none',
-                                  '&:hover': { background: 'linear-gradient(135deg, #15803d, #166534)' },
-                                }}
+                              <Tooltip
+                                title={contract.is_active ? 'Record a payment' : 'Contract is inactive — payments cannot be recorded'}
+                                arrow
+                                placement="top"
                               >
-                                Pay
-                              </Button>
+                                <span>
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    disabled={!contract.is_active}
+                                    onClick={() => openPayDialog(p)}
+                                    sx={{
+                                      fontSize: '0.68rem',
+                                      fontWeight: 700,
+                                      borderRadius: 1.5,
+                                      px: 1.5,
+                                      py: 0.25,
+                                      textTransform: 'none',
+                                      background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                                      boxShadow: 'none',
+                                      '&:hover': { background: 'linear-gradient(135deg, #15803d, #166534)' },
+                                      '&:disabled': {
+                                        background: '#e2e8f0',
+                                        color: '#94a3b8',
+                                      },
+                                    }}
+                                  >
+                                    Pay
+                                  </Button>
+                                </span>
+                              </Tooltip>
                             ) : isGrace ? (
                               <Chip label="Grace" size="small" sx={{ fontSize: '0.68rem', backgroundColor: '#e0e7ff', color: '#4338ca', fontWeight: 700 }} />
                             ) : (
@@ -1446,23 +1440,6 @@ export const ContractDetailPage = () => {
               >
                 Edit Lease
               </Button>
-              <Button
-                variant="outlined"
-                fullWidth
-                startIcon={contract.is_active ? <DeactivateIcon /> : <ActivateIcon />}
-                onClick={() => setToggleModalOpen(true)}
-                sx={{
-                  py: 1,
-                  borderRadius: 2,
-                  fontSize: '0.78rem',
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  borderColor: contract.is_active ? '#fecaca' : '#bbf7d0',
-                  color: contract.is_active ? '#dc2626' : '#16a34a',
-                }}
-              >
-                {contract.is_active ? 'Deactivate Contract' : 'Activate Contract'}
-              </Button>
             </Box>
         </Paper>
       </Box>
@@ -1571,21 +1548,6 @@ export const ContractDetailPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
-      <ConfirmationModal
-        open={toggleModalOpen}
-        title={contract.is_active ? 'Deactivate Contract' : 'Activate Contract'}
-        message={
-          contract.is_active
-            ? `Are you sure you want to deactivate contract "${contract.contract_number}"? The unit will be marked as available.`
-            : `Are you sure you want to reactivate contract "${contract.contract_number}"?`
-        }
-        confirmText={contract.is_active ? 'Deactivate' : 'Activate'}
-        confirmColor={contract.is_active ? 'error' : 'success'}
-        onConfirm={handleToggleStatus}
-        onClose={() => setToggleModalOpen(false)}
-        loading={toggling}
-      />
     </Box>
   );
 };

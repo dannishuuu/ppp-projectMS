@@ -29,8 +29,6 @@ import {
   Add as AddIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
-  Block as DeactivateIcon,
-  CheckCircle as ActivateIcon,
   Description as ContractIcon,
   Payments as PaymentsIcon,
   AttachMoney as MoneyIcon,
@@ -44,8 +42,8 @@ import {
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { rentalContractService } from '../../services/rentalContractServices';
+import { contractStatusMeta } from '../../utils/formatters';
 import { buildingsService } from '../../services/buildingServices/buildingsService';
-import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 
 const formatCurrency = (val) => {
   if (val == null || val === '') return '—';
@@ -57,12 +55,16 @@ const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-const StatusChip = ({ isActive }) =>
-  isActive ? (
-    <Chip label="Active" size="small" sx={{ backgroundColor: '#dcfce7', color: '#16a34a', fontWeight: 700, fontSize: '0.7rem' }} />
-  ) : (
-    <Chip label="Inactive" size="small" sx={{ backgroundColor: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: '0.7rem' }} />
+const StatusChip = ({ status, isActive }) => {
+  const meta = contractStatusMeta(status, isActive);
+  return (
+    <Chip
+      label={meta.label}
+      size="small"
+      sx={{ backgroundColor: meta.bg, color: meta.color, border: `1px solid ${meta.border}`, fontWeight: 700, fontSize: '0.7rem' }}
+    />
   );
+};
 
 export const ContractIndexPage = () => {
   const navigate = useNavigate();
@@ -85,11 +87,6 @@ export const ContractIndexPage = () => {
 
   // Lookups
   const [buildings, setBuildings] = useState([]);
-
-  // Toggle modal
-  const [selectedContract, setSelectedContract] = useState(null);
-  const [toggleModalOpen, setToggleModalOpen] = useState(false);
-  const [toggling, setToggling] = useState(false);
 
   const fetchContracts = useCallback(async () => {
     setLoading(true);
@@ -157,26 +154,6 @@ export const ContractIndexPage = () => {
     setStatusFilter('all');
     setBuildingFilter('');
     setPage(0);
-  };
-
-  const handleToggleStatus = async () => {
-    if (!selectedContract) return;
-    setToggling(true);
-    try {
-      await rentalContractService.toggleContractStatus(selectedContract.id);
-      enqueueSnackbar(
-        `Contract ${selectedContract.is_active ? 'deactivated' : 'activated'} successfully.`,
-        { variant: 'success' }
-      );
-      setToggleModalOpen(false);
-      setSelectedContract(null);
-      fetchContracts();
-      fetchSummary();
-    } catch (err) {
-      enqueueSnackbar(err.message || 'Failed to update contract status.', { variant: 'error' });
-    } finally {
-      setToggling(false);
-    }
   };
 
   const statCards = [
@@ -458,7 +435,7 @@ export const ContractIndexPage = () => {
                     )}
                   </TableCell>
                   <TableCell sx={{ textAlign: 'center' }}>
-                    <StatusChip isActive={c.is_active} />
+                    <StatusChip status={c.contract_status} isActive={c.is_active} />
                   </TableCell>
                   <TableCell sx={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                     <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
@@ -479,15 +456,6 @@ export const ContractIndexPage = () => {
                           </IconButton>
                         </span>
                       </Tooltip>
-                      <Tooltip title={c.is_active ? 'Deactivate' : 'Activate'}>
-                        <IconButton
-                          size="small"
-                          onClick={() => { setSelectedContract(c); setToggleModalOpen(true); }}
-                          sx={{ color: c.is_active ? '#dc2626' : '#16a34a' }}
-                        >
-                          {c.is_active ? <DeactivateIcon sx={{ fontSize: 17 }} /> : <ActivateIcon sx={{ fontSize: 17 }} />}
-                        </IconButton>
-                      </Tooltip>
                     </Box>
                   </TableCell>
                 </TableRow>
@@ -507,22 +475,6 @@ export const ContractIndexPage = () => {
           sx={{ fontSize: '0.8rem' }}
         />
       </Paper>
-
-      {/* Toggle Status Modal */}
-      <ConfirmationModal
-        open={toggleModalOpen}
-        title={selectedContract?.is_active ? 'Deactivate Contract' : 'Activate Contract'}
-        message={
-          selectedContract?.is_active
-            ? `Are you sure you want to deactivate contract "${selectedContract?.contract_number}"? This will also mark the linked unit as available.`
-            : `Are you sure you want to activate contract "${selectedContract?.contract_number}"?`
-        }
-        confirmText={selectedContract?.is_active ? 'Deactivate' : 'Activate'}
-        confirmColor={selectedContract?.is_active ? 'error' : 'success'}
-        onConfirm={handleToggleStatus}
-        onClose={() => { setToggleModalOpen(false); setSelectedContract(null); }}
-        loading={toggling}
-      />
     </Box>
   );
 };
