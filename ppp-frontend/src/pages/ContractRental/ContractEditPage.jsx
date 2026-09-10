@@ -45,6 +45,7 @@ import {
   ReceiptLong as ReceiptIcon,
   RestartAlt as ResetIcon,
   Lock as LockIcon,
+  AutoFixHigh as AutoIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -1781,18 +1782,38 @@ export const ContractEditPage = () => {
                   />
 
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2.5, width: '100%' }}>
-                    {/* Contract Number */}
+                    {/* Contract Number — system-generated once at creation, read-only */}
                     <Box sx={{ gridColumn: '1 / -1', width: '100%' }}>
-                      <FieldLabel required>Contract Number / Reference</FieldLabel>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        value={formData.contractNumber}
-                        onChange={handleChange('contractNumber')}
-                        disabled={saving || Boolean(original?.is_active)}
-                        placeholder="e.g. RC-2026-0001"
-                        sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
-                      />
+                      <FieldLabel>Contract Number / Reference</FieldLabel>
+                      <Box
+                        sx={{
+                          height: 40,
+                          width: '100%',
+                          borderRadius: 2,
+                          border: '1px dashed #c7d2fe',
+                          backgroundColor: '#f8faff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          px: 2,
+                          gap: 1,
+                        }}
+                      >
+                        <AutoIcon sx={{ fontSize: 15, color: '#6366f1', flexShrink: 0 }} />
+                        <Typography
+                          noWrap
+                          sx={{ fontSize: '0.85rem', fontWeight: 700, color: '#4338ca', fontFamily: '"Roboto Mono", monospace' }}
+                        >
+                          {formData.contractNumber || '—'}
+                        </Typography>
+                        <Chip
+                          label="System-generated"
+                          size="small"
+                          sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#e0e7ff', color: '#4338ca', ml: 'auto', flexShrink: 0 }}
+                        />
+                      </Box>
+                      <Typography sx={{ fontSize: '0.68rem', color: '#64748b', mt: 0.5 }}>
+                        Generated once by the system at contract creation — not editable
+                      </Typography>
                     </Box>
 
                     {/* Activation switch */}
