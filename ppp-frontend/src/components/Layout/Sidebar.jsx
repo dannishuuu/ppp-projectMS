@@ -43,6 +43,7 @@ import {
   Domain as BuildingNavIcon,
   Description as ContractNavIcon,
   PostAdd as NewContractIcon,
+  FactCheck as ApprovalNavIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProjects } from '../../context/ProjectContext';
@@ -107,6 +108,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const contractSubItems = [
     { text: 'Contracts List', icon: <ContractNavIcon />, path: '/contracts' },
     { text: 'Create Contract', icon: <NewContractIcon />, path: '/contracts/new' },
+    { text: 'Contract Approval', icon: <ApprovalNavIcon />, path: '/contracts/approval' },
   ];
 
   const foundationSubItems = [

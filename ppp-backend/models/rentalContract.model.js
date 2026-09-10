@@ -69,6 +69,7 @@ class RentalContractModel {
       tenantOrganizationId,
       rentalPaymentTypeId,
       paymentTimingId,
+      contractStatus,
       sortBy = 'created_at',
       sortOrder = 'DESC',
     } = options;
@@ -109,6 +110,11 @@ class RentalContractModel {
     if (paymentTimingId) {
       where += ` AND rc.payment_timing_id = :paymentTimingId`;
       replacements.paymentTimingId = paymentTimingId;
+    }
+
+    if (contractStatus) {
+      where += ` AND rc.contract_status = CAST(:contractStatus AS contract_status_enum)`;
+      replacements.contractStatus = contractStatus;
     }
 
     if (search && search.trim()) {
@@ -306,6 +312,21 @@ class RentalContractModel {
       }
     );
     return this.findById(id, transaction);
+  }
+
+  // Approve a contract: activates it (is_active = true) and sets contract_status = 'ACTIVE'
+  static async approve(id, updatedBy = null, transaction = null) {
+    const rows = await db.query(
+      `UPDATE rental_contracts SET
+        is_active = true,
+        contract_status = 'ACTIVE'::contract_status_enum,
+        updated_by = :updatedBy,
+        updated_at = NOW()
+       WHERE id = :id AND is_deleted = false
+       RETURNING id, is_active, contract_status`,
+      { replacements: { id, updatedBy }, type: QueryTypes.SELECT, transaction }
+    );
+    return rows[0] || null;
   }
 
   // Update only the contract_status enum value (e.g. DRAFT → PENDING on submission)

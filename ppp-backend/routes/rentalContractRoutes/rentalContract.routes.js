@@ -7,6 +7,7 @@ const RentalPaymentsController = require('../../controllers/rentalContractContro
 // Collection & Summary
 router.get('/', authMiddleware, RentalContractController.getContracts);
 router.get('/summary', authMiddleware, RentalContractController.getContractSummary);
+router.get('/pending', authMiddleware, RentalContractController.getPendingContracts);
 router.post('/', authMiddleware, RentalContractController.createContract);
 
 // Individual contract
@@ -14,6 +15,8 @@ router.get('/:id', authMiddleware, RentalContractController.getContractById);
 router.put('/:id', authMiddleware, RentalContractController.updateContract);
 router.patch('/:id/toggle-status', authMiddleware, RentalContractController.toggleContractStatus);
 router.patch('/:id/submit', authMiddleware, RentalContractController.submitContract);
+router.patch('/:id/approve', authMiddleware, RentalContractController.approveContract);
+router.patch('/:id/reject', authMiddleware, RentalContractController.rejectContract);
 router.delete('/:id', authMiddleware, RentalContractController.deleteContract);
 
 // Sub-resource routes: Payments & Schedules for contract

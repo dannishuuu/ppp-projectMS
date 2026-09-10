@@ -9,6 +9,41 @@ exports.getContracts = async (req, res, next) => {
   }
 };
 
+exports.getPendingContracts = async (req, res, next) => {
+  try {
+    const result = await RentalContractService.getPendingContracts(req.query);
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.approveContract = async (req, res, next) => {
+  try {
+    const result = await RentalContractService.approveContract(req.params.id, req.user?.id);
+    return res.status(200).json({
+      success: true,
+      message: 'Contract approved — status changed to ACTIVE',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.rejectContract = async (req, res, next) => {
+  try {
+    const result = await RentalContractService.rejectContract(req.params.id, req.user?.id);
+    return res.status(200).json({
+      success: true,
+      message: 'Contract rejected — status changed to CANCELLED',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getContractById = async (req, res, next) => {
   try {
     const contract = await RentalContractService.getContractById(req.params.id);

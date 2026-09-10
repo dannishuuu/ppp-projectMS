@@ -422,6 +422,81 @@ class RentalContractService {
     return updated;
   }
 
+  // Contracts waiting for approval (contract_status = 'PENDING')
+  static async getPendingContracts(options = {}) {
+    const page = parseInt(options.page, 10) || 1;
+    const limit = parseInt(options.limit, 10) || 20;
+    const offset = (page - 1) * limit;
+
+    const { rows, total } = await RentalContractModel.findAll({
+      limit,
+      offset,
+      search: options.search || '',
+      contractStatus: 'PENDING',
+      sortBy: 'created_at',
+      sortOrder: 'DESC',
+    });
+
+    return {
+      contracts: rows,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+    };
+  }
+
+  // Approve a submitted contract: is_active → true and contract_status → ACTIVE.
+  // The leased unit is marked as rented as part of the same transaction.
+  static async approveContract(id, actorId) {
+    const current = await RentalContractModel.findById(id);
+    if (!current) {
+      const err = new Error('Rental contract not found');
+      err.status = 404;
+      throw err;
+    }
+    if (String(current.contract_status || '').toUpperCase() !== 'PENDING') {
+      throw this._validationError(
+        `Only PENDING contracts can be approved (current status: ${current.contract_status || 'UNKNOWN'})`
+      );
+    }
+    if (current.is_active) {
+      throw this._validationError('Contract is already active');
+    }
+
+    // The unit is about to become rented — make sure no other active lease holds it
+    const existing = await RentalContractModel.findActiveByUnitId(current.unit_id, id);
+    if (existing) {
+      const err = new Error(`Unit is already actively leased under contract ${existing.contract_number}`);
+      err.status = 409;
+      throw err;
+    }
+
+    const transaction = await db.transaction();
+    try {
+      const updated = await RentalContractModel.approve(id, actorId, transaction);
+      await this._syncUnitRentedStatus(current.unit_id, transaction, actorId);
+      await transaction.commit();
+      return updated;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  // Reject a submitted contract: is_active stays unchanged, contract_status → CANCELLED.
+  static async rejectContract(id, actorId) {
+    const current = await RentalContractModel.findById(id);
+    if (!current) {
+      const err = new Error('Rental contract not found');
+      err.status = 404;
+      throw err;
+    }
+    if (String(current.contract_status || '').toUpperCase() !== 'PENDING') {
+      throw this._validationError(
+        `Only PENDING contracts can be rejected (current status: ${current.contract_status || 'UNKNOWN'})`
+      );
+    }
+    return RentalContractModel.updateStatus(id, 'CANCELLED', actorId);
+  }
+
   static async deleteContract(id, actorId) {    const current = await RentalContractModel.findById(id);
     if (!current) {
       const err = new Error('Rental contract not found');

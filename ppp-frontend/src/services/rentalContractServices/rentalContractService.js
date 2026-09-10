@@ -119,6 +119,36 @@ export const rentalContractService = {
   },
 
   /**
+   * Contracts waiting for approval (contract_status = PENDING)
+   */
+  async getPendingContracts(options = {}) {
+    const { page = 1, limit = 20, search = '' } = options;
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      search,
+    });
+    const response = await apiClient.get(`${CONTRACTS_BASE}/pending?${params.toString()}`);
+    return response.data;
+  },
+
+  /**
+   * Approve a pending contract (is_active → true, contract_status → ACTIVE)
+   */
+  async approveContract(id) {
+    const response = await apiClient.patch(`${CONTRACTS_BASE}/${id}/approve`, {});
+    return response.data;
+  },
+
+  /**
+   * Reject a pending contract (contract_status → CANCELLED, is_active unchanged)
+   */
+  async rejectContract(id) {
+    const response = await apiClient.patch(`${CONTRACTS_BASE}/${id}/reject`, {});
+    return response.data;
+  },
+
+  /**
    * Soft delete a rental contract and its schedules
    */
   async deleteContract(id) {

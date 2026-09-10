@@ -39,7 +39,7 @@ import { RentalPaymentTypePage } from './pages/Foundation/RentalPaymentTypePage'
 import { AreaUnitPage } from './pages/Foundation/AreaUnitPage';
 import { FloorTypePage } from './pages/Foundation/FloorTypePage';
 import { BuildingIndexPage, BuildingCreatePage, BuildingEditPage, BuildingDetailPage } from './pages/Buildings';
-import { ContractIndexPage, ContractCreatePage, ContractEditPage, ContractDetailPage } from './pages/ContractRental';
+import { ContractIndexPage, ContractCreatePage, ContractEditPage, ContractDetailPage, ContractApprovalPage } from './pages/ContractRental';
 import { BusinessSectorPage } from './pages/Foundation/BusinessSectorPage';
 
 
@@ -146,6 +146,7 @@ function App() {
                   {/* Rental Contract pages */}
                   <Route path="contracts" element={<ContractIndexPage />} />
                   <Route path="contracts/new" element={<ContractCreatePage />} />
+				  <Route path="contracts/approval" element={<ContractApprovalPage />} />
                   <Route path="contracts/:id" element={<ContractDetailPage />} />
                   <Route path="contracts/:id/edit" element={<ContractEditPage />} />
                 </Route>
