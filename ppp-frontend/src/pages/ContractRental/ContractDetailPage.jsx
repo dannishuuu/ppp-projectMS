@@ -1071,16 +1071,17 @@ export const ContractDetailPage = () => {
             {paymentStats && (
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', xl: 'repeat(4, 1fr)' }, gap: 2, mb: 2.5 }}>
                   {[
-                    { label: 'Total Due', value: `ETB ${formatCurrency(paymentStats.totalAmountDue)}`, color: '#dc2626', bg: '#fee2e2', icon: <ReceiptIcon sx={{ fontSize: 18, color: '#dc2626' }} /> },
-                    { label: 'Total Paid', value: `ETB ${formatCurrency(paymentStats.totalAmountPaid)}`, color: '#16a34a', bg: '#dcfce7', icon: <PaidIcon sx={{ fontSize: 18, color: '#16a34a' }} /> },
-                    { label: 'Outstanding', value: `ETB ${formatCurrency(paymentStats.totalOutstanding)}`, color: '#ca8a04', bg: '#fef9c3', icon: <OutstandingIcon sx={{ fontSize: 18, color: '#ca8a04' }} /> },
-                    { label: 'Overdue', value: `${paymentStats.overdueCount || 0} schedule(s)`, color: '#7c3aed', bg: '#ede9fe', icon: <OverdueIcon sx={{ fontSize: 18, color: '#7c3aed' }} /> },
+                    { label: 'Total Due', value: `ETB ${formatCurrency(paymentStats.totalAmountDue)}`, sub: `${paymentStats.totalPayments ?? 0} installment(s) on schedule`, color: '#4f46e5', bg: '#eef2ff', icon: <ReceiptIcon sx={{ fontSize: 18, color: '#4f46e5' }} /> },
+                    { label: 'Total Paid', value: `ETB ${formatCurrency(paymentStats.totalAmountPaid)}`, sub: `${paymentStats.paidCount ?? 0} installment(s) settled`, color: '#16a34a', bg: '#dcfce7', icon: <PaidIcon sx={{ fontSize: 18, color: '#16a34a' }} /> },
+                    { label: 'Outstanding', value: `ETB ${formatCurrency(paymentStats.totalOutstanding)}`, sub: `${paymentStats.unpaidCount ?? 0} installment(s) unpaid`, color: '#ca8a04', bg: '#fef9c3', icon: <OutstandingIcon sx={{ fontSize: 18, color: '#ca8a04' }} /> },
+                    { label: 'Overdue', value: `ETB ${formatCurrency(paymentStats.totalOverdue ?? 0)}`, sub: `${paymentStats.overdueCount ?? 0} schedule(s) past due`, color: '#dc2626', bg: '#fee2e2', icon: <OverdueIcon sx={{ fontSize: 18, color: '#dc2626' }} /> },
                   ].map((card) => (
                     <Paper key={card.label} elevation={0} sx={{ p: 1.5, borderRadius: 2.5, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Box sx={{ p: 0.75, borderRadius: 1.5, backgroundColor: card.bg }}>{card.icon}</Box>
-                      <Box>
+                      <Box sx={{ p: 0.75, borderRadius: 1.5, backgroundColor: card.bg, flexShrink: 0 }}>{card.icon}</Box>
+                      <Box sx={{ minWidth: 0 }}>
                         <Typography sx={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>{card.label}</Typography>
                         <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: card.color }}>{card.value}</Typography>
+                        <Typography sx={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.sub}</Typography>
                       </Box>
                     </Paper>
                   ))}

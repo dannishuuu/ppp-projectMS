@@ -188,7 +188,19 @@ export const rentalPaymentsService = {
 
     const queryStr = params.toString() ? `?${params.toString()}` : '';
     const response = await apiClient.get(`${PAYMENTS_BASE}/stats${queryStr}`);
-    return response.data;
+    const raw = response?.data ?? response ?? {};
+    return {
+      totalPayments: Number(raw.total_payments ?? raw.totalPayments ?? 0),
+      paidCount: Number(raw.paid_count ?? raw.paidCount ?? 0),
+      unpaidCount: Number(raw.unpaid_count ?? raw.unpaidCount ?? 0),
+      // Overdue follows the contract-list logic: unpaid installments due today or earlier with a
+      // non-zero remaining balance on active contracts
+      overdueCount: Number(raw.overdue_count ?? raw.overdueCount ?? 0),
+      totalOverdue: Number(raw.total_overdue ?? raw.totalOverdue ?? 0),
+      totalAmountDue: Number(raw.total_amount_due ?? raw.totalAmountDue ?? 0),
+      totalAmountPaid: Number(raw.total_amount_paid ?? raw.totalAmountPaid ?? 0),
+      totalOutstanding: Number(raw.total_outstanding ?? raw.totalOutstanding ?? 0),
+    };
   },
 
   /**

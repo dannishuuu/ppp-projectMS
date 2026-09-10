@@ -271,10 +271,21 @@ class RentalPaymentsService {
         COUNT(*)::int AS total_payments,
         COUNT(*) FILTER (WHERE rp.is_paid = true)::int AS paid_count,
         COUNT(*) FILTER (WHERE rp.is_paid = false)::int AS unpaid_count,
-        COUNT(*) FILTER (WHERE rp.is_paid = false AND rp.due_date < CURRENT_DATE)::int AS overdue_count,
+        COUNT(*) FILTER (
+          WHERE rp.is_paid = false
+            AND rp.due_date <= CURRENT_DATE
+            AND (rp.amount_due - rp.amount_paid) <> 0
+            AND COALESCE(rc.is_active, true)
+        )::int AS overdue_count,
         COALESCE(SUM(rp.amount_due), 0)::numeric AS total_amount_due,
         COALESCE(SUM(rp.amount_paid), 0)::numeric AS total_amount_paid,
-        COALESCE(SUM(rp.amount_due - rp.amount_paid) FILTER (WHERE rp.is_paid = false), 0)::numeric AS total_outstanding
+        COALESCE(SUM(rp.amount_due - rp.amount_paid) FILTER (WHERE rp.is_paid = false), 0)::numeric AS total_outstanding,
+        COALESCE(SUM(rp.amount_due - rp.amount_paid) FILTER (
+          WHERE rp.is_paid = false
+            AND rp.due_date <= CURRENT_DATE
+            AND (rp.amount_due - rp.amount_paid) <> 0
+            AND COALESCE(rc.is_active, true)
+        ), 0)::numeric AS total_overdue
        FROM rental_payments rp
        LEFT JOIN rental_contracts rc ON rc.id = rp.rental_contract_id
        ${where}`,
