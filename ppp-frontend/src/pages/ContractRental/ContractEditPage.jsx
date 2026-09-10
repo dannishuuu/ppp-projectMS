@@ -1705,31 +1705,50 @@ export const ContractEditPage = () => {
                       />
                     </Box>
 
-                    {/* Monthly Rent Total */}
+                    {/* Monthly Rent Total — auto-calculated from Rent/m² × unit area, read-only */}
                     <Box sx={{ width: '100%' }}>
                       <FieldLabel required>Total Monthly Rent</FieldLabel>
-                      <TextField
-                        type="number"
-                        fullWidth
-                        size="small"
-                        placeholder="0.00"
-                        value={formData.rentAmountTotalPerMonth}
-                        onChange={handleChange('rentAmountTotalPerMonth')}
-                        disabled={saving || Boolean(original?.is_active)}
-                        inputProps={{ min: 0, step: '0.01' }}
-                        InputProps={{
-                          startAdornment: <InputAdornment position="start">ETB</InputAdornment>,
-                        }}
-                        helperText={formData.rentAmountPerSquareMeter && selectedUnit?.area_value ? 'Auto-calculated from Rent/m² × Unit Area' : 'Enter directly or compute via Rent per m²'}
+                      <Box
                         sx={{
+                          height: 40,
                           width: '100%',
-                          '& .MuiOutlinedInput-root': {
-                            width: '100%',
-                            borderRadius: 2,
-                            backgroundColor: formData.rentAmountPerSquareMeter && selectedUnit?.area_value ? '#f0fdf4' : '#ffffff',
-                          },
+                          borderRadius: 2,
+                          border: formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0
+                            ? '1px solid #bbf7d0'
+                            : '1px dashed #cbd5e1',
+                          backgroundColor: formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0
+                            ? '#f0fdf4'
+                            : '#f8fafc',
+                          display: 'flex',
+                          alignItems: 'center',
+                          px: 2,
+                          gap: 1,
                         }}
-                      />
+                      >
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>ETB</Typography>
+                        <Typography
+                          sx={{
+                            fontSize: '0.9rem',
+                            fontWeight: 800,
+                            color: formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0 ? '#15803d' : '#94a3b8',
+                            flexGrow: 1,
+                          }}
+                        >
+                          {formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0
+                            ? formatCurrency(formData.rentAmountTotalPerMonth)
+                            : 'Change rate per m² to calculate'}
+                        </Typography>
+                        {formData.rentAmountTotalPerMonth && parseFloat(formData.rentAmountTotalPerMonth) > 0 && (
+                          <Chip
+                            label="Auto"
+                            size="small"
+                            sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#dcfce7', color: '#15803d' }}
+                          />
+                        )}
+                      </Box>
+                      <Typography sx={{ fontSize: '0.68rem', color: '#64748b', mt: 0.5 }}>
+                        Auto-calculated from Rent per m² × unit area — not editable
+                      </Typography>
                     </Box>
 
                     {/* Estimated Total Value Highlight */}
