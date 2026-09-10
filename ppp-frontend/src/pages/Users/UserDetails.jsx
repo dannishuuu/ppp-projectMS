@@ -8,8 +8,6 @@ import {
   CircularProgress,
   Avatar,
   Divider,
-  Tab,
-  Tabs,
   IconButton,
   Stack,
   Fade,
@@ -28,7 +26,6 @@ import {
   VpnKey as KeyIcon,
   BadgeOutlined as BadgeIcon,
   LoginRounded as LastLoginIcon,
-  HistoryOutlined as HistoryIcon,
   ContentCopy as CopyIcon,
   Public as LocationIcon,
   Map as RegionIcon,
@@ -43,31 +40,75 @@ import { useAuth } from '../../context/AuthContext';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-const StatBadge = ({ icon, label, value }) => (
-  <Box
-    sx={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 0.5,
-      px: 3,
-      py: 2,
-      borderRadius: '14px',
-      backgroundColor: 'rgba(255,255,255,0.07)',
-      border: '1px solid rgba(255,255,255,0.12)',
-      backdropFilter: 'blur(8px)',
-      minWidth: 100,
-    }}
-  >
-    {React.cloneElement(icon, { sx: { color: 'rgba(255,255,255,0.7)', fontSize: 18 } })}
-    <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: '0.9rem', lineHeight: 1 }}>
-      {value}
-    </Typography>
-    <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-      {label}
-    </Typography>
-  </Box>
-);
+// Compact stacked row for the identity sidebar card
+const SummaryRow = ({ icon, label, value, mono = false, copyable = false, last = false }) => {
+  const { enqueueSnackbar } = useSnackbar();
+
+  const handleCopy = () => {
+    if (value) {
+      navigator.clipboard.writeText(value);
+      enqueueSnackbar('Copied to clipboard', { variant: 'success', autoHideDuration: 1500 });
+    }
+  };
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 1.25,
+        py: 1.1,
+        px: 0.25,
+        borderBottom: last ? 'none' : '1px solid #f1f5f9',
+      }}
+    >
+      <Box
+        sx={{
+          width: 28,
+          height: 28,
+          borderRadius: '8px',
+          backgroundColor: 'rgba(99,102,241,0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          mt: 0.25,
+        }}
+      >
+        {React.cloneElement(icon, { sx: { color: '#a5b4fc', fontSize: 14 } })}
+      </Box>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography sx={{ fontSize: '0.66rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          {label}
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Typography
+            sx={{
+              fontSize: '0.84rem',
+              fontWeight: 600,
+              color: '#1e293b',
+              fontFamily: mono ? '"Roboto Mono", monospace' : 'inherit',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {value || '—'}
+          </Typography>
+          {copyable && value && (
+            <IconButton
+              size="small"
+              onClick={handleCopy}
+              sx={{ p: 0.3, color: '#94a3b8', '&:hover': { color: '#6366f1' } }}
+            >
+              <CopyIcon sx={{ fontSize: 13 }} />
+            </IconButton>
+          )}
+        </Box>
+      </Box>
+    </Box>
+  );
+};
 
 const FieldRow = ({ icon, label, value, mono = false, copyable = false, chip = null, last = false }) => {
   const { enqueueSnackbar } = useSnackbar();
@@ -188,7 +229,6 @@ export const UserDetails = () => {
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState(0);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -287,79 +327,78 @@ export const UserDetails = () => {
 
       {/* Subtitle */}
       <Typography variant="body2" sx={{ color: '#64748b', mb: 2.5 }}>
-        View and manage user profile details and account information.
+        View user profile details and account information.
       </Typography>
 
-      {/* ── Hero Profile Card ── */}
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 3,
-          overflow: 'hidden',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.06)',
-        }}
-      >
-        {/* Banner */}
+      <Fade in>
         <Box
           sx={{
-            px: { xs: 3, md: 5 },
-            pt: 4,
-            pb: 5,
-            background: 'linear-gradient(135deg, #312e81 0%, #4f46e5 45%, #7c3aed 100%)',
-            position: 'relative',
-            overflow: 'hidden',
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : '340px 1fr',
+            gap: 2.5,
+            alignItems: 'start',
           }}
         >
-          {/* Decorative blobs */}
-          <Box sx={{ position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
-          <Box sx={{ position: 'absolute', bottom: -20, left: '30%', width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
-          <Box sx={{ position: 'absolute', top: 20, right: '20%', width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }} />
-
-          <Box
+          {/* ── Identity Sidebar Card ── */}
+          <Paper
+            elevation={0}
             sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 3,
-              flexWrap: 'wrap',
-              position: 'relative',
-              zIndex: 1,
+              borderRadius: 3,
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.06)',
+              overflow: 'hidden',
             }}
           >
-            {/* Avatar */}
+            {/* Gradient banner */}
             <Box
               sx={{
-                p: '3px',
-                borderRadius: '50%',
-                background: 'rgba(255,255,255,0.25)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                height: 84,
+                background: 'linear-gradient(135deg, #312e81 0%, #4f46e5 45%, #7c3aed 100%)',
+                position: 'relative',
+                overflow: 'hidden',
               }}
             >
-              <Avatar
-                sx={{
-                  width: 88,
-                  height: 88,
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1))',
-                  border: '2.5px solid rgba(255,255,255,0.6)',
-                  fontSize: '1.8rem',
-                  fontWeight: 800,
-                  color: '#fff',
-                  backdropFilter: 'blur(8px)',
-                }}
-              >
-                {user.avatar_url
-                  ? <Box component="img" src={user.avatar_url} sx={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-                  : initials()
-                }
-              </Avatar>
+              <Box sx={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+              <Box sx={{ position: 'absolute', bottom: -30, left: '20%', width: 110, height: 110, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
             </Box>
 
-            {/* Name + username + status */}
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                <Typography sx={{ color: '#fff', fontWeight: 800, fontSize: '1.5rem', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-                  {displayName}
-                </Typography>
+            {/* Avatar + identity */}
+            <Box sx={{ px: 3, pb: 2.5, mt: '-46px', position: 'relative', textAlign: 'center' }}>
+              <Box
+                sx={{
+                  display: 'inline-block',
+                  p: '3px',
+                  borderRadius: '50%',
+                  background: '#ffffff',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 92,
+                    height: 92,
+                    background: 'linear-gradient(135deg, #6366f1, #7c3aed)',
+                    border: '3px solid #ffffff',
+                    fontSize: '1.8rem',
+                    fontWeight: 800,
+                    color: '#fff',
+                  }}
+                >
+                  {user.avatar_url
+                    ? <Box component="img" src={user.avatar_url} sx={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                    : initials()
+                  }
+                </Avatar>
+              </Box>
+
+              <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.15rem', letterSpacing: '-0.01em', mt: 1.25, lineHeight: 1.3 }}>
+                {displayName}
+              </Typography>
+              <Typography sx={{ color: '#64748b', fontSize: '0.82rem', fontWeight: 500, mt: 0.25 }}>
+                @{user.username || 'N/A'}
+              </Typography>
+
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
                 <Chip
                   label={user.is_active ? 'Active' : 'Inactive'}
                   size="small"
@@ -368,154 +407,100 @@ export const UserDetails = () => {
                     fontWeight: 700,
                     fontSize: '0.7rem',
                     borderRadius: '20px',
-                    backgroundColor: user.is_active ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)',
-                    color: user.is_active ? '#6ee7b7' : '#fca5a5',
-                    border: `1px solid ${user.is_active ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)'}`,
+                    backgroundColor: user.is_active ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                    color: user.is_active ? '#059669' : '#dc2626',
+                    border: `1px solid ${user.is_active ? 'rgba(16,185,129,0.35)' : 'rgba(239,68,68,0.35)'}`,
                   }}
                 />
+                {isMe && (
+                  <Chip
+                    label="This is you"
+                    size="small"
+                    sx={{
+                      height: 22,
+                      fontWeight: 700,
+                      fontSize: '0.7rem',
+                      borderRadius: '20px',
+                      backgroundColor: 'rgba(99,102,241,0.1)',
+                      color: '#4f46e5',
+                      border: '1px solid rgba(99,102,241,0.3)',
+                    }}
+                  />
+                )}
               </Box>
-              <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.875rem', mt: 0.5, fontWeight: 500 }}>
-                @{user.username || 'N/A'} · {user.email}
-              </Typography>
             </Box>
 
-            {/* Stat badges */}
-            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-              <StatBadge icon={<CalendarIcon />} label="Joined" value={formatDate(user.created_at)} />
-              <StatBadge icon={<LastLoginIcon />} label="Last Login" value={user.last_login_at ? formatDate(user.last_login_at) : 'Never'} />
+            <Divider />
+
+            {/* Quick stats */}
+            <Box sx={{ px: 2.5, py: 1.5 }}>
+              <SummaryRow icon={<CalendarIcon />} label="Joined" value={formatDate(user.created_at)} />
+              <SummaryRow
+                icon={<LastLoginIcon />}
+                label="Last Login"
+                value={user.last_login_at ? formatDate(user.last_login_at) : 'Never'}
+                last
+              />
             </Box>
-          </Box>
-        </Box>
+          </Paper>
 
-        {/* ── Tabs ── */}
-        <Box sx={{ borderBottom: '1px solid #f1f5f9', px: { xs: 2, md: 4 }, backgroundColor: '#fff' }}>
-          <Tabs
-            value={tab}
-            onChange={(_, v) => setTab(v)}
-            sx={{
-              minHeight: 48,
-              '& .MuiTab-root': {
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                textTransform: 'none',
-                minHeight: 48,
-                color: '#94a3b8',
-                px: 2.5,
-                mr: 0.5,
-                '&.Mui-selected': { color: '#4f46e5', fontWeight: 700 },
-                '&:hover': { color: '#4f46e5', backgroundColor: 'rgba(99,102,241,0.04)', borderRadius: '8px 8px 0 0' },
-              },
-              '& .MuiTabs-indicator': { height: 2.5, borderRadius: '3px 3px 0 0', backgroundColor: '#4f46e5' },
-            }}
-          >
-            <Tab icon={<PersonIcon sx={{ fontSize: 15 }} />} iconPosition="start" label="Overview" />
-            <Tab icon={<HistoryIcon sx={{ fontSize: 15 }} />} iconPosition="start" label="Activity" />
-          </Tabs>
-        </Box>
+          {/* ── Details Column ── */}
+          <Stack spacing={2.5}>
 
-        {/* ── Tab Content ── */}
-        <Box sx={{ p: { xs: 2.5, md: 4 }, backgroundColor: '#f8fafc' }}>
+            {/* Personal Info + Account Details Row */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 2.5 }}>
+              <SectionCard icon={<PersonIcon />} title="Personal Information">
+                <FieldRow icon={<PersonIcon />} label="First Name" value={user.first_name} />
+                <FieldRow icon={<PersonIcon />} label="Last Name" value={user.last_name} />
+                <FieldRow icon={<BadgeIcon />} label="Display Name" value={user.display_name} last />
+              </SectionCard>
 
-          {/* OVERVIEW TAB */}
-          {tab === 0 && (
-            <Fade in>
-              <Stack spacing={2.5}>
-
-                {/* Personal Info + Account Details Row */}
-                <Box sx={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 2.5 }}>
-                  <SectionCard icon={<PersonIcon />} title="Personal Information">
-                    <FieldRow icon={<PersonIcon />} label="First Name" value={user.first_name} />
-                    <FieldRow icon={<PersonIcon />} label="Last Name" value={user.last_name} />
-                    <FieldRow icon={<BadgeIcon />} label="Display Name" value={user.display_name} />
-                    <FieldRow icon={<PhoneIcon />} label="Phone" value={user.phone} last />
-                  </SectionCard>
-
-                  <SectionCard icon={<AccountIcon />} title="Account Details">
-                    <FieldRow icon={<EmailIcon />} label="Email" value={user.email} copyable />
-                    <FieldRow icon={<AccountIcon />} label="Username" value={user.username ? `@${user.username}` : '—'} />
-                    <FieldRow icon={<KeyIcon />} label="User ID" value={user.id} mono copyable />
-                    <FieldRow
-                      icon={<AccountIcon />}
-                      label="Status"
-                      last
-                      chip={
-                        <Chip
-                          label={user.is_active ? 'Active' : 'Inactive'}
-                          size="small"
-                          sx={{
-                            fontWeight: 700,
-                            fontSize: '0.72rem',
-                            borderRadius: '8px',
-                            backgroundColor: user.is_active ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                            color: user.is_active ? '#059669' : '#dc2626',
-                          }}
-                        />
-                      }
+              <SectionCard icon={<AccountIcon />} title="Account Details">
+                <FieldRow icon={<EmailIcon />} label="Email" value={user.email} copyable />
+                <FieldRow icon={<PhoneIcon />} label="Phone" value={user.phone} />
+                <FieldRow icon={<KeyIcon />} label="User ID" value={user.id} mono copyable />
+                <FieldRow
+                  icon={<AccountIcon />}
+                  label="Status"
+                  last
+                  chip={
+                    <Chip
+                      label={user.is_active ? 'Active' : 'Inactive'}
+                      size="small"
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: '0.72rem',
+                        borderRadius: '8px',
+                        backgroundColor: user.is_active ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+                        color: user.is_active ? '#059669' : '#dc2626',
+                      }}
                     />
-                  </SectionCard>
-                </Box>
+                  }
+                />
+              </SectionCard>
+            </Box>
 
-                {/* Location Details */}
-                <SectionCard icon={<LocationIcon />} title="Location Details">
-                  <Box sx={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 2 }}>
-                    <FieldRow icon={<LocationIcon />} label="Country" value={user.location_country_name || '—'} last={false} />
-                    <FieldRow icon={<RegionIcon />} label="Region" value={user.location_region_name || '—'} last={false} />
-                    <FieldRow icon={<ZoneIcon />} label="Zone" value={user.location_zone_name || '—'} last={false} />
-                    <FieldRow icon={<WoredaIcon />} label="Woreda" value={user.location_woreda_name || '—'} last={true} />
-                  </Box>
-                </SectionCard>
-
-                {/* Timeline */}
-                <SectionCard icon={<TimeIcon />} title="Timeline">
-                  <Box sx={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 2 }}>
-                    <FieldRow icon={<CalendarIcon />} label="Created" value={formatDateTime(user.created_at)} last={false} />
-                    <FieldRow icon={<TimeIcon />} label="Last Updated" value={formatDateTime(user.updated_at)} last={false} />
-                    <FieldRow icon={<LastLoginIcon />} label="Last Login" value={user.last_login_at ? formatDateTime(user.last_login_at) : 'Never'} last />
-                  </Box>
-                </SectionCard>
-              </Stack>
-            </Fade>
-          )}
-
-          {/* ACTIVITY TAB */}
-          {tab === 1 && (
-            <Fade in>
-              <Box
-                sx={{
-                  py: 8,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 1.5,
-                  borderRadius: 3,
-                  border: '1px dashed #e2e8f0',
-                  backgroundColor: '#fff',
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 3,
-                    background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(124,58,237,0.1))',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <HistoryIcon sx={{ fontSize: 26, color: '#a5b4fc' }} />
-                </Box>
-                <Typography sx={{ fontWeight: 700, color: '#475569', fontSize: '0.95rem' }}>
-                  No Activity Yet
-                </Typography>
-                <Typography sx={{ color: '#94a3b8', fontSize: '0.83rem', textAlign: 'center', maxWidth: 280 }}>
-                  User activity history will appear here once actions are recorded.
-                </Typography>
+            {/* Location Details */}
+            <SectionCard icon={<LocationIcon />} title="Location Details">
+              <Box sx={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 2 }}>
+                <FieldRow icon={<LocationIcon />} label="Country" value={user.location_country_name || '—'} last={false} />
+                <FieldRow icon={<RegionIcon />} label="Region" value={user.location_region_name || '—'} last={false} />
+                <FieldRow icon={<ZoneIcon />} label="Zone / Sub-city" value={user.location_zone_name || '—'} last={false} />
+                <FieldRow icon={<WoredaIcon />} label="Woreda" value={user.location_woreda_name || '—'} last={true} />
               </Box>
-            </Fade>
-          )}
+            </SectionCard>
+
+            {/* Timeline */}
+            <SectionCard icon={<TimeIcon />} title="Timeline">
+              <Box sx={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 2 }}>
+                <FieldRow icon={<CalendarIcon />} label="Created" value={formatDateTime(user.created_at)} last={false} />
+                <FieldRow icon={<TimeIcon />} label="Last Updated" value={formatDateTime(user.updated_at)} last={false} />
+                <FieldRow icon={<LastLoginIcon />} label="Last Login" value={user.last_login_at ? formatDateTime(user.last_login_at) : 'Never'} last />
+              </Box>
+            </SectionCard>
+          </Stack>
         </Box>
-      </Paper>
+      </Fade>
     </Box>
   );
 };
