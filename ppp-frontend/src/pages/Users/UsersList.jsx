@@ -357,9 +357,9 @@ export const UsersList = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.82rem' }}>
-                        {user.location_region_name
-                          ? `${user.location_region_name}${user.location_country_name ? `, ${user.location_country_name}` : ''}`
-                          : user.location_country_name || '—'}
+                        {user.location_zone_name
+                          ? `${user.location_zone_name}${user.location_region_name ? `, ${user.location_region_name}` : ''}`
+                          : user.location_region_name || '—'}
                       </Typography>
                     </TableCell>
                     <TableCell>
