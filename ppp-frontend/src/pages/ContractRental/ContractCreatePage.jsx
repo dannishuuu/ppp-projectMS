@@ -423,6 +423,16 @@ export const ContractCreatePage = () => {
     return /^\d+$/.test(str) ? parseInt(str, 10) : 0;
   }, [formData.gracePeriod]);
 
+  // "Month" unit for the grace window: the rental payment type whose duration_days is nearest to 30
+  const monthDays = useMemo(() => {
+    let best = 30;
+    for (const pt of paymentTypes) {
+      const d = parseFloat(pt.duration_days);
+      if (Number.isFinite(d) && d > 0 && Math.abs(d - 30) < Math.abs(best - 30)) best = d;
+    }
+    return best;
+  }, [paymentTypes]);
+
   // Selected payment type object
   const selectedPaymentType = useMemo(() => {
     return paymentTypes.find((pt) => pt.id === formData.rentalPaymentTypeId) || null;
@@ -476,15 +486,41 @@ export const ContractCreatePage = () => {
     if (numberOfSchedules <= 0) return [];
 
     // The Lease Agreement Preview's "Total Contract Value" (monthly rent × billable months) is the
-    // authoritative amount — distribute it evenly across the chargeable installments so the
-    // schedule total matches it exactly. Rounding cents are absorbed by the final installment.
+    // authoritative amount. The grace window covers the first graceDays days of the contract
+    // (grace months × the payment-type month unit nearest to 30), and the total is distributed
+    // across installments in proportion to each installment's chargeable days — installments
+    // fully inside the window become zero (pre-paid grace) and a cycle straddling the boundary
+    // is pro-rated. Rounding cents are absorbed by the final chargeable installment.
     const contractTotal = totalContractValue;
-    const graceCount = Math.min(gracePeriodMonths, numberOfSchedules);
-    const chargeableCount = numberOfSchedules - graceCount;
-    const baseAmount = chargeableCount > 1 ? Math.floor((contractTotal / chargeableCount) * 100) / 100 : 0;
-    const finalAmount = chargeableCount > 0
-      ? Math.round((contractTotal - baseAmount * (chargeableCount - 1)) * 100) / 100
-      : 0;
+    const graceDays = gracePeriodMonths * monthDays;
+
+    const chargeablePerInstallment = [];
+    let totalChargeableDays = 0;
+    for (let count = 1; count <= numberOfSchedules; count++) {
+      const offsetDays = (count - 1) * intervalDays;
+      const overlapDays = graceDays > 0 ? Math.max(0, Math.min(intervalDays, graceDays - offsetDays)) : 0;
+      const chargeableDays = intervalDays - overlapDays;
+      chargeablePerInstallment.push(chargeableDays);
+      totalChargeableDays += chargeableDays;
+    }
+
+    let lastChargeableIndex = -1;
+    chargeablePerInstallment.forEach((c, i) => { if (c > 0) lastChargeableIndex = i; });
+    const amounts = [];
+    let runningSum = 0;
+    chargeablePerInstallment.forEach((chargeableDays, i) => {
+      if (totalChargeableDays <= 0 || chargeableDays <= 0) {
+        amounts.push(0);
+        return;
+      }
+      if (i === lastChargeableIndex) {
+        amounts.push(Math.max(0, Math.round((contractTotal - runningSum) * 100) / 100));
+      } else {
+        const amt = Math.round((contractTotal * (chargeableDays / totalChargeableDays)) * 100) / 100;
+        amounts.push(amt);
+        runningSum += amt;
+      }
+    });
 
     const formatYMD = (d) => {
       const year = d.getFullYear();
@@ -506,13 +542,13 @@ export const ContractCreatePage = () => {
 
       const dueDateStr = formatYMD(currentDue);
       const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
-      const isGrace = count <= graceCount;
+      const isGrace = chargeablePerInstallment[count - 1] <= 0;
 
       schedule.push({
         installmentNumber: count,
         dueDate: dueDateStr,
         nextDate: nextDateStr,
-        amount: isGrace ? 0 : (count === numberOfSchedules ? finalAmount : baseAmount),
+        amount: amounts[count - 1],
         isGrace,
       });
 
@@ -528,6 +564,7 @@ export const ContractCreatePage = () => {
     selectedPaymentType,
     totalContractValue,
     gracePeriodMonths,
+    monthDays,
   ]);
 
   // Validation
@@ -1977,7 +2014,7 @@ export const ContractCreatePage = () => {
                     <Box sx={{ px: 3, py: 1.25, backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
                         {simulatedSchedule.length} installments scheduled
-                        {gracePeriodMonths > 0 ? ` • first ${Math.min(gracePeriodMonths, simulatedSchedule.length)} pre-paid (grace)` : ''}
+                        {gracePeriodMonths > 0 ? ` • ${gracePeriodMonths} grace month(s) deducted` : ''}
                       </Typography>
                       <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: '#16a34a' }}>
                         Total: ETB {formatCurrency(simulatedSchedule.reduce((acc, s) => acc + s.amount, 0))}

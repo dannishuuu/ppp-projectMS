@@ -429,6 +429,28 @@ class RentalContractService {
     return { totalDays, totalMonths };
   }
 
+  // "Month" unit for grace conversion: the rental payment type whose duration_days is nearest
+  // to 30 (e.g. Monthly = 30). Falls back to 30 when no payment types exist.
+  static async _resolveMonthDurationDays(transaction = null) {
+    const rows = await db.query(
+      `SELECT duration_days FROM rental_payment_types WHERE duration_days IS NOT NULL AND duration_days > 0 AND is_deleted = false`,
+      { type: QueryTypes.SELECT, ...(transaction ? { transaction } : {}) }
+    );
+    let monthDays = 30;
+    for (const row of rows || []) {
+      const d = parseFloat(row.duration_days);
+      if (Number.isFinite(d) && d > 0 && Math.abs(d - 30) < Math.abs(monthDays - 30)) monthDays = d;
+    }
+    return monthDays;
+  }
+
+  // Days of an installment cycle starting at offsetDays (each cycle is intervalDays long)
+  // that fall inside the grace window (the first graceDays days of the contract).
+  static _graceOverlapDays(offsetDays, intervalDays, graceDays) {
+    if (graceDays <= 0) return 0;
+    return Math.max(0, Math.min(intervalDays, graceDays - offsetDays));
+  }
+
   static async _syncUnitRentedStatus(unitId, transaction, actorId) {
     if (!unitId) return;
     const activeContracts = await db.query(
@@ -469,10 +491,13 @@ class RentalContractService {
     // Amount per cycle based on duration ratio (assuming monthly rent = 30 days)
     const amountPerCycle = parseFloat(((monthlyRent / 30) * intervalDays).toFixed(2));
 
-    // Grace period: the first N scheduled installments get a zero amount and are marked as paid
-    // without any transaction reference, so the tenant is never billed for those months.
+    // Grace period (months) → days using the payment-type month unit (duration_days nearest to 30).
+    // Only the portion of each installment that falls inside the grace window is deducted, so an
+    // annual cycle loses one month of rent, not the whole year.
     const rawGrace = parseInt(contract.grace_period ?? contract.gracePeriod, 10);
-    const graceCycles = Number.isFinite(rawGrace) && rawGrace > 0 ? Math.min(rawGrace, numberOfSchedules) : 0;
+    const graceMonths = Number.isFinite(rawGrace) && rawGrace > 0 ? rawGrace : 0;
+    const monthDays = graceMonths > 0 ? await this._resolveMonthDurationDays(transaction) : 30;
+    const graceDays = graceMonths * monthDays;
 
     const formatYMD = (d) => {
       const year = d.getFullYear();
@@ -490,12 +515,22 @@ class RentalContractService {
 
       const dueDateStr = formatYMD(currentDue);
       const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
-      const isGraceCycle = count <= graceCycles;
+
+      const offsetDays = (count - 1) * intervalDays;
+      const overlapDays = this._graceOverlapDays(offsetDays, intervalDays, graceDays);
+      const chargeableDays = intervalDays - overlapDays;
+      const isGraceCycle = chargeableDays <= 0;
+      const baseAmount = amountPerCycle > 0 ? amountPerCycle : monthlyRent;
+      const amountDue = isGraceCycle
+        ? 0
+        : chargeableDays < intervalDays
+          ? parseFloat((baseAmount * (chargeableDays / intervalDays)).toFixed(2))
+          : baseAmount;
 
       await RentalPaymentsModel.create(
         {
           rentalContractId: contract.id,
-          amountDue: isGraceCycle ? 0 : (amountPerCycle > 0 ? amountPerCycle : monthlyRent),
+          amountDue,
           amountPaid: 0,
           dueDate: dueDateStr,
           nextPaymentDate: nextDateStr,
@@ -536,11 +571,13 @@ class RentalContractService {
     const monthlyRent = parseFloat(contract.rent_amount_total_per_month || contract.rentAmountTotalPerMonth) || 0;
     const amountPerCycle = parseFloat(((monthlyRent / 30) * intervalDays).toFixed(2));
 
-    // Grace period: installments within the grace window that were not already covered by real
-    // paid payments are generated as zero-amount, pre-paid records without any reference.
+    // Grace period (months) → days using the payment-type month unit (duration_days nearest to 30).
+    // Installment cycles are dated from the contract start, so the grace window covers the first
+    // graceDays days regardless of how many real payments already exist.
     const rawGrace = parseInt(contract.grace_period ?? contract.gracePeriod, 10);
-    const graceCycles = Number.isFinite(rawGrace) && rawGrace > 0 ? rawGrace : 0;
-    const graceRemaining = Math.max(0, Math.min(graceCycles - paidCount, numberOfSchedules - paidCount));
+    const graceMonths = Number.isFinite(rawGrace) && rawGrace > 0 ? rawGrace : 0;
+    const monthDays = graceMonths > 0 ? await this._resolveMonthDurationDays(transaction) : 30;
+    const graceDays = graceMonths * monthDays;
 
     const formatYMD = (d) => {
       const year = d.getFullYear();
@@ -563,12 +600,22 @@ class RentalContractService {
 
       const dueDateStr = formatYMD(currentDue);
       const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
-      const isGraceCycle = count - paidCount <= graceRemaining;
+
+      const offsetDays = (count - 1) * intervalDays;
+      const overlapDays = this._graceOverlapDays(offsetDays, intervalDays, graceDays);
+      const chargeableDays = intervalDays - overlapDays;
+      const isGraceCycle = chargeableDays <= 0;
+      const baseAmount = amountPerCycle > 0 ? amountPerCycle : monthlyRent;
+      const amountDue = isGraceCycle
+        ? 0
+        : chargeableDays < intervalDays
+          ? parseFloat((baseAmount * (chargeableDays / intervalDays)).toFixed(2))
+          : baseAmount;
 
       await RentalPaymentsModel.create(
         {
           rentalContractId: contract.id,
-          amountDue: isGraceCycle ? 0 : (amountPerCycle > 0 ? amountPerCycle : monthlyRent),
+          amountDue,
           amountPaid: 0,
           dueDate: dueDateStr,
           nextPaymentDate: nextDateStr,
