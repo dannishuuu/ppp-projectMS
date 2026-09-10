@@ -318,11 +318,10 @@ class RentalContractService {
 
         // Check if there are any remaining real (non-grace) paid payments
         const remainingPaid = await db.query(
-          `SELECT COUNT(*)::int as count, COALESCE(SUM(amount_due), 0)::numeric as total FROM rental_payments WHERE rental_contract_id = :id AND is_paid = true AND amount_due > 0 AND is_deleted = false`,
+          `SELECT COUNT(*)::int as count FROM rental_payments WHERE rental_contract_id = :id AND is_paid = true AND amount_due > 0 AND is_deleted = false`,
           { replacements: { id }, type: QueryTypes.SELECT, transaction }
         );
         const paidCount = remainingPaid[0]?.count || 0;
-        const paidTotal = parseFloat(remainingPaid[0]?.total) || 0;
 
         if (paidCount === 0) {
           if (scheduleOverride) {
@@ -331,7 +330,7 @@ class RentalContractService {
             await this._generateScheduleForContract(updated, transaction, actorId);
           }
         } else {
-          await this._generateRemainingScheduleForContract(updated, paidCount, paidTotal, transaction, actorId);
+          await this._generateRemainingScheduleForContract(updated, paidCount, transaction, actorId);
         }
       }
 
@@ -491,11 +490,52 @@ class RentalContractService {
     return rows[0]?.timing_code ? String(rows[0].timing_code).trim().toUpperCase() : null;
   }
 
-  // Days of an installment cycle starting at offsetDays (each cycle is intervalDays long)
-  // that fall inside the grace window (the first graceDays days of the contract).
-  static _graceOverlapDays(offsetDays, intervalDays, graceDays) {
-    if (graceDays <= 0) return 0;
-    return Math.max(0, Math.min(intervalDays, graceDays - offsetDays));
+  // Build the theoretical installment amounts for a contract schedule:
+  // 1) the pre-grace amounts — the full contract total (monthly rent × lease months) distributed
+  //    evenly across the installments, with the final one absorbing rounding cents;
+  // 2) the grace deduction (grace months × monthly rent) is then taken off the FIRST installments
+  //    top-down: leading installments are zeroed (marked as grace) until the deduction is
+  //    consumed, the boundary installment is partially reduced, and every other installment
+  //    keeps its pre-grace amount untouched.
+  // Returns { amounts: number[], grace: boolean[] } indexed by installment (0-based).
+  static _buildInstallmentAmounts(monthlyRent, totalMonths, numberOfSchedules, graceMonths) {
+    const monthly = parseFloat(monthlyRent) || 0;
+    const noGraceTotal = round2(monthly * Math.max(0, totalMonths || 0));
+    const deduction = round2(monthly * Math.max(0, graceMonths || 0));
+    const count = Math.max(0, numberOfSchedules || 0);
+
+    // Pre-grace base amounts: even distribution, final installment absorbs rounding cents
+    const base = [];
+    let running = 0;
+    for (let i = 0; i < count; i++) {
+      if (i === count - 1) {
+        base.push(Math.max(0, round2(noGraceTotal - running)));
+      } else {
+        const amt = round2(noGraceTotal / count);
+        base.push(amt);
+        running = round2(running + amt);
+      }
+    }
+
+    // Top-down grace deduction over the listed amounts
+    const amounts = [];
+    const grace = [];
+    let remaining = deduction;
+    for (let i = 0; i < count; i++) {
+      if (remaining > 0 && base[i] > 0 && remaining >= base[i]) {
+        amounts.push(0);
+        grace.push(true);
+        remaining = round2(remaining - base[i]);
+      } else if (remaining > 0 && base[i] > 0) {
+        amounts.push(round2(base[i] - remaining));
+        grace.push(false);
+        remaining = 0;
+      } else {
+        amounts.push(base[i]);
+        grace.push(false);
+      }
+    }
+    return { amounts, grace };
   }
 
   // Validate a custom schedule override from the contract form preview. Returns a sanitized
@@ -601,9 +641,6 @@ class RentalContractService {
 
     const monthlyRent = parseFloat(contract.rent_amount_total_per_month || contract.rentAmountTotalPerMonth) || 0;
 
-    // Grace period (months) → days using the payment-type month unit (duration_days nearest to 30).
-    // Only the portion of each installment that falls inside the grace window is deducted, so an
-    // annual cycle loses one month of rent, not the whole year.
     const rawGrace = parseInt(contract.grace_period ?? contract.gracePeriod, 10);
     const graceMonths = Number.isFinite(rawGrace) && rawGrace > 0 ? rawGrace : 0;
 
@@ -611,45 +648,12 @@ class RentalContractService {
     // month (the payment-type month unit) after the contract start.
     const timingCode = await this._resolveTimingCode(contract.payment_timing_id || contract.paymentTimingId, transaction);
     const afterUsage = timingCode === 'AFTER_USAGE';
-    const monthDays = graceMonths > 0 || afterUsage ? await this._resolveMonthDurationDays(transaction) : 30;
-    const graceDays = graceMonths * monthDays;
+    const monthDays = afterUsage ? await this._resolveMonthDurationDays(transaction) : 30;
 
-    // The contract total (monthly rent × billable months) is the authoritative amount — the same
-    // figure shown in the preview. It is distributed across the installments in proportion to each
-    // installment's chargeable days, so a monthly cycle costs exactly the monthly rent and the
-    // schedule total always equals the contract total (no per-cycle pro-rating drift).
-    const contractTotal = round2(monthlyRent * Math.max(0, term.totalMonths - graceMonths));
-
-    // Chargeable days per installment (days outside the grace window)
-    const chargeablePerInstallment = [];
-    let totalChargeableDays = 0;
-    for (let count = 1; count <= numberOfSchedules; count++) {
-      const offsetDays = (count - 1) * intervalDays;
-      const overlapDays = this._graceOverlapDays(offsetDays, intervalDays, graceDays);
-      const chargeableDays = intervalDays - overlapDays;
-      chargeablePerInstallment.push(chargeableDays);
-      totalChargeableDays += chargeableDays;
-    }
-
-    // Amount per installment: proportional share of the contract total; the final chargeable
-    // installment absorbs rounding cents so the schedule total is exact
-    let lastChargeableIndex = -1;
-    chargeablePerInstallment.forEach((c, i) => { if (c > 0) lastChargeableIndex = i; });
-    const amounts = [];
-    let runningSum = 0;
-    chargeablePerInstallment.forEach((chargeableDays, i) => {
-      if (totalChargeableDays <= 0 || chargeableDays <= 0) {
-        amounts.push(0);
-        return;
-      }
-      if (i === lastChargeableIndex) {
-        amounts.push(Math.max(0, round2(contractTotal - runningSum)));
-      } else {
-        const amt = round2(contractTotal * (chargeableDays / totalChargeableDays));
-        amounts.push(amt);
-        runningSum = round2(runningSum + amt);
-      }
-    });
+    // Installment amounts: the pre-grace schedule (monthly rent × lease months, evenly spread),
+    // then the grace deduction (grace months × monthly rent) taken off the FIRST installments
+    // top-down — leading installments are zeroed/reduced, all others keep their pre-grace amounts.
+    const { amounts, grace } = this._buildInstallmentAmounts(monthlyRent, term.totalMonths, numberOfSchedules, graceMonths);
 
     const formatYMD = (d) => {
       const year = d.getFullYear();
@@ -670,7 +674,7 @@ class RentalContractService {
 
       const dueDateStr = formatYMD(currentDue);
       const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
-      const isGraceCycle = chargeablePerInstallment[count - 1] <= 0;
+      const isGraceCycle = grace[count - 1];
 
       await RentalPaymentsModel.create(
         {
@@ -691,7 +695,7 @@ class RentalContractService {
     }
   }
 
-  static async _generateRemainingScheduleForContract(contract, paidCount, paidTotal, transaction, actorId) {
+  static async _generateRemainingScheduleForContract(contract, paidCount, transaction, actorId) {
     if (!contract) return;
     const paymentTypeId = contract.rental_payment_type_id || contract.rentalPaymentTypeId;
     const paymentType = paymentTypeId ? await RentalPaymentTypeModel.findById(paymentTypeId) : null;
@@ -713,9 +717,6 @@ class RentalContractService {
 
     const monthlyRent = parseFloat(contract.rent_amount_total_per_month || contract.rentAmountTotalPerMonth) || 0;
 
-    // Grace period (months) → days using the payment-type month unit (duration_days nearest to 30).
-    // Installment cycles are dated from the contract start, so the grace window covers the first
-    // graceDays days regardless of how many real payments already exist.
     const rawGrace = parseInt(contract.grace_period ?? contract.gracePeriod, 10);
     const graceMonths = Number.isFinite(rawGrace) && rawGrace > 0 ? rawGrace : 0;
 
@@ -723,41 +724,12 @@ class RentalContractService {
     // month (the payment-type month unit) after the contract start.
     const timingCode = await this._resolveTimingCode(contract.payment_timing_id || contract.paymentTimingId, transaction);
     const afterUsage = timingCode === 'AFTER_USAGE';
-    const monthDays = graceMonths > 0 || afterUsage ? await this._resolveMonthDurationDays(transaction) : 30;
-    const graceDays = graceMonths * monthDays;
+    const monthDays = afterUsage ? await this._resolveMonthDurationDays(transaction) : 30;
 
-    const contractTotal = round2(monthlyRent * Math.max(0, term.totalMonths - graceMonths));
-    // The installments after the real paid ones share what remains of the contract total
-    const remainingTotal = Math.max(0, round2(contractTotal - (parseFloat(paidTotal) || 0)));
-
-    // Chargeable days for the remaining installments (offsets are absolute from contract start)
-    const chargeablePerInstallment = [];
-    let totalChargeableDays = 0;
-    for (let count = paidCount + 1; count <= numberOfSchedules; count++) {
-      const offsetDays = (count - 1) * intervalDays;
-      const overlapDays = this._graceOverlapDays(offsetDays, intervalDays, graceDays);
-      const chargeableDays = intervalDays - overlapDays;
-      chargeablePerInstallment.push(chargeableDays);
-      totalChargeableDays += chargeableDays;
-    }
-
-    let lastChargeableIndex = -1;
-    chargeablePerInstallment.forEach((c, i) => { if (c > 0) lastChargeableIndex = i; });
-    const amounts = [];
-    let runningSum = 0;
-    chargeablePerInstallment.forEach((chargeableDays, i) => {
-      if (totalChargeableDays <= 0 || chargeableDays <= 0) {
-        amounts.push(0);
-        return;
-      }
-      if (i === lastChargeableIndex) {
-        amounts.push(Math.max(0, round2(remainingTotal - runningSum)));
-      } else {
-        const amt = round2(remainingTotal * (chargeableDays / totalChargeableDays));
-        amounts.push(amt);
-        runningSum = round2(runningSum + amt);
-      }
-    });
+    // Theoretical full schedule: pre-grace amounts plus the top-down grace deduction. The
+    // installments after the real paid ones are generated from the tail of it, so they keep
+    // their pre-grace amounts and only the leading installments carry the grace reduction.
+    const { amounts, grace } = this._buildInstallmentAmounts(monthlyRent, term.totalMonths, numberOfSchedules, graceMonths);
 
     const formatYMD = (d) => {
       const year = d.getFullYear();
@@ -783,13 +755,12 @@ class RentalContractService {
 
       const dueDateStr = formatYMD(currentDue);
       const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
-      const idx = count - paidCount - 1;
-      const isGraceCycle = chargeablePerInstallment[idx] <= 0;
+      const isGraceCycle = grace[count - 1];
 
       await RentalPaymentsModel.create(
         {
           rentalContractId: contract.id,
-          amountDue: amounts[idx],
+          amountDue: amounts[count - 1],
           amountPaid: 0,
           dueDate: dueDateStr,
           nextPaymentDate: nextDateStr,

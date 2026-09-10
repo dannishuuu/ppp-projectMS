@@ -489,42 +489,44 @@ export const ContractCreatePage = () => {
     const numberOfSchedules = Math.round(totalDays / intervalDays);
     if (numberOfSchedules <= 0) return [];
 
-    // The Lease Agreement Preview's "Total Contract Value" (monthly rent × billable months) is the
-    // authoritative amount. The grace window covers the first graceDays days of the contract
-    // (grace months × the payment-type month unit nearest to 30), and the total is distributed
-    // across installments in proportion to each installment's chargeable days — installments
-    // fully inside the window become zero (pre-paid grace) and a cycle straddling the boundary
-    // is pro-rated. Rounding cents are absorbed by the final chargeable installment.
-    const contractTotal = totalContractValue;
-    const graceDays = gracePeriodMonths * monthDays;
+    // The schedule lists the PRE-GRACE amounts first: the contract total (monthly rent × lease
+    // months) distributed evenly across the installments. The grace deduction (grace months ×
+    // monthly rent) is then taken off the FIRST installments top-down — leading installments are
+    // zeroed (pre-paid grace) or reduced until the deduction is consumed, and every other
+    // installment keeps its pre-grace amount. Rounding cents are absorbed by the last installment.
+    const monthly = parseFloat(formData.rentAmountTotalPerMonth) || 0;
+    const noGraceTotal = round2(monthly * termCalculations.totalMonths);
+    const graceDeduction = round2(monthly * gracePeriodMonths);
 
-    const chargeablePerInstallment = [];
-    let totalChargeableDays = 0;
-    for (let count = 1; count <= numberOfSchedules; count++) {
-      const offsetDays = (count - 1) * intervalDays;
-      const overlapDays = graceDays > 0 ? Math.max(0, Math.min(intervalDays, graceDays - offsetDays)) : 0;
-      const chargeableDays = intervalDays - overlapDays;
-      chargeablePerInstallment.push(chargeableDays);
-      totalChargeableDays += chargeableDays;
+    const baseAmounts = [];
+    let runningBase = 0;
+    for (let i = 0; i < numberOfSchedules; i++) {
+      if (i === numberOfSchedules - 1) {
+        baseAmounts.push(Math.max(0, round2(noGraceTotal - runningBase)));
+      } else {
+        const amt = round2(noGraceTotal / numberOfSchedules);
+        baseAmounts.push(amt);
+        runningBase = round2(runningBase + amt);
+      }
     }
 
-    let lastChargeableIndex = -1;
-    chargeablePerInstallment.forEach((c, i) => { if (c > 0) lastChargeableIndex = i; });
     const amounts = [];
-    let runningSum = 0;
-    chargeablePerInstallment.forEach((chargeableDays, i) => {
-      if (totalChargeableDays <= 0 || chargeableDays <= 0) {
+    const graceFlags = [];
+    let remainingDeduction = graceDeduction;
+    for (let i = 0; i < numberOfSchedules; i++) {
+      if (remainingDeduction > 0 && baseAmounts[i] > 0 && remainingDeduction >= baseAmounts[i]) {
         amounts.push(0);
-        return;
-      }
-      if (i === lastChargeableIndex) {
-        amounts.push(Math.max(0, Math.round((contractTotal - runningSum) * 100) / 100));
+        graceFlags.push(true);
+        remainingDeduction = round2(remainingDeduction - baseAmounts[i]);
+      } else if (remainingDeduction > 0 && baseAmounts[i] > 0) {
+        amounts.push(round2(baseAmounts[i] - remainingDeduction));
+        graceFlags.push(false);
+        remainingDeduction = 0;
       } else {
-        const amt = Math.round((contractTotal * (chargeableDays / totalChargeableDays)) * 100) / 100;
-        amounts.push(amt);
-        runningSum += amt;
+        amounts.push(baseAmounts[i]);
+        graceFlags.push(false);
       }
-    });
+    }
 
     const formatYMD = (d) => {
       const year = d.getFullYear();
@@ -552,7 +554,7 @@ export const ContractCreatePage = () => {
 
       const dueDateStr = formatYMD(currentDue);
       const nextDateStr = nextDue <= endBound ? formatYMD(nextDue) : null;
-      const isGrace = chargeablePerInstallment[count - 1] <= 0;
+      const isGrace = graceFlags[count - 1];
 
       schedule.push({
         installmentNumber: count,
@@ -570,11 +572,11 @@ export const ContractCreatePage = () => {
     formData.contractEndDate,
     formData.paymentTimingId,
     termCalculations.totalDays,
+    termCalculations.totalMonths,
     termCalculations.isValidRange,
     formData.rentAmountTotalPerMonth,
     selectedPaymentType,
     paymentTimings,
-    totalContractValue,
     gracePeriodMonths,
     monthDays,
   ]);
