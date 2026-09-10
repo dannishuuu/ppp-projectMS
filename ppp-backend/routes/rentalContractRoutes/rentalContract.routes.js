@@ -13,6 +13,7 @@ router.post('/', authMiddleware, RentalContractController.createContract);
 router.get('/:id', authMiddleware, RentalContractController.getContractById);
 router.put('/:id', authMiddleware, RentalContractController.updateContract);
 router.patch('/:id/toggle-status', authMiddleware, RentalContractController.toggleContractStatus);
+router.patch('/:id/submit', authMiddleware, RentalContractController.submitContract);
 router.delete('/:id', authMiddleware, RentalContractController.deleteContract);
 
 // Sub-resource routes: Payments & Schedules for contract

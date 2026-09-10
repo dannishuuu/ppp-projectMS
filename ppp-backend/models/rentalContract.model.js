@@ -308,8 +308,21 @@ class RentalContractModel {
     return this.findById(id, transaction);
   }
 
-  static async toggleStatus(id, updatedBy = null, transaction = null) {
+  // Update only the contract_status enum value (e.g. DRAFT → PENDING on submission)
+  static async updateStatus(id, status, updatedBy = null, transaction = null) {
     const rows = await db.query(
+      `UPDATE rental_contracts SET
+        contract_status = CAST(:status AS contract_status_enum),
+        updated_by = :updatedBy,
+        updated_at = NOW()
+       WHERE id = :id AND is_deleted = false
+       RETURNING id, contract_status`,
+      { replacements: { id, status, updatedBy }, type: QueryTypes.SELECT, transaction }
+    );
+    return rows[0] || null;
+  }
+
+  static async toggleStatus(id, updatedBy = null, transaction = null) {    const rows = await db.query(
       `UPDATE rental_contracts SET
         is_active = NOT is_active,
         contract_status = CASE WHEN NOT is_active THEN 'ACTIVE'::contract_status_enum ELSE 'DRAFT'::contract_status_enum END,

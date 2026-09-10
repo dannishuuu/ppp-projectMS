@@ -57,6 +57,19 @@ exports.toggleContractStatus = async (req, res, next) => {
   }
 };
 
+exports.submitContract = async (req, res, next) => {
+  try {
+    const result = await RentalContractService.submitContract(req.params.id, req.user?.id);
+    return res.status(200).json({
+      success: true,
+      message: 'Contract submitted successfully — status changed to PENDING',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.deleteContract = async (req, res, next) => {
   try {
     const result = await RentalContractService.deleteContract(req.params.id, req.user?.id);

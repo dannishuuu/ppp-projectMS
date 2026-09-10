@@ -111,6 +111,14 @@ export const rentalContractService = {
   },
 
   /**
+   * Submit a draft contract for approval (contract_status: DRAFT → PENDING)
+   */
+  async submitContract(id) {
+    const response = await apiClient.patch(`${CONTRACTS_BASE}/${id}/submit`, {});
+    return response.data;
+  },
+
+  /**
    * Soft delete a rental contract and its schedules
    */
   async deleteContract(id) {

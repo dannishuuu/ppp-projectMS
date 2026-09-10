@@ -6,7 +6,6 @@ import {
   TextField,
   Button,
   Chip,
-  IconButton,
   Tooltip,
   Table,
   TableBody,
@@ -15,25 +14,26 @@ import {
   TableHead,
   TableRow,
   TablePagination,
-  CircularProgress,
-  MenuItem,
+  Autocomplete,
   Breadcrumbs,
   Link,
   Avatar,
   LinearProgress,
   Divider,
   Skeleton,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Add as AddIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
+  Send as SendIcon,
   Description as ContractIcon,
   Payments as PaymentsIcon,
   AttachMoney as MoneyIcon,
   HomeWork as RentalIcon,
-  FilterList as FilterIcon,
   RestartAlt as ResetIcon,
   BusinessCenter as TenantIcon,
   CalendarMonth as CalendarIcon,
@@ -44,6 +44,8 @@ import { useSnackbar } from 'notistack';
 import { rentalContractService } from '../../services/rentalContractServices';
 import { contractStatusMeta } from '../../utils/formatters';
 import { buildingsService } from '../../services/buildingServices/buildingsService';
+import { organizationService } from '../../services/organizationService/organizationService';
+import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 
 const formatCurrency = (val) => {
   if (val == null || val === '') return '—';
@@ -83,10 +85,16 @@ export const ContractIndexPage = () => {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [buildingFilter, setBuildingFilter] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [tenantFilter, setTenantFilter] = useState('');
 
   // Lookups
   const [buildings, setBuildings] = useState([]);
+  const [tenants, setTenants] = useState([]);
+
+  // Submit Contract modal
+  const [submitTarget, setSubmitTarget] = useState(null);
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchContracts = useCallback(async () => {
     setLoading(true);
@@ -100,6 +108,7 @@ export const ContractIndexPage = () => {
       };
       if (statusFilter !== 'all') params.status = statusFilter;
       if (buildingFilter) params.buildingId = buildingFilter;
+      if (tenantFilter) params.tenantOrganizationId = tenantFilter;
 
       const res = await rentalContractService.getContracts(params);
       setContracts(res?.contracts || res?.rows || []);
@@ -109,7 +118,7 @@ export const ContractIndexPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, appliedSearch, statusFilter, buildingFilter, enqueueSnackbar]);
+  }, [page, rowsPerPage, appliedSearch, statusFilter, buildingFilter, tenantFilter, enqueueSnackbar]);
 
   const fetchSummary = useCallback(async () => {
     setSummaryLoading(true);
@@ -141,6 +150,9 @@ export const ContractIndexPage = () => {
     buildingsService.getBuildings({ limit: 100, status: 'active' }).then((r) => {
       setBuildings(r?.buildings || r?.rows || []);
     }).catch(() => {});
+    organizationService.getOrganizations({ limit: 200, status: 'active' }).then((r) => {
+      setTenants(r?.organizations || r?.rows || []);
+    }).catch(() => {});
   }, [fetchSummary]);
 
   const handleSearch = () => {
@@ -153,7 +165,28 @@ export const ContractIndexPage = () => {
     setAppliedSearch('');
     setStatusFilter('all');
     setBuildingFilter('');
+    setTenantFilter('');
     setPage(0);
+  };
+
+  const handleSubmitContract = async () => {
+    if (!submitTarget) return;
+    setSubmitting(true);
+    try {
+      await rentalContractService.submitContract(submitTarget.id);
+      enqueueSnackbar(
+        `Contract "${submitTarget.contract_number}" submitted — status is now PENDING.`,
+        { variant: 'success' }
+      );
+      setSubmitDialogOpen(false);
+      setSubmitTarget(null);
+      fetchContracts();
+      fetchSummary();
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Failed to submit contract.', { variant: 'error' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const statCards = [
@@ -273,72 +306,149 @@ export const ContractIndexPage = () => {
         ))}
       </Box>
 
-      {/* Search & Filters */}
+      {/* Filter Toolbar — all filters in one row */}
       <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid #e2e8f0', mb: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Search — compact */}
           <TextField
             size="small"
-            placeholder="Search by contract #, unit, building, tenant..."
+            placeholder="Search contract #, unit, building, tenant..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            InputProps={{ startAdornment: <SearchIcon sx={{ color: '#94a3b8', mr: 1, fontSize: 18 }} /> }}
-            sx={{ flex: 1, minWidth: 260, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            InputProps={{ startAdornment: <SearchIcon sx={{ color: '#94a3b8', mr: 0.75, fontSize: 17 }} /> }}
+            sx={{
+              width: 270,
+              flexShrink: 0,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                fontSize: '0.8rem',
+                backgroundColor: '#f8fafc',
+                '& fieldset': { borderColor: '#e2e8f0' },
+                '&:hover fieldset': { borderColor: '#cbd5e1' },
+                '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+              },
+            }}
           />
           <Button
             variant="contained"
             onClick={handleSearch}
-            sx={{ borderRadius: 2, fontWeight: 700, fontSize: '0.82rem', background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', '&:hover': { background: 'linear-gradient(135deg, #4338ca, #6d28d9)' } }}
+            sx={{
+              borderRadius: 2,
+              fontWeight: 700,
+              fontSize: '0.78rem',
+              px: 2,
+              textTransform: 'none',
+              background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+              '&:hover': { background: 'linear-gradient(135deg, #4338ca, #6d28d9)' },
+            }}
           >
             Search
           </Button>
-          <Button
-            variant="outlined"
-            startIcon={<FilterIcon />}
-            onClick={() => setShowFilters((p) => !p)}
-            sx={{ borderRadius: 2, fontWeight: 600, fontSize: '0.82rem', borderColor: '#cbd5e1', color: '#475569' }}
-          >
-            Filters {showFilters ? '▲' : '▼'}
-          </Button>
-          <Button
-            variant="text"
-            startIcon={<ResetIcon />}
-            onClick={handleReset}
-            sx={{ borderRadius: 2, fontWeight: 600, fontSize: '0.82rem', color: '#64748b' }}
-          >
-            Reset
-          </Button>
-        </Box>
 
-        {showFilters && (
-          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 1.5 }}>
-            <TextField
-              select
+          <Box sx={{ width: '1px', height: 24, backgroundColor: '#e2e8f0', flexShrink: 0 }} />
+
+          {/* Status — segmented filter */}
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={statusFilter}
+            onChange={(e, v) => { if (v !== null) { setStatusFilter(v); setPage(0); } }}
+            sx={{
+              flexShrink: 0,
+              '& .MuiToggleButton-root': {
+                textTransform: 'none',
+                fontWeight: 700,
+                fontSize: '0.72rem',
+                px: 1.75,
+                py: 0.45,
+                borderColor: '#e2e8f0',
+                color: '#64748b',
+                '&:hover': { backgroundColor: '#f8fafc' },
+                '&.Mui-selected': {
+                  backgroundColor: '#eef2ff',
+                  color: '#4f46e5',
+                  borderColor: '#c7d2fe',
+                  '&:hover': { backgroundColor: '#e0e7ff' },
+                },
+              },
+            }}
+          >
+            <ToggleButton value="all">All</ToggleButton>
+            <ToggleButton value="active">Active</ToggleButton>
+            <ToggleButton value="inactive">Inactive</ToggleButton>
+          </ToggleButtonGroup>
+
+          {/* Building — searchable select */}
+          <Autocomplete
+            size="small"
+            options={buildings}
+            value={buildings.find((b) => b.id === buildingFilter) || null}
+            onChange={(e, newValue) => { setBuildingFilter(newValue ? newValue.id : ''); setPage(0); }}
+            getOptionLabel={(option) => (typeof option === 'string' ? option : option.name || '')}
+            isOptionEqualToValue={(option, val) => option?.id === (val?.id || val)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Building"
+                placeholder="Search building..."
+                sx={{
+                  width: 210,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    fontSize: '0.8rem',
+                    backgroundColor: '#f8fafc',
+                    '& fieldset': { borderColor: '#e2e8f0' },
+                    '&:hover fieldset': { borderColor: '#cbd5e1' },
+                    '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+                  },
+                }}
+              />
+            )}
+            sx={{ width: 210, flexShrink: 0 }}
+          />
+
+          {/* Tenant — searchable select */}
+          <Autocomplete
+            size="small"
+            options={tenants}
+            value={tenants.find((t) => t.id === tenantFilter) || null}
+            onChange={(e, newValue) => { setTenantFilter(newValue ? newValue.id : ''); setPage(0); }}
+            getOptionLabel={(option) => (typeof option === 'string' ? option : option.name || '')}
+            isOptionEqualToValue={(option, val) => option?.id === (val?.id || val)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Tenant"
+                placeholder="Search tenant..."
+                sx={{
+                  width: 210,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    fontSize: '0.8rem',
+                    backgroundColor: '#f8fafc',
+                    '& fieldset': { borderColor: '#e2e8f0' },
+                    '&:hover fieldset': { borderColor: '#cbd5e1' },
+                    '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+                  },
+                }}
+              />
+            )}
+            sx={{ width: 210, flexShrink: 0 }}
+          />
+
+          <Box sx={{ ml: 'auto', flexShrink: 0 }}>
+            <Button
+              variant="text"
               size="small"
-              label="Status"
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-              sx={{ minWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              startIcon={<ResetIcon sx={{ fontSize: 16 }} />}
+              onClick={handleReset}
+              sx={{ borderRadius: 2, fontWeight: 700, fontSize: '0.75rem', textTransform: 'none', color: '#64748b' }}
             >
-              <MenuItem value="all">All Statuses</MenuItem>
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="inactive">Inactive</MenuItem>
-            </TextField>
-            <TextField
-              select
-              size="small"
-              label="Building"
-              value={buildingFilter}
-              onChange={(e) => { setBuildingFilter(e.target.value); setPage(0); }}
-              sx={{ minWidth: 200, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-            >
-              <MenuItem value="">All Buildings</MenuItem>
-              {buildings.map((b) => (
-                <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
-              ))}
-            </TextField>
+              Reset
+            </Button>
           </Box>
-        )}
+        </Box>
       </Paper>
 
       {/* Table */}
@@ -438,22 +548,80 @@ export const ContractIndexPage = () => {
                     <StatusChip status={c.contract_status} isActive={c.is_active} />
                   </TableCell>
                   <TableCell sx={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                      <Tooltip title="View Details">
-                        <IconButton size="small" onClick={() => navigate(`/contracts/${c.id}`)} sx={{ color: '#4f46e5' }}>
-                          <ViewIcon sx={{ fontSize: 17 }} />
-                        </IconButton>
+                    <Box sx={{ display: 'flex', gap: 0.75, justifyContent: 'center', alignItems: 'center' }}>
+                      <Tooltip title="View contract details" arrow placement="top">
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<ViewIcon sx={{ fontSize: 15 }} />}
+                          onClick={() => navigate(`/contracts/${c.id}`)}
+                          sx={{
+                            textTransform: 'none',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            borderRadius: 1.5,
+                            px: 1.25,
+                            minWidth: 0,
+                            whiteSpace: 'nowrap',
+                            borderColor: '#c7d2fe',
+                            color: '#4f46e5',
+                            backgroundColor: '#ffffff',
+                            '&:hover': { borderColor: '#818cf8', backgroundColor: '#eef2ff' },
+                          }}
+                        >
+                          Details
+                        </Button>
                       </Tooltip>
-                      <Tooltip title={c.is_active ? 'Active contracts cannot be edited. Deactivate first.' : 'Edit Contract'}>
-                        <span>
-                          <IconButton
+                      {!c.is_active && String(c.contract_status || '').toUpperCase() === 'DRAFT' && (
+                        <Tooltip title="Submit contract for approval (Draft → Pending)" arrow placement="top">
+                          <Button
                             size="small"
+                            variant="outlined"
+                            startIcon={<SendIcon sx={{ fontSize: 15 }} />}
+                            onClick={() => { setSubmitTarget(c); setSubmitDialogOpen(true); }}
+                            sx={{
+                              textTransform: 'none',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              borderRadius: 1.5,
+                              px: 1.25,
+                              minWidth: 0,
+                              whiteSpace: 'nowrap',
+                              borderColor: '#fde68a',
+                              color: '#b45309',
+                              backgroundColor: '#fffbeb',
+                              '&:hover': { borderColor: '#fcd34d', backgroundColor: '#fef3c7' },
+                            }}
+                          >
+                            Submit Contract
+                          </Button>
+                        </Tooltip>
+                      )}
+                      <Tooltip title={c.is_active ? 'Active contracts cannot be edited' : 'Edit contract'} arrow placement="top">
+                        <span>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<EditIcon sx={{ fontSize: 15 }} />}
                             disabled={Boolean(c.is_active)}
                             onClick={() => navigate(`/contracts/${c.id}/edit`)}
-                            sx={{ color: c.is_active ? '#cbd5e1' : '#0284c7' }}
+                            sx={{
+                              textTransform: 'none',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              borderRadius: 1.5,
+                              px: 1.25,
+                              minWidth: 0,
+                              whiteSpace: 'nowrap',
+                              borderColor: '#bae6fd',
+                              color: '#0284c7',
+                              backgroundColor: '#ffffff',
+                              '&:hover': { borderColor: '#7dd3fc', backgroundColor: '#f0f9ff' },
+                              '&.Mui-disabled': { borderColor: '#e2e8f0', color: '#cbd5e1' },
+                            }}
                           >
-                            <EditIcon sx={{ fontSize: 17 }} />
-                          </IconButton>
+                            Edit
+                          </Button>
                         </span>
                       </Tooltip>
                     </Box>
@@ -475,6 +643,18 @@ export const ContractIndexPage = () => {
           sx={{ fontSize: '0.8rem' }}
         />
       </Paper>
+
+      {/* Submit Contract Confirmation Modal */}
+      <ConfirmationModal
+        open={submitDialogOpen}
+        title="Submit Contract"
+        message={`Are you sure you want to submit contract "${submitTarget?.contract_number}" for approval? Its status will change from Draft to Pending.`}
+        confirmText="Submit Contract"
+        confirmColor="primary"
+        onConfirm={handleSubmitContract}
+        onClose={() => { setSubmitDialogOpen(false); setSubmitTarget(null); }}
+        loading={submitting}
+      />
     </Box>
   );
 };

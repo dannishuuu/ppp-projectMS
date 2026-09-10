@@ -399,8 +399,30 @@ class RentalContractService {
     }
   }
 
-  static async deleteContract(id, actorId) {
+  // Submit a draft contract for approval: the ONLY change is contract_status DRAFT → PENDING.
+  // Only inactive contracts still sitting in DRAFT can be submitted.
+  static async submitContract(id, actorId) {
     const current = await RentalContractModel.findById(id);
+    if (!current) {
+      const err = new Error('Rental contract not found');
+      err.status = 404;
+      throw err;
+    }
+
+    if (current.is_active) {
+      throw this._validationError('Active contracts cannot be submitted');
+    }
+    if (String(current.contract_status || '').toUpperCase() !== 'DRAFT') {
+      throw this._validationError(
+        `Only DRAFT contracts can be submitted (current status: ${current.contract_status || 'UNKNOWN'})`
+      );
+    }
+
+    const updated = await RentalContractModel.updateStatus(id, 'PENDING', actorId);
+    return updated;
+  }
+
+  static async deleteContract(id, actorId) {    const current = await RentalContractModel.findById(id);
     if (!current) {
       const err = new Error('Rental contract not found');
       err.status = 404;
