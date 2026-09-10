@@ -406,7 +406,13 @@ class RentalContractService {
         COUNT(*) FILTER (WHERE rc.is_active = true)::int AS active_contracts,
         COUNT(*) FILTER (WHERE rc.is_active = false)::int AS inactive_contracts,
         COALESCE(SUM(rc.rent_amount_total_per_month) FILTER (WHERE rc.is_active = true), 0)::numeric AS monthly_rent_revenue,
-        (SELECT COUNT(DISTINCT unit_id)::int FROM rental_contracts WHERE is_active = true AND is_deleted = false) AS rented_units_count
+        (SELECT COUNT(DISTINCT unit_id)::int FROM rental_contracts WHERE is_active = true AND is_deleted = false) AS rented_units_count,
+        (SELECT COALESCE(SUM(rp.amount_paid), 0)::numeric
+           FROM rental_payments rp
+          WHERE rp.is_deleted = false
+            AND rp.payment_date IS NOT NULL
+            AND rp.payment_date >= date_trunc('month', CURRENT_DATE)
+            AND rp.payment_date < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month') AS monthly_income
        FROM rental_contracts rc
        WHERE rc.is_deleted = false`,
       { type: QueryTypes.SELECT }
@@ -417,6 +423,7 @@ class RentalContractService {
       inactive_contracts: 0,
       monthly_rent_revenue: 0,
       rented_units_count: 0,
+      monthly_income: 0,
     };
   }
 
