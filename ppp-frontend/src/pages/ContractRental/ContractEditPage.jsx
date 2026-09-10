@@ -62,6 +62,28 @@ const formatCurrency = (val) => {
   return Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+// Round to 2 decimal places (cent precision)
+const round2 = (v) => Math.round(v * 100) / 100;
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+};
+
+// Status chip for installments loaded from the database
+const SavedPaymentStatusChip = ({ isPaid, isGrace, dueDate }) => {
+  if (isGrace) {
+    return <Chip label="Paid • Grace" size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#e0e7ff', color: '#4338ca' }} />;
+  }
+  if (isPaid) {
+    return <Chip label="Paid" size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#dcfce7', color: '#16a34a' }} />;
+  }
+  if (dueDate && new Date(dueDate) < new Date()) {
+    return <Chip label="Overdue" size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#fee2e2', color: '#dc2626' }} />;
+  }
+  return <Chip label="Pending" size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#fef9c3', color: '#ca8a04' }} />;
+};
+
 // Shared styling for form section cards
 const sectionPaperSx = {
   p: { xs: 2.25, sm: 3 },
@@ -170,6 +192,7 @@ export const ContractEditPage = () => {
   const { enqueueSnackbar } = useSnackbar();
 
   const [original, setOriginal] = useState(null);
+  const [savedPayments, setSavedPayments] = useState([]);
 
   const [formData, setFormData] = useState({
     buildingId: '',
@@ -218,16 +241,19 @@ export const ContractEditPage = () => {
       setLoadingPage(true);
       setErrorMsg('');
       try {
-        const [contractRes, bldgRes, ptRes, timRes, orgRes] = await Promise.all([
+        const [contractRes, bldgRes, ptRes, timRes, orgRes, payRes] = await Promise.all([
           rentalContractService.getContractById(id),
           buildingsService.getBuildings({ limit: 100, is_active: true }),
           rentalPaymentTypesService.getRentalPaymentTypes({ limit: 100, status: 'active' }),
           paymentTimingsService.getPaymentTimings({ limit: 100, status: 'active' }),
           organizationService.getOrganizations({ limit: 200, status: 'active' }),
+          // Saved installments for this contract (shown until the schedule inputs change)
+          rentalContractService.getContractPayments(id).catch(() => null),
         ]);
 
         const c = contractRes?.contract || contractRes;
         setOriginal(c);
+        setSavedPayments(payRes?.payments || payRes?.rows || (Array.isArray(payRes) ? payRes : []));
 
         const bldgs = bldgRes?.buildings || bldgRes?.rows || [];
         setBuildings(bldgs);
@@ -539,6 +565,35 @@ export const ContractEditPage = () => {
     return best;
   }, [paymentTypes]);
 
+  // The schedule is dirty when any schedule-affecting input differs from the saved contract —
+  // only then does the panel preview a regenerated schedule instead of the saved installments.
+  const scheduleDirty = useMemo(() => {
+    if (!original) return false;
+    const savedStart = original.contract_start_date ? original.contract_start_date.slice(0, 10) : '';
+    const savedEnd = original.contract_end_date ? original.contract_end_date.slice(0, 10) : '';
+    return (
+      formData.contractStartDate !== savedStart ||
+      formData.contractEndDate !== savedEnd ||
+      String(formData.rentalPaymentTypeId) !== String(original.rental_payment_type_id ?? '') ||
+      round2(parseFloat(formData.rentAmountTotalPerMonth) || 0) !== round2(parseFloat(original.rent_amount_total_per_month) || 0) ||
+      gracePeriodMonths !== (parseInt(original.grace_period, 10) || 0)
+    );
+  }, [original, formData.contractStartDate, formData.contractEndDate, formData.rentalPaymentTypeId, formData.rentAmountTotalPerMonth, gracePeriodMonths]);
+
+  // Show the database schedule when nothing schedule-affecting has been modified
+  const showSavedSchedule = !scheduleDirty && savedPayments.length > 0;
+
+  // An unchanged save can re-send the saved installments so they are preserved exactly instead
+  // of being regenerated — but only when no real (money) payment exists and the saved total
+  // matches the expected contract total, otherwise the backend falls back to regeneration.
+  const canPreserveSaved = useMemo(() => {
+    if (scheduleDirty || savedPayments.length === 0) return false;
+    if (savedPayments.some((p) => p.is_paid && Number(p.amount_due) > 0)) return false;
+    const savedTotal = round2(savedPayments.reduce((acc, p) => acc + (Number(p.amount_due) || 0), 0));
+    const expectedTotal = round2((parseFloat(formData.rentAmountTotalPerMonth) || 0) * Math.max(0, termCalculations.totalMonths - gracePeriodMonths));
+    return Math.abs(savedTotal - expectedTotal) <= 0.02;
+  }, [scheduleDirty, savedPayments, formData.rentAmountTotalPerMonth, termCalculations.totalMonths, gracePeriodMonths]);
+
   // Selected payment type object
   const selectedPaymentType = useMemo(() => {
     return paymentTypes.find((pt) => String(pt.id) === String(formData.rentalPaymentTypeId)) || null;
@@ -673,6 +728,64 @@ export const ContractEditPage = () => {
     monthDays,
   ]);
 
+  // User-tuned installment amounts: editing one installment redistributes the difference across
+  // the others so the schedule total always stays equal to the contract total (locked).
+  const [editedAmounts, setEditedAmounts] = useState({});
+
+  // Any baseline change (dates, rent, frequency, grace period) rebuilds the schedule and clears edits
+  useEffect(() => {
+    setEditedAmounts({});
+  }, [simulatedSchedule]);
+
+  const displayAmount = (item) => editedAmounts[item.installmentNumber] ?? item.amount;
+
+  const handleAmountEdit = (installmentNumber, raw) => {
+    const parsed = parseFloat(raw);
+    if (raw === '' || raw === null || !Number.isFinite(parsed) || parsed < 0) return;
+    let newValue = round2(parsed);
+
+    // Current displayed amounts of the editable (non-grace) installments
+    const currentAmounts = new Map();
+    let total = 0;
+    simulatedSchedule.forEach((s) => {
+      if (s.isGrace) return;
+      const amt = round2(displayAmount(s));
+      currentAmounts.set(s.installmentNumber, amt);
+      total = round2(total + amt);
+    });
+
+    // The edited installment can never exceed the locked total
+    newValue = Math.min(newValue, total);
+    const oldValue = currentAmounts.get(installmentNumber) ?? 0;
+    const targetOthers = round2(total - newValue);
+
+    const others = [...currentAmounts.entries()].filter(([key]) => key !== installmentNumber);
+    const next = {};
+    if (others.length === 0) {
+      next[installmentNumber] = total;
+      setEditedAmounts(next);
+      return;
+    }
+
+    // Redistribute the difference proportionally by current amounts; the last one absorbs rounding cents
+    const othersTotal = round2(others.reduce((acc, [, v]) => acc + v, 0));
+    let allocated = 0;
+    others.forEach(([key, amt], idx) => {
+      if (idx === others.length - 1) {
+        const v = Math.max(0, round2(targetOthers - allocated));
+        next[key] = v;
+        allocated = round2(allocated + v);
+      } else {
+        const v = othersTotal > 0 ? round2(amt * (targetOthers / othersTotal)) : 0;
+        next[key] = v;
+        allocated = round2(allocated + v);
+      }
+    });
+    next[installmentNumber] = round2(total - allocated);
+
+    setEditedAmounts((prev) => ({ ...prev, ...next }));
+  };
+
   // Reset to original saved values
   const handleResetToOriginal = () => {
     if (!original) return;
@@ -788,6 +901,15 @@ export const ContractEditPage = () => {
         isActive: formData.isActive,
         generateSchedule: formData.generateSchedule,
         gracePeriod: gracePeriodMonths,
+        // Persist schedule intent:
+        // - inputs changed + user tuned amounts → store the customized distribution
+        // - nothing changed → re-send the saved installments so an unchanged save does not
+        //   recompute or clobber the existing schedule (skipped when real payments exist)
+        ...(scheduleDirty && Object.keys(editedAmounts).length > 0
+          ? { customSchedule: simulatedSchedule.map((s) => ({ dueDate: s.dueDate, amount: round2(displayAmount(s)) })) }
+          : canPreserveSaved
+            ? { customSchedule: savedPayments.map((p) => ({ dueDate: String(p.due_date || '').slice(0, 10), amount: round2(Number(p.amount_due) || 0) })) }
+            : {}),
       };
 
       await rentalContractService.updateContract(id, payload);
@@ -2073,37 +2195,134 @@ export const ContractEditPage = () => {
                   Automated Payment Schedule
                 </Typography>
                 <Typography sx={{ fontSize: '0.68rem', color: '#94a3b8' }}>
-                  {selectedPaymentType?.name ? `${selectedPaymentType.name} frequency (${parseFloat(selectedPaymentType.duration_days || 30)} days)` : 'Recurring schedule simulator'}
+                  {showSavedSchedule
+                    ? 'Saved installments from the database'
+                    : selectedPaymentType?.name
+                      ? `${selectedPaymentType.name} frequency (${parseFloat(selectedPaymentType.duration_days || 30)} days)`
+                      : 'Recurring schedule simulator'}
                 </Typography>
               </Box>
             </Box>
 
             <Chip
-              label={simulatedSchedule.length > 0 && formData.generateSchedule ? `${simulatedSchedule.length} Installments` : 'Pending Setup'}
+              label={
+                showSavedSchedule
+                  ? `${savedPayments.length} Installments (Saved)`
+                  : simulatedSchedule.length > 0 && formData.generateSchedule
+                    ? `${simulatedSchedule.length} Installments (Preview)`
+                    : 'Pending Setup'
+              }
               size="small"
               sx={{
                 height: 22,
                 fontSize: '0.68rem',
                 fontWeight: 700,
-                backgroundColor: simulatedSchedule.length > 0 && formData.generateSchedule ? 'rgba(99,102,241,0.18)' : 'rgba(148,163,184,0.15)',
-                color: simulatedSchedule.length > 0 && formData.generateSchedule ? '#818cf8' : '#94a3b8',
-                border: `1px solid ${simulatedSchedule.length > 0 && formData.generateSchedule ? 'rgba(99,102,241,0.3)' : 'rgba(148,163,184,0.2)'}`,
+                backgroundColor: showSavedSchedule || (simulatedSchedule.length > 0 && formData.generateSchedule) ? 'rgba(99,102,241,0.18)' : 'rgba(148,163,184,0.15)',
+                color: showSavedSchedule || (simulatedSchedule.length > 0 && formData.generateSchedule) ? '#818cf8' : '#94a3b8',
+                border: `1px solid ${showSavedSchedule || (simulatedSchedule.length > 0 && formData.generateSchedule) ? 'rgba(99,102,241,0.3)' : 'rgba(148,163,184,0.2)'}`,
               }}
             />
           </Box>
 
           {/* Body Content */}
-          {simulatedSchedule.length > 0 && formData.generateSchedule ? (
+          {showSavedSchedule ? (
             <>
+              {/* Saved Schedule Summary Bar */}
+              <Box sx={{ px: 3, py: 1.25, backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
+                  {savedPayments.length} installments saved in the database
+                  {savedPayments.some((p) => p.is_paid && Number(p.amount_due) === 0 && !p.transaction_reference)
+                    ? ` • ${savedPayments.filter((p) => p.is_paid && Number(p.amount_due) === 0 && !p.transaction_reference).length} grace installment(s)`
+                    : ''}
+                </Typography>
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: '#16a34a' }}>
+                  Total Due: ETB {formatCurrency(savedPayments.reduce((acc, p) => acc + (Number(p.amount_due) || 0), 0))}
+                </Typography>
+              </Box>
+
+              {/* Saved Schedule Table */}
+              <TableContainer sx={{ maxHeight: 520, '&::-webkit-scrollbar': { width: 4 }, '&::-webkit-scrollbar-track': { background: '#f1f5f9' }, '&::-webkit-scrollbar-thumb': { background: '#c7d2fe', borderRadius: 4 } }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow sx={{ '& th': { backgroundColor: '#f8fafc', fontSize: '0.68rem', fontWeight: 700, color: '#64748b', py: 0.75, px: 2 } }}>
+                      <TableCell>#</TableCell>
+                      <TableCell>DUE DATE</TableCell>
+                      <TableCell>NEXT PAYMENT</TableCell>
+                      <TableCell align="right">AMOUNT DUE (ETB)</TableCell>
+                      <TableCell align="right">AMOUNT PAID</TableCell>
+                      <TableCell align="center">STATUS</TableCell>
+                      <TableCell>REFERENCE</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {savedPayments.map((p, idx) => {
+                      const isGrace = Boolean(p.is_paid) && Number(p.amount_due) === 0 && !p.transaction_reference;
+                      return (
+                        <TableRow
+                          key={p.id}
+                          hover
+                          sx={{
+                            backgroundColor: isGrace ? '#eef2ff' : p.is_paid ? '#f0fdf4' : new Date(p.due_date) < new Date() ? '#fff7ed' : 'inherit',
+                            '& td': { fontSize: '0.74rem', py: 0.85, px: 2 },
+                          }}
+                        >
+                          <TableCell sx={{ fontWeight: 700, color: '#4f46e5' }}>#{idx + 1}</TableCell>
+                          <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>{formatDate(p.due_date)}</TableCell>
+                          <TableCell sx={{ color: '#64748b' }}>{formatDate(p.next_payment_date)}</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 700, color: isGrace ? '#94a3b8' : '#dc2626' }}>
+                            ETB {formatCurrency(p.amount_due)}
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 700, color: '#16a34a' }}>
+                            {p.amount_paid ? `ETB ${formatCurrency(p.amount_paid)}` : '—'}
+                          </TableCell>
+                          <TableCell align="center">
+                            <SavedPaymentStatusChip isPaid={p.is_paid} isGrace={isGrace} dueDate={p.due_date} />
+                          </TableCell>
+                          <TableCell>
+                            <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
+                              {p.transaction_reference || (isGrace ? 'Grace — no reference' : '—')}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              <Box sx={{ px: 3, py: 1.5, backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                <Typography sx={{ fontSize: '0.68rem', color: '#94a3b8', textAlign: 'center' }}>
+                  Showing the installments saved in the database. Change the lease term, rent, frequency, or grace period to preview a regenerated schedule.
+                </Typography>
+              </Box>
+            </>
+          ) : simulatedSchedule.length > 0 && formData.generateSchedule ? (
+            <>
+              {savedPayments.length > 0 && (
+                <Alert severity="info" sx={{ mx: 3, mt: 2, borderRadius: 2, fontSize: '0.78rem' }}>
+                  Schedule inputs were modified — this is a preview. The {savedPayments.length} saved installment(s) will be replaced when you save.
+                </Alert>
+              )}
               {/* Summary Bar */}
               <Box sx={{ px: 3, py: 1.25, backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
                   {simulatedSchedule.length} installments scheduled
                   {gracePeriodMonths > 0 ? ` • ${gracePeriodMonths} grace month(s) deducted` : ''}
+                  {Object.keys(editedAmounts).length > 0 ? ' • customized' : ''}
                 </Typography>
-                <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: '#16a34a' }}>
-                  Total: ETB {formatCurrency(simulatedSchedule.reduce((acc, s) => acc + s.amount, 0))}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Tooltip title="Total is locked to the contract value — editing an installment redistributes the amount across the other months">
+                    <Chip
+                      icon={<LockIcon sx={{ fontSize: 11 }} />}
+                      label="Total locked"
+                      size="small"
+                      sx={{ height: 20, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#eef2ff', color: '#4f46e5', border: '1px solid #c7d2fe' }}
+                    />
+                  </Tooltip>
+                  <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: '#16a34a' }}>
+                    Total: ETB {formatCurrency(simulatedSchedule.reduce((acc, s) => acc + displayAmount(s), 0))}
+                  </Typography>
+                </Box>
               </Box>
 
               {/* Scrollable Schedule Table */}
@@ -2113,7 +2332,7 @@ export const ContractEditPage = () => {
                     <TableRow sx={{ '& th': { backgroundColor: '#f8fafc', fontSize: '0.68rem', fontWeight: 700, color: '#64748b', py: 0.75, px: 2 } }}>
                       <TableCell>#</TableCell>
                       <TableCell>DUE DATE</TableCell>
-                      <TableCell align="right">CYCLE AMOUNT</TableCell>
+                      <TableCell align="right">CYCLE AMOUNT (ETB)</TableCell>
                       <TableCell align="right">STATUS</TableCell>
                     </TableRow>
                   </TableHead>
@@ -2126,8 +2345,22 @@ export const ContractEditPage = () => {
                         <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>
                           {item.dueDate}
                         </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, color: item.isGrace ? '#94a3b8' : '#16a34a' }}>
-                          ETB {formatCurrency(item.amount)}
+                        <TableCell align="right">
+                          {item.isGrace ? (
+                            <Typography sx={{ fontWeight: 700, color: '#94a3b8', fontSize: '0.74rem' }}>
+                              ETB {formatCurrency(item.amount)}
+                            </Typography>
+                          ) : (
+                            <TextField
+                              size="small"
+                              type="number"
+                              value={displayAmount(item)}
+                              onChange={(e) => handleAmountEdit(item.installmentNumber, e.target.value)}
+                              disabled={saving || Boolean(original?.is_active)}
+                              inputProps={{ min: 0, step: '0.01', sx: { textAlign: 'right', py: 0.5, fontSize: '0.78rem', fontWeight: 700 } }}
+                              sx={{ width: 122, '& .MuiOutlinedInput-root': { borderRadius: 1.5, backgroundColor: '#ffffff' } }}
+                            />
+                          )}
                         </TableCell>
                         <TableCell align="right">
                           {item.isGrace ? (

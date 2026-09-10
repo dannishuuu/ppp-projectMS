@@ -69,6 +69,7 @@ class RentalContractService {
       isActive = true,
       generateSchedule = true,
       gracePeriod = 0,
+      customSchedule = null,
     } = payload;
 
     // 1. Mandatory Validations
@@ -98,6 +99,10 @@ class RentalContractService {
         `Grace period cannot be greater than the contract duration (${term.totalMonths} months)`
       );
     }
+
+    // 2b. Custom schedule override (installment amounts tuned in the preview): per-installment
+    // amounts may differ, but their total must equal the contract total (monthly rent × billable months)
+    let scheduleOverride = this._normalizeCustomSchedule(customSchedule, rentAmountTotalPerMonth, term.totalMonths, graceMonths);
 
     // 3. Auto-generate contract number via document sequences
     const contractNumber = await DocumentSequenceService.generateNextNumber('contract_number', actorId);
@@ -167,7 +172,11 @@ class RentalContractService {
 
       // Auto-generate initial payment schedule if requested
       if (generateSchedule) {
-        await this._generateScheduleForContract(createdContract, transaction, actorId);
+        if (scheduleOverride) {
+          await this._createCustomScheduleForContract(createdContract, scheduleOverride, transaction, actorId);
+        } else {
+          await this._generateScheduleForContract(createdContract, transaction, actorId);
+        }
       }
 
       await transaction.commit();
@@ -218,6 +227,10 @@ class RentalContractService {
       );
     }
 
+    // Custom schedule override: validated against the merged rent and term
+    const totalRent = payload.rentAmountTotalPerMonth !== undefined ? parseFloat(payload.rentAmountTotalPerMonth) : parseFloat(current.rent_amount_total_per_month);
+    const scheduleOverride = this._normalizeCustomSchedule(payload.customSchedule, totalRent, term.totalMonths, graceMonths);
+
     if (payload.remarks !== undefined && (!payload.remarks || !payload.remarks.trim())) {
       throw this._validationError('Contract remarks & stipulations cannot be empty');
     }
@@ -252,7 +265,6 @@ class RentalContractService {
       }
     }
 
-    const totalRent = payload.rentAmountTotalPerMonth !== undefined ? parseFloat(payload.rentAmountTotalPerMonth) : parseFloat(current.rent_amount_total_per_month);
     let rentPerSqm = payload.rentAmountPerSquareMeter !== undefined ? parseFloat(payload.rentAmountPerSquareMeter) : current.rent_amount_per_square_meter;
     const finalArea = areaValue !== undefined ? areaValue : current.area_value;
     if (!rentPerSqm && finalArea && finalArea > 0 && totalRent > 0) {
@@ -309,7 +321,11 @@ class RentalContractService {
         const paidCount = remainingPaid[0]?.count || 0;
 
         if (paidCount === 0) {
-          await this._generateScheduleForContract(updated, transaction, actorId);
+          if (scheduleOverride) {
+            await this._createCustomScheduleForContract(updated, scheduleOverride, transaction, actorId);
+          } else {
+            await this._generateScheduleForContract(updated, transaction, actorId);
+          }
         } else {
           await this._generateRemainingScheduleForContract(updated, paidCount, transaction, actorId);
         }
@@ -449,6 +465,72 @@ class RentalContractService {
   static _graceOverlapDays(offsetDays, intervalDays, graceDays) {
     if (graceDays <= 0) return 0;
     return Math.max(0, Math.min(intervalDays, graceDays - offsetDays));
+  }
+
+  // Validate a custom schedule override from the contract form preview. Returns a sanitized
+  // [{ dueDate, amount }] list, or null when no override was supplied. The per-installment
+  // amounts may differ from the default distribution, but their total must equal the contract
+  // total (monthly rent × billable months) so the locked-total rule cannot be bypassed.
+  static _normalizeCustomSchedule(customSchedule, monthlyRent, totalMonths, graceMonths) {
+    if (!Array.isArray(customSchedule) || customSchedule.length === 0) return null;
+    const monthly = parseFloat(monthlyRent) || 0;
+    const override = customSchedule.map((item) => ({
+      dueDate: item?.dueDate ? String(item.dueDate).split('T')[0] : null,
+      amount: Math.max(0, parseFloat(item?.amount) || 0),
+    }));
+    if (override.some((s) => !s.dueDate)) {
+      throw this._validationError('Custom payment schedule items must include a valid due date');
+    }
+    const scheduleTotal = parseFloat(override.reduce((acc, s) => acc + s.amount, 0).toFixed(2));
+    const expectedTotal = Math.round(monthly * Math.max(0, totalMonths - graceMonths) * 100) / 100;
+    if (Math.abs(scheduleTotal - expectedTotal) > 0.02) {
+      throw this._validationError(
+        `Custom payment schedule total (${scheduleTotal.toFixed(2)}) must equal the contract total (${expectedTotal.toFixed(2)})`
+      );
+    }
+    return override;
+  }
+
+  // Create payments from a custom schedule tuned on the contract form. Rows with a zero amount
+  // are treated as grace installments: pre-marked paid without any transaction reference.
+  static async _createCustomScheduleForContract(contract, scheduleOverride, transaction, actorId) {
+    if (!contract || !Array.isArray(scheduleOverride) || scheduleOverride.length === 0) return;
+    const paymentTypeId = contract.rental_payment_type_id || contract.rentalPaymentTypeId;
+    const paymentType = paymentTypeId ? await RentalPaymentTypeModel.findById(paymentTypeId) : null;
+    const durationDays = paymentType?.duration_days ? parseFloat(paymentType.duration_days) : (contract.payment_duration_days || 30);
+    const intervalDays = durationDays > 0 ? durationDays : 30;
+
+    const endDateStr = contract.contract_end_date || contract.contractEndDate;
+    if (!endDateStr) return;
+    const [eY, eM, eD] = String(endDateStr).split('T')[0].split('-').map(Number);
+    const endBound = Date.UTC(eY, eM - 1, eD);
+
+    let count = 0;
+    for (const item of scheduleOverride) {
+      count += 1;
+      if (!item || !item.dueDate) continue;
+      const amount = Math.max(0, parseFloat(item.amount) || 0);
+      const isGrace = amount <= 0;
+
+      const [dY, dM, dD] = String(item.dueDate).split('T')[0].split('-').map(Number);
+      const nextMs = Date.UTC(dY, dM - 1, dD) + intervalDays * 24 * 60 * 60 * 1000;
+      const nextDateStr = nextMs <= endBound ? new Date(nextMs).toISOString().split('T')[0] : null;
+
+      await RentalPaymentsModel.create(
+        {
+          rentalContractId: contract.id,
+          amountDue: amount,
+          amountPaid: 0,
+          dueDate: item.dueDate,
+          nextPaymentDate: nextDateStr,
+          isPaid: isGrace,
+          transactionReference: null,
+          remarks: isGrace ? `Grace period #${count} (no charge)` : `Scheduled payment #${count}`,
+          createdBy: actorId,
+        },
+        transaction
+      );
+    }
   }
 
   static async _syncUnitRentedStatus(unitId, transaction, actorId) {

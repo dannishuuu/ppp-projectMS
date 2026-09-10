@@ -48,6 +48,7 @@ import {
   ReceiptLong as ReceiptIcon,
   RestartAlt as ResetIcon,
   FlashOn as QuickIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -64,6 +65,9 @@ const formatCurrency = (val) => {
   if (val == null || val === '' || isNaN(val)) return '0.00';
   return Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+// Round to 2 decimal places (cent precision)
+const round2 = (v) => Math.round(v * 100) / 100;
 
 // Shared styling for form section cards
 const sectionPaperSx = {
@@ -567,6 +571,64 @@ export const ContractCreatePage = () => {
     monthDays,
   ]);
 
+  // User-tuned installment amounts: editing one installment redistributes the difference across
+  // the others so the schedule total always stays equal to the contract total (locked).
+  const [editedAmounts, setEditedAmounts] = useState({});
+
+  // Any baseline change (dates, rent, frequency, grace period) rebuilds the schedule and clears edits
+  useEffect(() => {
+    setEditedAmounts({});
+  }, [simulatedSchedule]);
+
+  const displayAmount = (item) => editedAmounts[item.installmentNumber] ?? item.amount;
+
+  const handleAmountEdit = (installmentNumber, raw) => {
+    const parsed = parseFloat(raw);
+    if (raw === '' || raw === null || !Number.isFinite(parsed) || parsed < 0) return;
+    let newValue = round2(parsed);
+
+    // Current displayed amounts of the editable (non-grace) installments
+    const currentAmounts = new Map();
+    let total = 0;
+    simulatedSchedule.forEach((s) => {
+      if (s.isGrace) return;
+      const amt = round2(displayAmount(s));
+      currentAmounts.set(s.installmentNumber, amt);
+      total = round2(total + amt);
+    });
+
+    // The edited installment can never exceed the locked total
+    newValue = Math.min(newValue, total);
+    const oldValue = currentAmounts.get(installmentNumber) ?? 0;
+    const targetOthers = round2(total - newValue);
+
+    const others = [...currentAmounts.entries()].filter(([key]) => key !== installmentNumber);
+    const next = {};
+    if (others.length === 0) {
+      next[installmentNumber] = total;
+      setEditedAmounts(next);
+      return;
+    }
+
+    // Redistribute the difference proportionally by current amounts; the last one absorbs rounding cents
+    const othersTotal = round2(others.reduce((acc, [, v]) => acc + v, 0));
+    let allocated = 0;
+    others.forEach(([key, amt], idx) => {
+      if (idx === others.length - 1) {
+        const v = Math.max(0, round2(targetOthers - allocated));
+        next[key] = v;
+        allocated = round2(allocated + v);
+      } else {
+        const v = othersTotal > 0 ? round2(amt * (targetOthers / othersTotal)) : 0;
+        next[key] = v;
+        allocated = round2(allocated + v);
+      }
+    });
+    next[installmentNumber] = round2(total - allocated);
+
+    setEditedAmounts((prev) => ({ ...prev, ...next }));
+  };
+
   // Validation
   const validate = () => {
     if (!formData.buildingId) return 'Please select a building.';
@@ -640,6 +702,11 @@ export const ContractCreatePage = () => {
         isActive: formData.isActive,
         generateSchedule: formData.generateSchedule,
         gracePeriod: gracePeriodMonths,
+        // Send the tuned installments only when the user edited amounts, so the backend
+        // stores exactly the customized distribution instead of regenerating it.
+        ...(Object.keys(editedAmounts).length > 0
+          ? { customSchedule: simulatedSchedule.map((s) => ({ dueDate: s.dueDate, amount: round2(displayAmount(s)) })) }
+          : {}),
       };
 
       const res = await rentalContractService.createContract(payload);
@@ -2015,10 +2082,21 @@ export const ContractCreatePage = () => {
                       <Typography sx={{ fontSize: '0.72rem', color: '#64748b' }}>
                         {simulatedSchedule.length} installments scheduled
                         {gracePeriodMonths > 0 ? ` • ${gracePeriodMonths} grace month(s) deducted` : ''}
+                        {Object.keys(editedAmounts).length > 0 ? ' • customized' : ''}
                       </Typography>
-                      <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: '#16a34a' }}>
-                        Total: ETB {formatCurrency(simulatedSchedule.reduce((acc, s) => acc + s.amount, 0))}
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Tooltip title="Total is locked to the contract value — editing an installment redistributes the amount across the other months">
+                          <Chip
+                            icon={<LockIcon sx={{ fontSize: 11 }} />}
+                            label="Total locked"
+                            size="small"
+                            sx={{ height: 20, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#eef2ff', color: '#4f46e5', border: '1px solid #c7d2fe' }}
+                          />
+                        </Tooltip>
+                        <Typography sx={{ fontSize: '0.82rem', fontWeight: 800, color: '#16a34a' }}>
+                          Total: ETB {formatCurrency(simulatedSchedule.reduce((acc, s) => acc + displayAmount(s), 0))}
+                        </Typography>
+                      </Box>
                     </Box>
 
                     {/* Scrollable Schedule Table */}
@@ -2028,7 +2106,7 @@ export const ContractCreatePage = () => {
                           <TableRow sx={{ '& th': { backgroundColor: '#f8fafc', fontSize: '0.68rem', fontWeight: 700, color: '#64748b', py: 0.75, px: 2 } }}>
                             <TableCell>#</TableCell>
                             <TableCell>DUE DATE</TableCell>
-                            <TableCell align="right">CYCLE AMOUNT</TableCell>
+                            <TableCell align="right">CYCLE AMOUNT (ETB)</TableCell>
                             <TableCell align="right">STATUS</TableCell>
                           </TableRow>
                         </TableHead>
@@ -2041,8 +2119,22 @@ export const ContractCreatePage = () => {
                               <TableCell sx={{ fontWeight: 600, color: '#0f172a' }}>
                                 {item.dueDate}
                               </TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 700, color: item.isGrace ? '#94a3b8' : '#16a34a' }}>
-                                ETB {formatCurrency(item.amount)}
+                              <TableCell align="right">
+                                {item.isGrace ? (
+                                  <Typography sx={{ fontWeight: 700, color: '#94a3b8', fontSize: '0.74rem' }}>
+                                    ETB {formatCurrency(item.amount)}
+                                  </Typography>
+                                ) : (
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={displayAmount(item)}
+                                    onChange={(e) => handleAmountEdit(item.installmentNumber, e.target.value)}
+                                    disabled={saving}
+                                    inputProps={{ min: 0, step: '0.01', sx: { textAlign: 'right', py: 0.5, fontSize: '0.78rem', fontWeight: 700 } }}
+                                    sx={{ width: 122, '& .MuiOutlinedInput-root': { borderRadius: 1.5, backgroundColor: '#ffffff' } }}
+                                  />
+                                )}
                               </TableCell>
                               <TableCell align="right">
                                 {item.isGrace ? (
