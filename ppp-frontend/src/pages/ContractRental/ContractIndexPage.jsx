@@ -39,6 +39,7 @@ import {
   RestartAlt as ResetIcon,
   BusinessCenter as TenantIcon,
   CalendarMonth as CalendarIcon,
+  WarningAmber as OverdueIcon,
 } from '@mui/icons-material';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -125,6 +126,8 @@ export const ContractIndexPage = () => {
         activeContracts: 0,
         inactiveContracts: 0,
         totalMonthlyRevenue: 0,
+        monthlyIncome: 0,
+        monthlyOverdue: 0,
         rentedUnitsCount: 0,
       });
     } finally {
@@ -186,12 +189,20 @@ export const ContractIndexPage = () => {
       icon: <ContractIcon sx={{ fontSize: 22, color: '#4f46e5' }} />,
     },
     {
-      label: 'Monthly Revenue',
-      value: summaryLoading ? null : `ETB ${formatCurrency(summary?.totalMonthlyRevenue ?? 0)}`,
-      sub: 'From active contracts',
+      label: 'Monthly Income',
+      value: summaryLoading ? null : `ETB ${formatCurrency(summary?.monthlyIncome ?? 0)}`,
+      sub: 'Collected in the current month',
       color: '#16a34a',
       bg: '#dcfce7',
       icon: <MoneyIcon sx={{ fontSize: 22, color: '#16a34a' }} />,
+    },
+    {
+      label: 'Monthly Overdue',
+      value: summaryLoading ? null : `ETB ${formatCurrency(summary?.monthlyOverdue ?? 0)}`,
+      sub: 'Unpaid installments past due',
+      color: '#dc2626',
+      bg: '#fee2e2',
+      icon: <OverdueIcon sx={{ fontSize: 22, color: '#dc2626' }} />,
     },
     {
       label: 'Rented Units',
@@ -247,7 +258,7 @@ export const ContractIndexPage = () => {
       </Box>
 
       {/* Stats Cards */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3, 1fr)', lg: 'repeat(5, 1fr)' }, gap: 2, mb: 3 }}>
         {statCards.map((card) => (
           <Paper
             key={card.label}

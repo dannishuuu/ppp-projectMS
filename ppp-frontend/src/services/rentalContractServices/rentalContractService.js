@@ -66,6 +66,12 @@ export const rentalContractService = {
       activeContracts: Number(raw.active_contracts ?? raw.activeContracts ?? 0),
       inactiveContracts: Number(raw.inactive_contracts ?? raw.inactiveContracts ?? 0),
       totalMonthlyRevenue: Number(raw.monthly_rent_revenue ?? raw.totalMonthlyRevenue ?? 0),
+      // Actual income collected: sum of rental_payments.amount_paid whose payment_date
+      // falls inside the current calendar month of the system date
+      monthlyIncome: Number(raw.monthly_income ?? raw.monthlyIncome ?? 0),
+      // Overdue outstanding: sum of (amount_due - amount_paid) for installments whose
+      // due_date is today or passed, not marked paid, with a non-zero remaining balance
+      monthlyOverdue: Number(raw.monthly_overdue ?? raw.monthlyOverdue ?? 0),
       rentedUnitsCount: Number(raw.rented_units_count ?? raw.rentedUnitsCount ?? 0),
     };
   },
