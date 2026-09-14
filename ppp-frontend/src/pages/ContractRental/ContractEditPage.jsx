@@ -240,6 +240,9 @@ export const ContractEditPage = () => {
   // Active tab index for the 5-step form
   const [activeSection, setActiveSection] = useState(0);
 
+  // The contract is locked for editing when it is active OR pending approval (under review)
+  const isLocked = Boolean(original?.is_active) || String(original?.contract_status || '').toUpperCase() === 'PENDING';
+
   // Initial Data Fetching
   useEffect(() => {
     const init = async () => {
@@ -778,8 +781,10 @@ export const ContractEditPage = () => {
 
   // Validation
   const validate = () => {
-    if (original?.is_active) {
-      return 'Active contracts cannot be edited. Please deactivate the contract first.';
+    if (isLocked) {
+      return original?.is_active
+        ? 'Active contracts cannot be edited. Please deactivate the contract first.'
+        : 'This contract is pending approval and cannot be edited. Reject or approve the submission first.';
     }
     if (!formData.buildingId) return 'Please select a building.';
     if (!formData.floorId) return 'Please select a floor level.';
@@ -822,8 +827,10 @@ export const ContractEditPage = () => {
   // Form Submission
   const handleSubmit = async (e) => {
     e?.preventDefault();
-    if (original?.is_active) {
-      const msg = 'Active contracts cannot be edited. Please deactivate the contract first.';
+    if (isLocked) {
+      const msg = original?.is_active
+        ? 'Active contracts cannot be edited. Please deactivate the contract first.'
+        : 'This contract is pending approval and cannot be edited. Reject or approve the submission first.';
       setErrorMsg(msg);
       enqueueSnackbar(msg, { variant: 'error' });
       return;
@@ -909,6 +916,87 @@ export const ContractEditPage = () => {
             </Paper>
           </Box>
         </Box>
+      </Box>
+    );
+  }
+
+  // Hard lock: active contracts and contracts pending approval cannot be edited at all.
+  // The whole form (including Save / Reset / Submit) is not rendered.
+  if (isLocked) {
+    return (
+      <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, width: '100%', display: 'flex', justifyContent: 'center' }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 5,
+            borderRadius: 3,
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.06)',
+            maxWidth: 520,
+            width: '100%',
+            textAlign: 'center',
+            mt: 4,
+          }}
+        >
+          <Box
+            sx={{
+              width: 56,
+              height: 56,
+              borderRadius: 3,
+              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 2,
+              boxShadow: '0 6px 16px rgba(217,119,6,0.3)',
+            }}
+          >
+            <LockIcon sx={{ fontSize: 26 }} />
+          </Box>
+
+          <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.1rem', mb: 1 }}>
+            {original?.is_active ? 'Contract Locked — Active' : 'Contract Locked — Pending Approval'}
+          </Typography>
+          <Typography sx={{ fontSize: '0.85rem', color: '#64748b', lineHeight: 1.6, mb: 1 }}>
+            <Box component="span" sx={{ fontFamily: '"Roboto Mono", monospace', fontWeight: 700, color: '#4f46e5' }}>
+              {original?.contract_number}
+            </Box>
+          </Typography>
+          <Typography sx={{ fontSize: '0.83rem', color: '#64748b', lineHeight: 1.6, mb: 3 }}>
+            {original?.is_active
+              ? 'Active contracts cannot be edited. Deactivate the contract first if changes are required.'
+              : 'This contract has been submitted and is awaiting approval. Editing is disabled while under review — approve or reject it from the Contract Approval page.'}
+          </Typography>
+
+          <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
+              onClick={() => navigate('/contracts')}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, fontSize: '0.8rem', borderColor: '#cbd5e1', color: '#475569' }}
+            >
+              Back to Contracts
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => navigate(`/contracts/${id}`)}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                px: 2.5,
+                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
+                '&:hover': { background: 'linear-gradient(135deg, #4338ca, #6d28d9)' },
+              }}
+            >
+              View Contract
+            </Button>
+          </Box>
+        </Paper>
       </Box>
     );
   }
@@ -1015,8 +1103,8 @@ export const ContractEditPage = () => {
         </Box>
       </Box>
 
-      {/* Active Contract Alert */}
-      {original?.is_active && (
+      {/* Locked Contract Alert */}
+      {isLocked && (
         <Alert
           severity="warning"
           icon={<LockIcon fontSize="inherit" />}
@@ -1032,7 +1120,9 @@ export const ContractEditPage = () => {
             </Button>
           }
         >
-          This rental contract is currently ACTIVE. Active contracts are locked against editing. If you need to make changes, please deactivate the contract from the details page first.
+          {original?.is_active
+            ? 'This rental contract is currently ACTIVE. Active contracts are locked against editing. If you need to make changes, please deactivate the contract first.'
+            : 'This rental contract has been submitted and is PENDING APPROVAL. It is locked against editing while under review — reject or approve it from the Contract Approval page to make changes.'}
         </Alert>
       )}
 
@@ -1146,7 +1236,7 @@ export const ContractEditPage = () => {
                       <Autocomplete
                         fullWidth
                         size="small"
-                        disabled={saving || loadingPage || Boolean(original?.is_active)}
+                        disabled={saving || loadingPage || isLocked}
                         options={buildings}
                         getOptionLabel={(option) => {
                           if (typeof option === 'string') return option;
@@ -1200,7 +1290,7 @@ export const ContractEditPage = () => {
                       <Autocomplete
                         fullWidth
                         size="small"
-                        disabled={saving || !formData.buildingId || loadingFloors || Boolean(original?.is_active)}
+                        disabled={saving || !formData.buildingId || loadingFloors || isLocked}
                         options={floors}
                         getOptionLabel={(option) => (typeof option === 'string' ? option : `${option.name || 'Floor'} (Level ${option.floor_number ?? '—'})`)}
                         isOptionEqualToValue={(option, val) => String(option?.id) === String(val?.id || val)}
@@ -1252,7 +1342,7 @@ export const ContractEditPage = () => {
                       <Autocomplete
                         fullWidth
                         size="small"
-                        disabled={saving || !formData.floorId || loadingUnits || Boolean(original?.is_active)}
+                        disabled={saving || !formData.floorId || loadingUnits || isLocked}
                         options={units.filter((u) => u.is_for_rent !== false || String(u.id) === String(original?.unit_id))}
                         getOptionLabel={(option) => (typeof option === 'string' ? option : `Unit ${option.unit_number}`)}
                         isOptionEqualToValue={(option, val) => String(option?.id) === String(val?.id || val)}
@@ -1379,7 +1469,7 @@ export const ContractEditPage = () => {
                       <Autocomplete
                         fullWidth
                         size="small"
-                        disabled={saving || loadingPage || Boolean(original?.is_active)}
+                        disabled={saving || loadingPage || isLocked}
                         options={organizations}
                         getOptionLabel={(option) => {
                           if (typeof option === 'string') return option;
@@ -1495,7 +1585,7 @@ export const ContractEditPage = () => {
                         size="small"
                         value={formData.contractStartDate}
                         onChange={handleStartDateChange}
-                        disabled={saving || Boolean(original?.is_active)}
+                        disabled={saving || isLocked}
                         InputLabelProps={{ shrink: true }}
                         sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                       />
@@ -1511,7 +1601,7 @@ export const ContractEditPage = () => {
                         placeholder="e.g. 1, 2, 5"
                         value={leaseDurationYears}
                         onChange={handleDurationYearChange}
-                        disabled={saving || Boolean(original?.is_active)}
+                        disabled={saving || isLocked}
                         inputProps={{ min: 1, step: 1 }}
                         InputProps={{
                           endAdornment: <InputAdornment position="end">years</InputAdornment>,
@@ -1530,7 +1620,7 @@ export const ContractEditPage = () => {
                         placeholder="0 - 11"
                         value={leaseDurationMonths}
                         onChange={handleDurationMonthChange}
-                        disabled={saving || Boolean(original?.is_active)}
+                        disabled={saving || isLocked}
                         inputProps={{ min: 0, max: 11, step: 1 }}
                         InputProps={{
                           endAdornment: <InputAdornment position="end">months</InputAdornment>,
@@ -1611,7 +1701,7 @@ export const ContractEditPage = () => {
                         size="small"
                         value={formData.rentalPaymentTypeId}
                         onChange={handleChange('rentalPaymentTypeId')}
-                        disabled={saving || Boolean(original?.is_active)}
+                        disabled={saving || isLocked}
                         sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                       >
                         <MenuItem value="" disabled>Select payment frequency...</MenuItem>
@@ -1637,7 +1727,7 @@ export const ContractEditPage = () => {
                         size="small"
                         value={formData.paymentTimingId}
                         onChange={handleChange('paymentTimingId')}
-                        disabled={saving || Boolean(original?.is_active)}
+                        disabled={saving || isLocked}
                         sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
                       >
                         <MenuItem value="" disabled>Select payment timing...</MenuItem>
@@ -1655,7 +1745,7 @@ export const ContractEditPage = () => {
                       <Autocomplete
                         fullWidth
                         size="small"
-                        disabled={saving || Boolean(original?.is_active)}
+                        disabled={saving || isLocked}
                         options={currencies}
                         getOptionLabel={(option) => {
                           if (typeof option === 'string') return option;
@@ -1710,7 +1800,7 @@ export const ContractEditPage = () => {
                         placeholder="0"
                         value={formData.gracePeriod}
                         onChange={handleGracePeriodChange}
-                        disabled={saving || Boolean(original?.is_active)}
+                        disabled={saving || isLocked}
                         inputProps={{ min: 0, step: 1 }}
                         error={termCalculations.totalMonths > 0 && gracePeriodMonths > termCalculations.totalMonths}
                         helperText={
@@ -1735,7 +1825,7 @@ export const ContractEditPage = () => {
                         placeholder="0.00"
                         value={formData.rentAmountPerSquareMeter}
                         onChange={(e) => handlePerSqmChange(e.target.value)}
-                        disabled={saving || Boolean(original?.is_active)}
+                        disabled={saving || isLocked}
                         inputProps={{ min: 0, step: '0.01' }}
                         InputProps={{
                           startAdornment: <InputAdornment position="start">ETB</InputAdornment>,
@@ -1828,7 +1918,7 @@ export const ContractEditPage = () => {
                         placeholder="Specify special terms, grace periods, utility deposits, or maintenance clauses..."
                         value={formData.remarks}
                         onChange={handleChange('remarks')}
-                        disabled={saving || Boolean(original?.is_active)}
+                        disabled={saving || isLocked}
                         error={Boolean(errorMsg && !formData.remarks?.trim())}
                         helperText={errorMsg && !formData.remarks?.trim() ? 'Contract remarks & stipulations are required.' : ''}
                         sx={{ width: '100%', '& .MuiOutlinedInput-root': { width: '100%', borderRadius: 2 } }}
@@ -1847,7 +1937,7 @@ export const ContractEditPage = () => {
                             label={sug}
                             size="small"
                             onClick={() => {
-                              if (original?.is_active) return;
+                              if (isLocked) return;
                               setFormData((p) => ({
                                 ...p,
                                 remarks: p.remarks ? `${p.remarks}. ${sug}.` : `${sug}.`,
@@ -1858,8 +1948,8 @@ export const ContractEditPage = () => {
                               fontSize: '0.68rem',
                               backgroundColor: '#f1f5f9',
                               color: '#475569',
-                              cursor: original?.is_active ? 'default' : 'pointer',
-                              '&:hover': { backgroundColor: original?.is_active ? '#f1f5f9' : '#e2e8f0' },
+                              cursor: isLocked ? 'default' : 'pointer',
+                              '&:hover': { backgroundColor: isLocked ? '#f1f5f9' : '#e2e8f0' },
                             }}
                           />
                         ))}
@@ -2193,7 +2283,7 @@ export const ContractEditPage = () => {
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
               {[
-                { done: !original?.is_active, label: original?.is_active ? 'Contract is locked (Active)' : 'Contract unlocked for editing' },
+                { done: !isLocked, label: isLocked ? (original?.is_active ? 'Contract is locked (Active)' : 'Contract is locked (Pending Approval)') : 'Contract unlocked for editing' },
                 { done: !!(formData.buildingId && formData.floorId && formData.unitId), label: 'Premises & unit allocated' },
                 { done: !!formData.tenantOrganizationId, label: 'Tenant organization selected' },
                 { done: !!(formData.contractStartDate && formData.contractEndDate && termCalculations.isValidRange), label: 'Valid lease duration set' },
@@ -2219,7 +2309,7 @@ export const ContractEditPage = () => {
               type="submit"
               variant="contained"
               fullWidth
-              disabled={saving || Boolean(original?.is_active)}
+              disabled={saving || isLocked}
               startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
               sx={{
                 py: 1.35,
@@ -2239,7 +2329,7 @@ export const ContractEditPage = () => {
                 },
               }}
             >
-              {saving ? 'Updating Contract...' : original?.is_active ? 'Contract Locked (Active)' : 'Save Changes & Update Schedule'}
+              {saving ? 'Updating Contract...' : original?.is_active ? 'Contract Locked (Active)' : isLocked ? 'Contract Locked (Pending)' : 'Save Changes & Update Schedule'}
             </Button>
             <Button
               variant="outlined"

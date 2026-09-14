@@ -449,7 +449,7 @@ export const ContractDetailPage = () => {
             >
               Back to Contracts
             </Button>
-            {!contract.is_active && (
+            {!contract.is_active && String(contract.contract_status || '').toUpperCase() !== 'PENDING' && (
               <Tooltip title="Edit Lease" arrow placement="top">
                 <Button
                   variant="outlined"
@@ -1418,27 +1418,29 @@ export const ContractDetailPage = () => {
 
             {/* Sidebar Actions */}
             <Box sx={{ px: 3, pb: 3, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-              <Button
-                variant="contained"
-                fullWidth
-                startIcon={<EditIcon />}
-                onClick={() => navigate(`/contracts/${id}/edit`)}
-                sx={{
-                  py: 1.25,
-                  borderRadius: 2.5,
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  textTransform: 'none',
-                  background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-                  boxShadow: '0 4px 14px rgba(79,70,229,0.35)',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #4338ca 0%, #6d28d9 100%)',
-                    boxShadow: '0 6px 20px rgba(79,70,229,0.45)',
-                  },
-                }}
-              >
-                Edit Lease
-              </Button>
+              {!contract.is_active && String(contract.contract_status || '').toUpperCase() !== 'PENDING' && (
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<EditIcon />}
+                  onClick={() => navigate(`/contracts/${id}/edit`)}
+                  sx={{
+                    py: 1.25,
+                    borderRadius: 2.5,
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    textTransform: 'none',
+                    background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                    boxShadow: '0 4px 14px rgba(79,70,229,0.35)',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #4338ca 0%, #6d28d9 100%)',
+                      boxShadow: '0 6px 20px rgba(79,70,229,0.45)',
+                    },
+                  }}
+                >
+                  Edit Lease
+                </Button>
+              )}
             </Box>
         </Paper>
       </Box>

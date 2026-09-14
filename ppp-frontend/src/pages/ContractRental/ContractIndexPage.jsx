@@ -477,7 +477,10 @@ export const ContractIndexPage = () => {
                   </TableCell>
                 </TableRow>
               )}
-              {contracts.map((c) => (
+              {contracts.map((c) => {
+                const cStatus = String(c.contract_status || '').toUpperCase();
+                const canSubmit = !c.is_active && (cStatus === 'DRAFT' || cStatus === 'CANCELLED');
+                return (
                 <TableRow
                   key={c.id}
                   hover
@@ -572,8 +575,12 @@ export const ContractIndexPage = () => {
                           Details
                         </Button>
                       </Tooltip>
-                      {!c.is_active && String(c.contract_status || '').toUpperCase() === 'DRAFT' && (
-                        <Tooltip title="Submit contract for approval (Draft → Pending)" arrow placement="top">
+                      {canSubmit && (
+                        <Tooltip
+                          title={cStatus === 'CANCELLED' ? 'Re-submit contract for approval (Cancelled → Pending)' : 'Submit contract for approval (Draft → Pending)'}
+                          arrow
+                          placement="top"
+                        >
                           <Button
                             size="small"
                             variant="outlined"
@@ -593,11 +600,11 @@ export const ContractIndexPage = () => {
                               '&:hover': { borderColor: '#fcd34d', backgroundColor: '#fef3c7' },
                             }}
                           >
-                            Submit Contract
+                            {cStatus === 'CANCELLED' ? 'Re-submit' : 'Submit Contract'}
                           </Button>
                         </Tooltip>
                       )}
-                      {!c.is_active && (
+                      {!c.is_active && cStatus !== 'PENDING' && (
                         <Tooltip title="Edit contract" arrow placement="top">
                           <Button
                             size="small"
@@ -625,7 +632,8 @@ export const ContractIndexPage = () => {
                     </Box>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
@@ -645,9 +653,9 @@ export const ContractIndexPage = () => {
       {/* Submit Contract Confirmation Modal */}
       <ConfirmationModal
         open={submitDialogOpen}
-        title="Submit Contract"
-        message={`Are you sure you want to submit contract "${submitTarget?.contract_number}" for approval? Its status will change from Draft to Pending.`}
-        confirmText="Submit Contract"
+        title={String(submitTarget?.contract_status || '').toUpperCase() === 'CANCELLED' ? 'Re-submit Contract' : 'Submit Contract'}
+        message={`Are you sure you want to submit contract "${submitTarget?.contract_number}" for approval? Its status will change from ${String(submitTarget?.contract_status || 'DRAFT').toLowerCase() === 'cancelled' ? 'Cancelled' : 'Draft'} to Pending.`}
+        confirmText={String(submitTarget?.contract_status || '').toUpperCase() === 'CANCELLED' ? 'Re-submit Contract' : 'Submit Contract'}
         confirmColor="primary"
         onConfirm={handleSubmitContract}
         onClose={() => { setSubmitDialogOpen(false); setSubmitTarget(null); }}

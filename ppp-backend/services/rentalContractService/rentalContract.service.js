@@ -210,9 +210,11 @@ class RentalContractService {
     }
 
     if (current.is_active) {
-      const err = new Error('Active contracts cannot be edited. Please deactivate the contract first.');
-      err.status = 400;
-      throw err;
+      throw this._validationError('Active contracts cannot be edited. Please deactivate the contract first.');
+    }
+    // Contracts under review (PENDING) cannot be edited — they must be approved or rejected first
+    if (String(current.contract_status || '').toUpperCase() === 'PENDING') {
+      throw this._validationError('Contracts pending approval cannot be edited. Reject or approve the submission first.');
     }
 
     if (payload.contractNumber && payload.contractNumber.trim() !== current.contract_number) {
@@ -399,8 +401,8 @@ class RentalContractService {
     }
   }
 
-  // Submit a draft contract for approval: the ONLY change is contract_status DRAFT → PENDING.
-  // Only inactive contracts still sitting in DRAFT can be submitted.
+  // Submit a contract for approval: the ONLY change is contract_status → PENDING.
+  // Allowed from DRAFT (first submission) and from CANCELLED (re-submission after rejection).
   static async submitContract(id, actorId) {
     const current = await RentalContractModel.findById(id);
     if (!current) {
@@ -412,9 +414,10 @@ class RentalContractService {
     if (current.is_active) {
       throw this._validationError('Active contracts cannot be submitted');
     }
-    if (String(current.contract_status || '').toUpperCase() !== 'DRAFT') {
+    const currentStatus = String(current.contract_status || '').toUpperCase();
+    if (currentStatus !== 'DRAFT' && currentStatus !== 'CANCELLED') {
       throw this._validationError(
-        `Only DRAFT contracts can be submitted (current status: ${current.contract_status || 'UNKNOWN'})`
+        `Only DRAFT or CANCELLED contracts can be submitted (current status: ${current.contract_status || 'UNKNOWN'})`
       );
     }
 
