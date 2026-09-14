@@ -597,13 +597,12 @@ export const ContractIndexPage = () => {
                           </Button>
                         </Tooltip>
                       )}
-                      <Tooltip title={c.is_active ? 'Active contracts cannot be edited' : 'Edit contract'} arrow placement="top">
-                        <span>
+                      {!c.is_active && (
+                        <Tooltip title="Edit contract" arrow placement="top">
                           <Button
                             size="small"
                             variant="outlined"
                             startIcon={<EditIcon sx={{ fontSize: 15 }} />}
-                            disabled={Boolean(c.is_active)}
                             onClick={() => navigate(`/contracts/${c.id}/edit`)}
                             sx={{
                               textTransform: 'none',
@@ -617,13 +616,12 @@ export const ContractIndexPage = () => {
                               color: '#0284c7',
                               backgroundColor: '#ffffff',
                               '&:hover': { borderColor: '#7dd3fc', backgroundColor: '#f0f9ff' },
-                              '&.Mui-disabled': { borderColor: '#e2e8f0', color: '#cbd5e1' },
                             }}
                           >
                             Edit
                           </Button>
-                        </span>
-                      </Tooltip>
+                        </Tooltip>
+                      )}
                     </Box>
                   </TableCell>
                 </TableRow>

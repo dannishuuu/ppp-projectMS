@@ -449,12 +449,11 @@ export const ContractDetailPage = () => {
             >
               Back to Contracts
             </Button>
-            <Tooltip title={contract.is_active ? 'Active contracts cannot be edited. Deactivate first.' : 'Edit Lease'}>
-              <span>
+            {!contract.is_active && (
+              <Tooltip title="Edit Lease" arrow placement="top">
                 <Button
                   variant="outlined"
                   size="small"
-                  disabled={Boolean(contract.is_active)}
                   startIcon={<EditIcon sx={{ fontSize: 16 }} />}
                   onClick={() => navigate(`/contracts/${id}/edit`)}
                   sx={{
@@ -468,8 +467,8 @@ export const ContractDetailPage = () => {
                 >
                   Edit Lease
                 </Button>
-              </span>
-            </Tooltip>
+              </Tooltip>
+            )}
           </Box>
         </Box>
 
