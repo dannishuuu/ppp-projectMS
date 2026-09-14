@@ -6,12 +6,15 @@ import {
   TextField,
   Button,
   Chip,
-  Breadcrumbs,
-  Link,
   Avatar,
   LinearProgress,
   Divider,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -23,8 +26,13 @@ import {
   HourglassEmpty as PendingIcon,
   CheckCircle as ApproveIcon,
   Cancel as RejectIcon,
+  Visibility as ViewIcon,
+  Close as CloseIcon,
+  Schedule as ScheduleIcon,
+  Payments as PaymentIcon,
+  Place as GraceIcon,
 } from '@mui/icons-material';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { rentalContractService } from '../../services/rentalContractServices';
 import { contractStatusMeta } from '../../utils/formatters';
@@ -40,27 +48,58 @@ const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-// Single detail line inside an approval card
-const DetailRow = ({ label, value, icon = null, mono = false }) => (
-  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, py: 0.5 }}>
-    <Typography sx={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 500, flexShrink: 0 }}>{label}</Typography>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
-      {icon}
-      <Typography
-        sx={{
-          fontSize: '0.78rem',
-          fontWeight: 700,
-          color: '#0f172a',
-          textAlign: 'right',
-          fontFamily: mono ? '"Roboto Mono", monospace' : 'inherit',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {value || '—'}
-      </Typography>
-    </Box>
+// Lease term in days and months (1 month = 30.4375 days average — same formula used across the app)
+const calcTerm = (startDateStr, endDateStr) => {
+  if (!startDateStr || !endDateStr) return { totalDays: 0, totalMonths: 0 };
+  const [sY, sM, sD] = String(startDateStr).slice(0, 10).split('-').map(Number);
+  const [eY, eM, eD] = String(endDateStr).slice(0, 10).split('-').map(Number);
+  const diffMs = Date.UTC(eY, eM - 1, eD) - Date.UTC(sY, sM - 1, sD);
+  const totalDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
+  const totalMonths = Math.max(0, Math.round((totalDays / 30.4375) * 10) / 10);
+  return { totalDays, totalMonths };
+};
+
+// Compact line inside an approval card
+const CardLine = ({ icon, text }) => (
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+    {icon}
+    <Typography
+      sx={{ fontSize: '0.73rem', color: '#475569', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+    >
+      {text || '—'}
+    </Typography>
+  </Box>
+);
+
+// Label/value row inside the details dialog
+const DialogField = ({ label, value }) => (
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, py: 0.7 }}>
+    <Typography sx={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>{label}</Typography>
+    <Typography sx={{ fontSize: '0.8rem', color: '#0f172a', fontWeight: 700, textAlign: 'right' }}>{value || '—'}</Typography>
+  </Box>
+);
+
+// Small highlight tile at the top of the details dialog
+const MetricTile = ({ label, value, sub, color, bg }) => (
+  <Box sx={{ p: 1.25, borderRadius: 2, border: `1px solid ${bg}`, backgroundColor: `${color}0a`, minWidth: 0 }}>
+    <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      {label}
+    </Typography>
+    <Typography sx={{ fontSize: '0.92rem', fontWeight: 900, color, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      {value}
+    </Typography>
+    {sub && (
+      <Typography sx={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 600 }}>{sub}</Typography>
+    )}
+  </Box>
+);
+
+const DialogSectionTitle = ({ icon, title }) => (
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5, mt: 1.5 }}>
+    {icon}
+    <Typography sx={{ fontSize: '0.68rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+      {title}
+    </Typography>
   </Box>
 );
 
@@ -76,6 +115,9 @@ export const ContractApprovalPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
 
+  // Details popup
+  const [detailsContract, setDetailsContract] = useState(null);
+
   // Approval / rejection confirmation
   const [confirm, setConfirm] = useState({ open: false, mode: null, contract: null });
   const [busy, setBusy] = useState(false);
@@ -85,7 +127,7 @@ export const ContractApprovalPage = () => {
     try {
       const res = await rentalContractService.getPendingContracts({
         page,
-        limit: 12,
+        limit: 15,
         search: appliedSearch,
       });
       setPendingContracts(res?.contracts || res?.rows || []);
@@ -105,6 +147,11 @@ export const ContractApprovalPage = () => {
   const handleSearch = () => {
     setPage(1);
     setAppliedSearch(searchTerm);
+  };
+
+  const openConfirm = (mode, contract) => {
+    setDetailsContract(null);
+    setConfirm({ open: true, mode, contract });
   };
 
   const handleConfirm = async () => {
@@ -248,7 +295,7 @@ export const ContractApprovalPage = () => {
 
       {loading && <LinearProgress sx={{ height: 3, borderRadius: 3, mb: 2 }} />}
 
-      {/* Approval Cards */}
+      {/* Compact Approval Cards */}
       {!loading && pendingContracts.length === 0 ? (
         <Paper elevation={0} sx={{ p: 6, borderRadius: 3, border: '1px dashed #e2e8f0', textAlign: 'center' }}>
           <Box
@@ -274,7 +321,7 @@ export const ContractApprovalPage = () => {
           </Typography>
         </Paper>
       ) : (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, gap: 2.5 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(3, 1fr)' }, gap: 1.75 }}>
           {pendingContracts.map((c) => {
             const meta = contractStatusMeta(c.contract_status, c.is_active);
             const graceMonths = parseInt(c.grace_period, 10) || 0;
@@ -283,41 +330,43 @@ export const ContractApprovalPage = () => {
                 key={c.id}
                 elevation={0}
                 sx={{
-                  p: 2.5,
-                  borderRadius: 3,
+                  p: 1.75,
+                  borderRadius: 2.5,
                   border: '1px solid #e2e8f0',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+                  boxShadow: '0 1px 6px rgba(0,0,0,0.03)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 1.5,
+                  gap: 1,
+                  '&:hover': { borderColor: '#c7d2fe', boxShadow: '0 4px 14px rgba(79,70,229,0.08)' },
+                  transition: 'all 0.2s ease',
                 }}
               >
                 {/* Card header */}
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
-                    <Avatar sx={{ width: 38, height: 38, backgroundColor: '#eef2ff', color: '#4f46e5' }}>
-                      <ContractIcon sx={{ fontSize: 19 }} />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                    <Avatar sx={{ width: 30, height: 30, backgroundColor: '#eef2ff', color: '#4f46e5' }}>
+                      <ContractIcon sx={{ fontSize: 16 }} />
                     </Avatar>
                     <Box sx={{ minWidth: 0 }}>
                       <Typography
-                        sx={{ fontSize: '0.92rem', fontWeight: 800, color: '#0f172a', fontFamily: '"Roboto Mono", monospace' }}
                         noWrap
+                        sx={{ fontSize: '0.83rem', fontWeight: 800, color: '#0f172a', fontFamily: '"Roboto Mono", monospace', lineHeight: 1.25 }}
                       >
                         {c.contract_number}
                       </Typography>
-                      <Typography sx={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                      <Typography sx={{ fontSize: '0.65rem', color: '#94a3b8' }}>
                         Submitted {formatDate(c.updated_at)}
                       </Typography>
                     </Box>
                   </Box>
                   <Chip
-                    icon={<PendingIcon sx={{ fontSize: '13px !important' }} />}
+                    icon={<PendingIcon sx={{ fontSize: '12px !important' }} />}
                     label={meta.label}
                     size="small"
                     sx={{
-                      height: 22,
+                      height: 20,
                       fontWeight: 700,
-                      fontSize: '0.68rem',
+                      fontSize: '0.62rem',
                       backgroundColor: meta.bg,
                       color: meta.color,
                       border: `1px solid ${meta.border}`,
@@ -328,117 +377,104 @@ export const ContractApprovalPage = () => {
 
                 <Divider />
 
-                {/* Details */}
-                <Box>
-                  <DetailRow
-                    label="Lessee / Tenant"
-                    value={c.tenant_organization_name || '—'}
-                    icon={<TenantIcon sx={{ fontSize: 13, color: '#94a3b8' }} />}
+                {/* Compact summary */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <CardLine
+                    icon={<TenantIcon sx={{ fontSize: 13, color: '#94a3b8', flexShrink: 0 }} />}
+                    text={c.tenant_organization_name || 'No tenant assigned'}
                   />
-                  <DetailRow
-                    label="Premises"
-                    value={
+                  <CardLine
+                    icon={<BuildingIcon sx={{ fontSize: 13, color: '#94a3b8', flexShrink: 0 }} />}
+                    text={
                       c.building_name
-                        ? `${c.building_name}${c.floor_number != null ? ` • Floor ${c.floor_number}` : ''}${c.unit_number ? ` • Unit ${c.unit_number}` : ''}`
+                        ? `${c.building_name}${c.unit_number ? ` • Unit ${c.unit_number}` : ''}`
                         : '—'
                     }
-                    icon={<BuildingIcon sx={{ fontSize: 13, color: '#94a3b8' }} />}
                   />
-                  <DetailRow
-                    label="Lease Period"
-                    value={`${c.contract_start_date ? formatDate(c.contract_start_date) : '—'} → ${c.contract_end_date ? formatDate(c.contract_end_date) : '—'}`}
-                    icon={<CalendarIcon sx={{ fontSize: 13, color: '#94a3b8' }} />}
+                  <CardLine
+                    icon={<CalendarIcon sx={{ fontSize: 13, color: '#94a3b8', flexShrink: 0 }} />}
+                    text={`${c.contract_start_date ? formatDate(c.contract_start_date) : '—'} → ${c.contract_end_date ? formatDate(c.contract_end_date) : '—'}`}
                   />
-                  <DetailRow
-                    label="Monthly Rent"
-                    value={`${c.currency_code || 'ETB'} ${formatCurrency(c.rent_amount_total_per_month)}`}
-                  />
-                  <DetailRow
-                    label="Payment Cycle"
-                    value={c.rental_payment_type_name ? `${c.rental_payment_type_name} • ${c.payment_timing_name || '—'}` : '—'}
-                  />
-                  <DetailRow label="Grace Period" value={graceMonths > 0 ? `${graceMonths} month(s) — no charge` : 'None'} />
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, pt: 0.25 }}>
+                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 800, color: '#16a34a' }}>
+                      {c.currency_code || 'ETB'} {formatCurrency(c.rent_amount_total_per_month)}
+                      <Typography component="span" sx={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}> /mo</Typography>
+                    </Typography>
+                    {graceMonths > 0 && (
+                      <Chip
+                        icon={<GraceIcon sx={{ fontSize: '11px !important' }} />}
+                        label={`${graceMonths} mo grace`}
+                        size="small"
+                        sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, backgroundColor: '#e0e7ff', color: '#4338ca' }}
+                      />
+                    )}
+                  </Box>
                 </Box>
 
-                {c.remarks && (
-                  <Typography
-                    sx={{
-                      fontSize: '0.72rem',
-                      color: '#64748b',
-                      backgroundColor: '#f8fafc',
-                      border: '1px solid #f1f5f9',
-                      borderRadius: 1.5,
-                      px: 1.25,
-                      py: 0.75,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {c.remarks}
-                  </Typography>
-                )}
-
-                <Box sx={{ flexGrow: 1 }} />
-
                 {/* Actions */}
-                <Box sx={{ display: 'flex', gap: 1.25, pt: 0.5 }}>
-                  <Tooltip title="Activate the lease — contract becomes ACTIVE" arrow placement="top">
+                <Box sx={{ display: 'flex', gap: 0.75, pt: 0.5 }}>
+                  <Tooltip title="View full details" arrow placement="top">
                     <Button
-                      fullWidth
-                      variant="contained"
-                      startIcon={<ApproveIcon sx={{ fontSize: 17 }} />}
-                      onClick={() => setConfirm({ open: true, mode: 'approve', contract: c })}
+                      size="small"
+                      variant="outlined"
+                      startIcon={<ViewIcon sx={{ fontSize: 14 }} />}
+                      onClick={() => setDetailsContract(c)}
                       sx={{
-                        py: 0.9,
-                        borderRadius: 2,
-                        fontWeight: 800,
-                        fontSize: '0.8rem',
                         textTransform: 'none',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        borderRadius: 1.5,
+                        px: 1,
+                        minWidth: 0,
+                        borderColor: '#c7d2fe',
+                        color: '#4f46e5',
+                        '&:hover': { borderColor: '#818cf8', backgroundColor: '#eef2ff' },
+                      }}
+                    >
+                      Details
+                    </Button>
+                  </Tooltip>
+                  <Box sx={{ flexGrow: 1 }} />
+                  <Tooltip title="Approve — becomes ACTIVE" arrow placement="top">
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<ApproveIcon sx={{ fontSize: 14 }} />}
+                      onClick={() => openConfirm('approve', c)}
+                      sx={{
+                        textTransform: 'none',
+                        fontSize: '0.7rem',
+                        fontWeight: 800,
+                        borderRadius: 1.5,
+                        px: 1.25,
+                        minWidth: 0,
                         background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                        boxShadow: '0 4px 12px rgba(22,163,74,0.3)',
+                        boxShadow: 'none',
                         '&:hover': { background: 'linear-gradient(135deg, #15803d, #166534)' },
                       }}
                     >
                       Approve
                     </Button>
                   </Tooltip>
-                  <Tooltip title="Reject the submission — status becomes CANCELLED" arrow placement="top">
+                  <Tooltip title="Reject — becomes CANCELLED" arrow placement="top">
                     <Button
-                      fullWidth
+                      size="small"
                       variant="outlined"
-                      startIcon={<RejectIcon sx={{ fontSize: 17 }} />}
-                      onClick={() => setConfirm({ open: true, mode: 'reject', contract: c })}
+                      startIcon={<RejectIcon sx={{ fontSize: 14 }} />}
+                      onClick={() => openConfirm('reject', c)}
                       sx={{
-                        py: 0.9,
-                        borderRadius: 2,
-                        fontWeight: 800,
-                        fontSize: '0.8rem',
                         textTransform: 'none',
+                        fontSize: '0.7rem',
+                        fontWeight: 800,
+                        borderRadius: 1.5,
+                        px: 1.25,
+                        minWidth: 0,
                         borderColor: '#fecaca',
                         color: '#dc2626',
                         '&:hover': { borderColor: '#fca5a5', backgroundColor: '#fef2f2' },
                       }}
                     >
                       Reject
-                    </Button>
-                  </Tooltip>
-                  <Tooltip title="View full contract details" arrow placement="top">
-                    <Button
-                      variant="text"
-                      onClick={() => navigate(`/contracts/${c.id}`)}
-                      sx={{
-                        px: 1.5,
-                        borderRadius: 2,
-                        fontWeight: 700,
-                        fontSize: '0.78rem',
-                        textTransform: 'none',
-                        color: '#64748b',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      View
                     </Button>
                   </Tooltip>
                 </Box>
@@ -474,6 +510,235 @@ export const ContractApprovalPage = () => {
           </Button>
         </Box>
       )}
+
+      {/* ── Contract Details Popup ── */}
+      <Dialog
+        open={Boolean(detailsContract)}
+        onClose={() => setDetailsContract(null)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        {detailsContract && (() => {
+          const term = calcTerm(detailsContract.contract_start_date, detailsContract.contract_end_date);
+          const grace = parseInt(detailsContract.grace_period, 10) || 0;
+          const monthly = parseFloat(detailsContract.rent_amount_total_per_month) || 0;
+          const billableMonths = Math.max(0, Math.round((term.totalMonths - grace) * 10) / 10);
+          const estimatedTotal = Math.round(monthly * billableMonths * 100) / 100;
+          const scheduleDue = Number(detailsContract.total_amount_due) || 0;
+          const schedulePaid = Number(detailsContract.total_amount_paid) || 0;
+          const outstanding = Math.round((scheduleDue - schedulePaid) * 100) / 100;
+          const paidPct = scheduleDue > 0 ? Math.min(100, (schedulePaid / scheduleDue) * 100) : 0;
+          const cur = detailsContract.currency_code || 'ETB';
+          return (
+          <>
+            <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+                <Avatar sx={{ width: 34, height: 34, backgroundColor: '#eef2ff', color: '#4f46e5' }}>
+                  <ContractIcon sx={{ fontSize: 18 }} />
+                </Avatar>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography sx={{ fontSize: '0.98rem', fontWeight: 800, color: '#0f172a', fontFamily: '"Roboto Mono", monospace' }} noWrap>
+                    {detailsContract.contract_number}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                    Submitted {formatDate(detailsContract.updated_at)}
+                  </Typography>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+                <Chip
+                  label={contractStatusMeta(detailsContract.contract_status, detailsContract.is_active).label}
+                  size="small"
+                  sx={{
+                    height: 22,
+                    fontWeight: 700,
+                    fontSize: '0.68rem',
+                    backgroundColor: contractStatusMeta(detailsContract.contract_status, detailsContract.is_active).bg,
+                    color: contractStatusMeta(detailsContract.contract_status, detailsContract.is_active).color,
+                    border: `1px solid ${contractStatusMeta(detailsContract.contract_status, detailsContract.is_active).border}`,
+                  }}
+                />
+                <IconButton size="small" onClick={() => setDetailsContract(null)}>
+                  <CloseIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Box>
+            </DialogTitle>
+            <Divider />
+
+            <DialogContent sx={{ pt: 1.5 }}>
+              {/* Key metrics */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' }, gap: 1.25, mb: 1 }}>
+                <MetricTile label="Monthly Rent" value={`${cur} ${formatCurrency(monthly)}`} sub={`${term.totalMonths} mo lease`} color="#16a34a" bg="#dcfce7" />
+                <MetricTile label="Contract Value" value={`${cur} ${formatCurrency(estimatedTotal)}`} sub={grace > 0 ? `${billableMonths} billable mo − ${grace} grace` : `${billableMonths} billable months`} color="#4f46e5" bg="#e0e7ff" />
+                <MetricTile label="Outstanding" value={`${cur} ${formatCurrency(outstanding)}`} sub={`${detailsContract.payments_count || 0} installment(s)`} color={outstanding > 0 ? '#dc2626' : '#16a34a'} bg={outstanding > 0 ? '#fecaca' : '#dcfce7'} />
+              </Box>
+
+              {/* Payment progress */}
+              {scheduleDue > 0 && (
+                <Box sx={{ mb: 0.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, color: '#475569' }}>Collection Progress</Typography>
+                    <Typography sx={{ fontSize: '0.68rem', fontWeight: 800, color: '#4f46e5' }}>{paidPct.toFixed(1)}%</Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={paidPct}
+                    sx={{
+                      height: 7,
+                      borderRadius: 4,
+                      backgroundColor: '#e2e8f0',
+                      '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg, #4f46e5, #7c3aed)', borderRadius: 4 },
+                    }}
+                  />
+                </Box>
+              )}
+
+              {/* Full details in two columns */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, columnGap: 3 }}>
+                <Box>
+                  <DialogSectionTitle icon={<TenantIcon sx={{ fontSize: 14, color: '#4f46e5' }} />} title="Lessee" />
+                  <DialogField label="Tenant Organization" value={detailsContract.tenant_organization_name} />
+
+                  <DialogSectionTitle icon={<BuildingIcon sx={{ fontSize: 14, color: '#4f46e5' }} />} title="Premises" />
+                  <DialogField label="Building" value={detailsContract.building_name} />
+                  <DialogField
+                    label="Floor"
+                    value={
+                      detailsContract.floor_name || detailsContract.floor_number != null
+                        ? `${detailsContract.floor_name || 'Floor'}${detailsContract.floor_number != null ? ` (Level ${detailsContract.floor_number})` : ''}`
+                        : null
+                    }
+                  />
+                  <DialogField
+                    label="Unit"
+                    value={detailsContract.unit_number ? `Unit ${detailsContract.unit_number}` : null}
+                  />
+                  <DialogField label="Space Use" value={detailsContract.unit_use_type} />
+                  <DialogField label="Floor Area" value={detailsContract.area_value ? `${detailsContract.area_value} m²` : null} />
+
+                  <DialogSectionTitle icon={<CalendarIcon sx={{ fontSize: 14, color: '#4f46e5' }} />} title="Lease Term" />
+                  <DialogField label="Start Date" value={formatDate(detailsContract.contract_start_date)} />
+                  <DialogField label="End Date" value={formatDate(detailsContract.contract_end_date)} />
+                  <DialogField
+                    label="Duration"
+                    value={term.totalDays > 0 ? `${term.totalMonths} months (${term.totalDays} days)` : null}
+                  />
+                  <DialogField
+                    label="Grace Period"
+                    value={grace > 0 ? `${grace} month(s) — first installment(s) free` : 'None'}
+                  />
+                </Box>
+
+                <Box>
+                  <DialogSectionTitle icon={<PaymentIcon sx={{ fontSize: 14, color: '#4f46e5' }} />} title="Financials" />
+                  <DialogField
+                    label="Rent per m²"
+                    value={
+                      detailsContract.rent_amount_per_square_meter != null
+                        ? `${cur} ${formatCurrency(detailsContract.rent_amount_per_square_meter)} /m²`
+                        : null
+                    }
+                  />
+                  <DialogField label="Total Monthly Rent" value={`${cur} ${formatCurrency(monthly)}`} />
+                  <DialogField label="Estimated Contract Value" value={`${cur} ${formatCurrency(estimatedTotal)}`} />
+                  <DialogField
+                    label="Currency"
+                    value={
+                      detailsContract.currency_name
+                        ? `${detailsContract.currency_name}${detailsContract.currency_code ? ` (${detailsContract.currency_code})` : ''}`
+                        : null
+                    }
+                  />
+                  <DialogField
+                    label="Payment Cycle"
+                    value={
+                      detailsContract.rental_payment_type_name
+                        ? `${detailsContract.rental_payment_type_name}${detailsContract.payment_duration_days ? ` (${detailsContract.payment_duration_days} days)` : ''}`
+                        : null
+                    }
+                  />
+                  <DialogField label="Payment Timing" value={detailsContract.payment_timing_name} />
+
+                  <DialogSectionTitle icon={<ScheduleIcon sx={{ fontSize: 14, color: '#4f46e5' }} />} title="Payment Schedule" />
+                  <DialogField label="Installments on Record" value={`${detailsContract.payments_count || 0} installment(s)`} />
+                  <DialogField label="Total Due" value={`${cur} ${formatCurrency(scheduleDue)}`} />
+                  <DialogField label="Total Paid" value={`${cur} ${formatCurrency(schedulePaid)}`} />
+                  <DialogField label="Outstanding" value={`${cur} ${formatCurrency(outstanding)}`} />
+
+                  <DialogSectionTitle icon={<ContractIcon sx={{ fontSize: 14, color: '#4f46e5' }} />} title="Record & Audit" />
+                  <DialogField label="Lease Status" value={contractStatusMeta(detailsContract.contract_status, detailsContract.is_active).label} />
+                  <DialogField label="Account Status" value={detailsContract.is_active ? 'Active' : 'Inactive'} />
+                  <DialogField
+                    label="Created"
+                    value={
+                      detailsContract.created_by_name
+                        ? `${detailsContract.created_by_name} • ${formatDate(detailsContract.created_at)}`
+                        : formatDate(detailsContract.created_at)
+                    }
+                  />
+                  <DialogField
+                    label="Last Updated"
+                    value={
+                      detailsContract.updated_by_name
+                        ? `${detailsContract.updated_by_name} • ${formatDate(detailsContract.updated_at)}`
+                        : formatDate(detailsContract.updated_at)
+                    }
+                  />
+                </Box>
+              </Box>
+
+              {detailsContract.remarks && (
+                <>
+                  <DialogSectionTitle icon={<ContractIcon sx={{ fontSize: 14, color: '#4f46e5' }} />} title="Remarks & Stipulations" />
+                  <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <Typography sx={{ fontSize: '0.78rem', color: '#334155', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                      {detailsContract.remarks}
+                    </Typography>
+                  </Box>
+                </>
+              )}
+            </DialogContent>
+
+            <DialogActions sx={{ px: 3, pb: 2.5, gap: 1, flexWrap: 'nowrap' }}>
+              <Box sx={{ flexGrow: 1 }} />
+              <Button
+                variant="outlined"
+                startIcon={<RejectIcon sx={{ fontSize: 16 }} />}
+                onClick={() => openConfirm('reject', detailsContract)}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 800,
+                  fontSize: '0.78rem',
+                  borderRadius: 2,
+                  borderColor: '#fecaca',
+                  color: '#dc2626',
+                  '&:hover': { borderColor: '#fca5a5', backgroundColor: '#fef2f2' },
+                }}
+              >
+                Reject
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<ApproveIcon sx={{ fontSize: 16 }} />}
+                onClick={() => openConfirm('approve', detailsContract)}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 800,
+                  fontSize: '0.78rem',
+                  borderRadius: 2,
+                  background: 'linear-gradient(135deg, #16a34a, #15803d)',
+                  boxShadow: '0 4px 12px rgba(22,163,74,0.3)',
+                  '&:hover': { background: 'linear-gradient(135deg, #15803d, #166534)' },
+                }}
+              >
+                Approve
+              </Button>
+            </DialogActions>
+          </>
+          );
+        })()}
+      </Dialog>
 
       {/* Approve / Reject Confirmation */}
       <ConfirmationModal
