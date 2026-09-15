@@ -6,7 +6,6 @@ import {
   TextField,
   Button,
   Chip,
-  IconButton,
   Tooltip,
   Table,
   TableBody,
@@ -546,7 +545,10 @@ export const BuildingIndexPage = () => {
                   LOCATION
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5, textAlign: 'center' }}>
-                  FLOORS & UNITS
+                  FLOORS
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5, textAlign: 'center' }}>
+                  UNITS
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.78rem', py: 1.5 }}>
                   TOTAL AREA
@@ -565,7 +567,7 @@ export const BuildingIndexPage = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={32} sx={{ color: '#4f46e5', mb: 1 }} />
                     <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
                       Loading buildings...
@@ -574,7 +576,7 @@ export const BuildingIndexPage = () => {
                 </TableRow>
               ) : buildings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <BuildingIcon sx={{ fontSize: 44, color: '#cbd5e1', mb: 1 }} />
                     <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#475569' }}>
                       No buildings found
@@ -626,11 +628,6 @@ export const BuildingIndexPage = () => {
                           >
                             {building.name}
                           </Typography>
-                          {building.name_amharic && (
-                            <Typography variant="caption" sx={{ display: 'block', color: '#94a3b8', fontSize: '0.72rem' }}>
-                              {building.name_amharic}
-                            </Typography>
-                          )}
                         </Box>
                       </Box>
                     </TableCell>
@@ -666,40 +663,42 @@ export const BuildingIndexPage = () => {
                       </Box>
                     </TableCell>
 
-                    {/* Floors & Units */}
+                    {/* Floors */}
                     <TableCell sx={{ py: 1.5, textAlign: 'center' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                        <Tooltip title="Floors created" arrow placement="top">
-                          <Chip
-                            icon={<FloorIcon sx={{ fontSize: '12px !important' }} />}
-                            label={`${building.floors_count ?? building.total_floors ?? 0}F`}
-                            size="small"
-                            sx={{
-                              height: 22,
-                              fontSize: '0.7rem',
-                              fontWeight: 700,
-                              backgroundColor: '#eef2ff',
-                              color: '#4f46e5',
-                              borderRadius: 1.5,
-                            }}
-                          />
-                        </Tooltip>
-                        <Tooltip title="Units created" arrow placement="top">
-                          <Chip
-                            icon={<UnitIcon sx={{ fontSize: '12px !important' }} />}
-                            label={`${building.units_count ?? 0}U`}
-                            size="small"
-                            sx={{
-                              height: 22,
-                              fontSize: '0.7rem',
-                              fontWeight: 700,
-                              backgroundColor: '#f0fdf4',
-                              color: '#16a34a',
-                              borderRadius: 1.5,
-                            }}
-                          />
-                        </Tooltip>
-                      </Box>
+                      <Tooltip title="Floors created" arrow placement="top">
+                        <Chip
+                          icon={<FloorIcon sx={{ fontSize: '12px !important' }} />}
+                          label={`${building.floors_count ?? building.total_floors ?? 0}`}
+                          size="small"
+                          sx={{
+                            height: 22,
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            backgroundColor: '#eef2ff',
+                            color: '#4f46e5',
+                            borderRadius: 1.5,
+                          }}
+                        />
+                      </Tooltip>
+                    </TableCell>
+
+                    {/* Units */}
+                    <TableCell sx={{ py: 1.5, textAlign: 'center' }}>
+                      <Tooltip title="Units created" arrow placement="top">
+                        <Chip
+                          icon={<UnitIcon sx={{ fontSize: '12px !important' }} />}
+                          label={`${building.units_count ?? 0}`}
+                          size="small"
+                          sx={{
+                            height: 22,
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            backgroundColor: '#f0fdf4',
+                            color: '#16a34a',
+                            borderRadius: 1.5,
+                          }}
+                        />
+                      </Tooltip>
                     </TableCell>
 
                     {/* Total Area */}
@@ -736,68 +735,97 @@ export const BuildingIndexPage = () => {
 
                     {/* Actions */}
                     <TableCell sx={{ py: 1.5, textAlign: 'right' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
-                        <Tooltip title="View Building Details" arrow placement="top">
-                          <IconButton
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5, whiteSpace: 'nowrap' }}>
+                        <Tooltip title="View full building details and floor structure" arrow placement="top">
+                          <Button
                             size="small"
+                            startIcon={<ViewIcon sx={{ fontSize: 15 }} />}
                             onClick={() => navigate(`/buildings/${building.id}`)}
-                            sx={{ p: 0.5, color: '#64748b', '&:hover': { color: '#4f46e5', backgroundColor: '#eef2ff' } }}
+                            sx={{
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              textTransform: 'none',
+                              color: '#64748b',
+                              px: 1,
+                              minWidth: 0,
+                              gap: 0.4,
+                              '&:hover': { color: '#4f46e5', backgroundColor: '#eef2ff' },
+                            }}
                           >
-                            <ViewIcon sx={{ fontSize: 17 }} />
-                          </IconButton>
+                            View
+                          </Button>
                         </Tooltip>
 
-                        <Tooltip title="Edit Building" arrow placement="top">
-                          <IconButton
+                        <Tooltip title="Edit building name, structure and location" arrow placement="top">
+                          <Button
                             size="small"
+                            startIcon={<EditIcon sx={{ fontSize: 15 }} />}
                             onClick={() => navigate(`/buildings/${building.id}/edit`)}
-                            sx={{ p: 0.5, color: '#64748b', '&:hover': { color: '#0284c7', backgroundColor: '#e0f2fe' } }}
+                            sx={{
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              textTransform: 'none',
+                              color: '#64748b',
+                              px: 1,
+                              minWidth: 0,
+                              gap: 0.4,
+                              '&:hover': { color: '#0284c7', backgroundColor: '#e0f2fe' },
+                            }}
                           >
-                            <EditIcon sx={{ fontSize: 17 }} />
-                          </IconButton>
+                            Edit
+                          </Button>
                         </Tooltip>
 
                         {/* Only show deactivate button if no units are rented, or show activate if already inactive */}
                         {(!building.is_active || (building.rented_units_count === 0 || building.rented_units_count === null)) && (
-                          <Tooltip title={building.is_active ? 'Deactivate Building' : 'Activate Building'} arrow placement="top">
-                            <IconButton
+                          <Tooltip title={building.is_active ? 'Deactivate this building (it will no longer appear for leasing)' : 'Reactivate this building for leasing'} arrow placement="top">
+                            <Button
                               size="small"
+                              startIcon={building.is_active ? <DeactivateIcon sx={{ fontSize: 15 }} /> : <ActivateIcon sx={{ fontSize: 15 }} />}
                               onClick={() => handleToggleDialogOpen(building)}
                               sx={{
-                                p: 0.5,
-                                color: building.is_active ? '#eab308' : '#16a34a',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                textTransform: 'none',
+                                color: building.is_active ? '#ca8a04' : '#16a34a',
+                                px: 1,
+                                minWidth: 0,
+                                gap: 0.4,
                                 '&:hover': {
                                   backgroundColor: building.is_active ? '#fef9c3' : '#dcfce7',
                                 },
                               }}
                             >
-                              {building.is_active ? (
-                                <DeactivateIcon sx={{ fontSize: 17 }} />
-                              ) : (
-                                <ActivateIcon sx={{ fontSize: 17 }} />
-                              )}
-                            </IconButton>
+                              {building.is_active ? 'Deactivate' : 'Activate'}
+                            </Button>
                           </Tooltip>
                         )}
-                        
-                        {/* Show info tooltip if building has rented units and is active */}
+
+                        {/* Show disabled button if building has rented units and is active */}
                         {building.is_active && building.rented_units_count > 0 && (
-                          <Tooltip 
-                            title={`Cannot deactivate: ${building.rented_units_count} unit(s) currently rented`} 
-                            arrow 
+                          <Tooltip
+                            title={`Cannot deactivate: ${building.rented_units_count} unit(s) currently rented`}
+                            arrow
                             placement="top"
                           >
-                            <IconButton
-                              size="small"
-                              disabled
-                              sx={{
-                                p: 0.5,
-                                color: '#94a3b8',
-                                cursor: 'not-allowed',
-                              }}
-                            >
-                              <DeactivateIcon sx={{ fontSize: 17 }} />
-                            </IconButton>
+                            <span>
+                              <Button
+                                size="small"
+                                disabled
+                                startIcon={<DeactivateIcon sx={{ fontSize: 15 }} />}
+                                sx={{
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  textTransform: 'none',
+                                  color: '#94a3b8',
+                                  px: 1,
+                                  minWidth: 0,
+                                  gap: 0.4,
+                                }}
+                              >
+                                Deactivate
+                              </Button>
+                            </span>
                           </Tooltip>
                         )}
                       </Box>
