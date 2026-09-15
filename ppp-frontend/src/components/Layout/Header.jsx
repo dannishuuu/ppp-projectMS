@@ -229,7 +229,7 @@ export const Header = ({ handleDrawerToggle }) => {
 
         <DialogContent sx={{ pb: 1 }}>
           <Typography variant="body2" sx={{ color: '#475569', lineHeight: 1.7 }}>
-            Are you sure you want to sign out? You will need to log in again to access the PPP dashboard.
+            Are you sure you want to sign out? You will need to log in again to access the dashboard.
           </Typography>
           <Box sx={{ mt: 2, px: 2, py: 1.2, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
             <Typography variant="caption" sx={{ color: '#64748b' }}>

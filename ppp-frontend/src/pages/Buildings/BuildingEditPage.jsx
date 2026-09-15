@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Autocomplete,
   Box,
   Paper,
   Typography,
@@ -67,6 +68,53 @@ const extractArray = (res, field) => {
   if (Array.isArray(res.rows)) return res.rows;
   if (res.data && Array.isArray(res.data.rows)) return res.data.rows;
   return [];
+};
+
+// Selectable commission years: from 1900 up to 5 years ahead of now, newest first
+const currentYear = new Date().getFullYear();
+const yearOptions = Array.from({ length: currentYear + 5 - 1900 + 1 }, (_, i) => currentYear + 5 - i);
+
+// Searchable select (Autocomplete) styled to match this form's small TextFields
+const SearchSelectField = ({
+  label,
+  required = false,
+  options = [],
+  value,
+  onChange,
+  getOptionLabel,
+  getOptionValue = (o) => o.id,
+  disabled = false,
+  placeholder = 'Search & select...',
+  noOptionsText = 'No options available',
+}) => {
+  const selected =
+    value === '' || value === null || value === undefined
+      ? null
+      : options.find((o) => String(getOptionValue(o)) === String(value)) || null;
+
+  return (
+    <Autocomplete
+      size="small"
+      fullWidth
+      options={options}
+      value={selected}
+      onChange={(event, newValue) => onChange(newValue ? getOptionValue(newValue) : '')}
+      getOptionLabel={getOptionLabel}
+      isOptionEqualToValue={(option, val) => String(getOptionValue(option)) === String(getOptionValue(val))}
+      disabled={disabled}
+      clearOnBlur
+      noOptionsText={noOptionsText}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          label={label}
+          required={required}
+          placeholder={placeholder}
+          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+        />
+      )}
+    />
+  );
 };
 
 export const BuildingEditPage = () => {
@@ -274,11 +322,11 @@ export const BuildingEditPage = () => {
     if (id) loadInitialData();
   }, [id]);
 
-  const handleRegionChange = async (e) => {
-    const regionId = e.target.value;
+  const handleRegionChange = async (regionId) => {
     setFormData((prev) => ({ ...prev, regionId, zoneId: '', woredaId: '' }));
     setZones([]);
     setWoredas([]);
+    if (errorMsg) setErrorMsg('');
     if (regionId) {
       try {
         const res = await zonesService.getZones({ regionId, limit: 100 });
@@ -289,10 +337,10 @@ export const BuildingEditPage = () => {
     }
   };
 
-  const handleZoneChange = async (e) => {
-    const zoneId = e.target.value;
+  const handleZoneChange = async (zoneId) => {
     setFormData((prev) => ({ ...prev, zoneId, woredaId: '' }));
     setWoredas([]);
+    if (errorMsg) setErrorMsg('');
     if (zoneId) {
       try {
         const res = await woredasService.getWoredas({ zoneId, limit: 100 });
@@ -435,6 +483,12 @@ export const BuildingEditPage = () => {
     }
   };
 
+  // Same as handleChange but receives a raw value (used by Autocomplete-based fields)
+  const setField = (field) => (value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errorMsg) setErrorMsg('');
+  };
+
   // --- Floor Line Item Handlers ---
   const handleFloorFieldChange = (index, field, value) => {
     setFloorsList((prev) => {
@@ -553,12 +607,24 @@ export const BuildingEditPage = () => {
 
     if (!formData.name.trim()) { setErrorMsg('Building name is required.'); return; }
     if (!formData.buildingTypeId) { setErrorMsg('Building Type is required.'); return; }
+    if (!formData.description.trim()) { setErrorMsg('Description & Notes is required.'); return; }
 
     const totalFloorsVal = Number(formData.totalFloors);
     if (!formData.totalFloors || isNaN(totalFloorsVal) || totalFloorsVal < 1 || !Number.isInteger(totalFloorsVal)) {
       setErrorMsg('Total floors must be a whole number greater than 0.');
       return;
     }
+
+    const totalAreaVal = parseFloat(formData.totalAreaValue);
+    if (!formData.totalAreaValue || isNaN(totalAreaVal) || totalAreaVal <= 0) {
+      setErrorMsg('Total Area Value is required and must be greater than 0.');
+      return;
+    }
+    if (!formData.areaUnitId) { setErrorMsg('Area Measurement Unit is required.'); return; }
+    if (!formData.yearBuilt) { setErrorMsg('Year Built / Commissioned is required.'); return; }
+    if (!formData.regionId) { setErrorMsg('Region is required.'); return; }
+    if (!formData.zoneId) { setErrorMsg('Zone / Sub-city is required.'); return; }
+    if (!formData.woredaId) { setErrorMsg('Woreda is required.'); return; }
 
     // Validate floor line items
     for (let i = 0; i < floorsList.length; i++) {
@@ -741,26 +807,20 @@ export const BuildingEditPage = () => {
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
 
-              <TextField
-                required
-                select
-                fullWidth
+              <SearchSelectField
                 label="Building Type"
+                required
+                options={buildingTypes}
                 value={formData.buildingTypeId}
-                onChange={handleChange('buildingTypeId')}
-                size="small"
+                onChange={setField('buildingTypeId')}
+                getOptionLabel={(o) => o.name || ''}
                 disabled={saving}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              >
-                <MenuItem value="" disabled>Select Building Type</MenuItem>
-                {buildingTypes.map((type) => (
-                  <MenuItem key={type.id} value={type.id}>
-                    {type.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+                placeholder="Search building types..."
+                noOptionsText="No building types found"
+              />
 
               <TextField
+                required
                 fullWidth
                 multiline
                 rows={3}
@@ -824,6 +884,7 @@ export const BuildingEditPage = () => {
               />
 
               <TextField
+                required
                 fullWidth
                 type="number"
                 label="Total Area Value"
@@ -837,6 +898,7 @@ export const BuildingEditPage = () => {
               />
 
               <TextField
+                required
                 select
                 fullWidth
                 label="Area Measurement Unit"
@@ -846,7 +908,7 @@ export const BuildingEditPage = () => {
                 disabled={saving}
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               >
-                <MenuItem value="">None / Not Specified</MenuItem>
+                <MenuItem value="" disabled>Select Area Unit</MenuItem>
                 {areaUnits.map((au) => (
                   <MenuItem key={au.id} value={au.id}>
                     {au.name} {au.code ? `(${au.code})` : ''}
@@ -854,17 +916,17 @@ export const BuildingEditPage = () => {
                 ))}
               </TextField>
 
-              <TextField
-                fullWidth
-                type="number"
+              <SearchSelectField
                 label="Year Built / Commissioned"
-                placeholder="e.g. 2022"
+                required
+                options={yearOptions}
                 value={formData.yearBuilt}
-                onChange={handleChange('yearBuilt')}
-                size="small"
+                onChange={setField('yearBuilt')}
+                getOptionValue={(y) => y}
+                getOptionLabel={(y) => String(y)}
                 disabled={saving}
-                inputProps={{ min: 1900, max: 2100 }}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                placeholder="Search year..."
+                noOptionsText="No matching year"
               />
             </Box>
 
@@ -875,53 +937,41 @@ export const BuildingEditPage = () => {
               </Typography>
               <Divider />
 
-              <TextField
-                select
-                fullWidth
+              <SearchSelectField
                 label="Region"
+                required
+                options={regions}
                 value={formData.regionId}
                 onChange={handleRegionChange}
-                size="small"
+                getOptionLabel={(o) => o.name || ''}
                 disabled={saving}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              >
-                <MenuItem value="">Select Region</MenuItem>
-                {regions.map((reg) => (
-                  <MenuItem key={reg.id} value={reg.id}>{reg.name}</MenuItem>
-                ))}
-              </TextField>
+                placeholder="Search regions..."
+                noOptionsText="No regions found"
+              />
 
-              <TextField
-                select
-                fullWidth
+              <SearchSelectField
                 label="Zone / Sub-city"
+                required
+                options={zones}
                 value={formData.zoneId}
                 onChange={handleZoneChange}
-                size="small"
+                getOptionLabel={(o) => o.name || ''}
                 disabled={saving || !formData.regionId}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              >
-                <MenuItem value="">Select Zone / Sub-city</MenuItem>
-                {zones.map((zone) => (
-                  <MenuItem key={zone.id} value={zone.id}>{zone.name}</MenuItem>
-                ))}
-              </TextField>
+                placeholder={!formData.regionId ? 'Select a region first' : 'Search zones...'}
+                noOptionsText={formData.regionId ? 'No zones found for this region' : 'Select a region first'}
+              />
 
-              <TextField
-                select
-                fullWidth
+              <SearchSelectField
                 label="Woreda"
+                required
+                options={woredas}
                 value={formData.woredaId}
-                onChange={handleChange('woredaId')}
-                size="small"
+                onChange={setField('woredaId')}
+                getOptionLabel={(o) => o.name || ''}
                 disabled={saving || !formData.zoneId}
-                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-              >
-                <MenuItem value="">Select Woreda</MenuItem>
-                {woredas.map((woreda) => (
-                  <MenuItem key={woreda.id} value={woreda.id}>{woreda.name}</MenuItem>
-                ))}
-              </TextField>
+                placeholder={!formData.zoneId ? 'Select a zone first' : 'Search woredas...'}
+                noOptionsText={formData.zoneId ? 'No woredas found for this zone' : 'Select a zone first'}
+              />
 
               <TextField
                 fullWidth
