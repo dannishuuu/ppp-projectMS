@@ -373,6 +373,49 @@ export const ContractEditPage = () => {
     }
   }, [id, enqueueSnackbar]);
 
+  // Units covered by OTHER contracts (any status except CANCELLED / TERMINATED) in the
+  // selected building → { [unitId]: { contractNumber, status } }. The contract being edited
+  // is excluded so its current unit remains selectable.
+  const [contractedUnitMap, setContractedUnitMap] = useState({});
+
+  useEffect(() => {
+    if (!formData.buildingId) {
+      setContractedUnitMap({});
+      return;
+    }
+    let cancelled = false;
+    rentalContractService
+      .getContracts({ buildingId: formData.buildingId, limit: 500 })
+      .then((r) => {
+        if (cancelled) return;
+        const rows = r?.contracts || r?.data?.contracts || r?.rows || (Array.isArray(r) ? r : []);
+        const map = {};
+        for (const c of rows) {
+          if (String(c.id) === String(id)) continue;
+          const status = String(c.contract_status || '').toUpperCase();
+          if (status === 'CANCELLED' || status === 'TERMINATED') continue;
+          if (c.unit_id) {
+            map[String(c.unit_id)] = { contractNumber: c.contract_number || `#${c.id}`, status: status || 'DRAFT' };
+          }
+        }
+        setContractedUnitMap(map);
+      })
+      .catch(() => {
+        if (!cancelled) setContractedUnitMap({});
+      });
+    return () => { cancelled = true; };
+  }, [formData.buildingId, id]);
+
+  // Drop the selection if the picked unit turns out to be under another contract
+  useEffect(() => {
+    const blocked = formData.unitId ? contractedUnitMap[String(formData.unitId)] : null;
+    if (blocked) {
+      setFormData((p) => (p.unitId ? { ...p, unitId: '' } : p));
+      setSelectedUnit(null);
+      enqueueSnackbar(`Unit already under contract ${blocked.contractNumber} (${blocked.status}) cannot be selected.`, { variant: 'warning' });
+    }
+  }, [contractedUnitMap, formData.unitId, enqueueSnackbar]);
+
   // Recalculate end date from start + years + months
   const recalcEndDate = (startDate, years, months) => {
     const y = parseInt(years, 10) || 0;
@@ -792,6 +835,10 @@ export const ContractEditPage = () => {
     if (!formData.tenantOrganizationId) return 'Please select a tenant organization.';
     if (selectedUnit?.is_rented && String(selectedUnit.id) !== String(original?.unit_id)) {
       return 'The selected unit is already leased under an active contract.';
+    }
+    if (contractedUnitMap[String(formData.unitId)]) {
+      const c = contractedUnitMap[String(formData.unitId)];
+      return `This unit is already covered by contract ${c.contractNumber} (${c.status}). Units under any contract other than Cancelled or Terminated cannot be leased again.`;
     }
     if (!formData.contractStartDate) return 'Contract start date is required.';
     if (
@@ -1346,7 +1393,10 @@ export const ContractEditPage = () => {
                         options={units.filter((u) => u.is_for_rent !== false || String(u.id) === String(original?.unit_id))}
                         getOptionLabel={(option) => (typeof option === 'string' ? option : `Unit ${option.unit_number}`)}
                         isOptionEqualToValue={(option, val) => String(option?.id) === String(val?.id || val)}
-                        getOptionDisabled={(option) => Boolean(option.is_rented) && String(option.id) !== String(original?.unit_id)}
+                        getOptionDisabled={(option) =>
+                          (Boolean(option.is_rented) || Boolean(contractedUnitMap[String(option.id)])) &&
+                          String(option.id) !== String(original?.unit_id)
+                        }
                         value={units.find((u) => String(u.id) === String(formData.unitId)) || null}
                         onChange={(event, newValue) => {
                           handleUnitChange(newValue ? newValue.id : '');
@@ -1354,6 +1404,7 @@ export const ContractEditPage = () => {
                         renderOption={(props, option) => {
                           const { key, ...restProps } = props;
                           const isCurrentUnit = String(option.id) === String(original?.unit_id);
+                          const inOtherContract = !isCurrentUnit && contractedUnitMap[String(option.id)];
                           const isOccupiedByOther = option.is_rented && !isCurrentUnit;
                           return (
                             <Box component="li" key={option.id || key} {...restProps} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', py: 0.5, gap: 1 }}>
@@ -1377,6 +1428,14 @@ export const ContractEditPage = () => {
                                     size="small"
                                     sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, backgroundColor: '#fee2e2', color: '#dc2626' }}
                                   />
+                                ) : inOtherContract ? (
+                                  <Tooltip title={`Already under contract ${inOtherContract.contractNumber} (${inOtherContract.status})`}>
+                                    <Chip
+                                      label="In Contract"
+                                      size="small"
+                                      sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, backgroundColor: '#fef3c7', color: '#b45309' }}
+                                    />
+                                  </Tooltip>
                                 ) : (
                                   <Chip
                                     label={isCurrentUnit ? 'Current Lease' : 'Available'}

@@ -206,6 +206,10 @@ export const ContractCreatePage = () => {
   // Selected unit snapshot
   const [selectedUnit, setSelectedUnit] = useState(null);
 
+  // Units already tied to a contract in the selected building whose status is
+  // anything other than CANCELLED or TERMINATED → { [unitId]: { contractNumber, status } }
+  const [contractedUnitMap, setContractedUnitMap] = useState({});
+
   // Fetch initial lookups
   useEffect(() => {
     const init = async () => {
@@ -286,6 +290,44 @@ export const ContractCreatePage = () => {
       })
       .finally(() => setLoadingFloors(false));
   }, [formData.buildingId, queryFloorId, enqueueSnackbar]);
+
+  // Fetch existing contracts for the selected building: units in any contract that is
+  // not CANCELLED / TERMINATED are blocked from being leased again here.
+  useEffect(() => {
+    if (!formData.buildingId) {
+      setContractedUnitMap({});
+      return;
+    }
+    let cancelled = false;
+    rentalContractService
+      .getContracts({ buildingId: formData.buildingId, limit: 500 })
+      .then((r) => {
+        if (cancelled) return;
+        const rows = r?.contracts || r?.data?.contracts || r?.rows || (Array.isArray(r) ? r : []);
+        const map = {};
+        for (const c of rows) {
+          const status = String(c.contract_status || '').toUpperCase();
+          if (status === 'CANCELLED' || status === 'TERMINATED') continue;
+          if (c.unit_id) {
+            map[c.unit_id] = { contractNumber: c.contract_number || `#${c.id}`, status: status || 'DRAFT' };
+          }
+        }
+        setContractedUnitMap(map);
+      })
+      .catch(() => {
+        if (!cancelled) setContractedUnitMap({});
+      });
+    return () => { cancelled = true; };
+  }, [formData.buildingId]);
+
+  // Drop a pre-selected (query param) unit once it turns out to be under an existing contract
+  useEffect(() => {
+    if (formData.unitId && contractedUnitMap[formData.unitId]) {
+      setFormData((p) => (p.unitId ? { ...p, unitId: '' } : p));
+      setSelectedUnit(null);
+      enqueueSnackbar(`Unit already under contract ${contractedUnitMap[formData.unitId].contractNumber} (${contractedUnitMap[formData.unitId].status}) cannot be selected.`, { variant: 'warning' });
+    }
+  }, [contractedUnitMap, formData.unitId, enqueueSnackbar]);
 
   // Cascading: Floor -> Units
   useEffect(() => {
@@ -598,6 +640,10 @@ export const ContractCreatePage = () => {
     if (!formData.unitId) return 'Please select a specific unit.';
     if (!formData.tenantOrganizationId) return 'Please select a tenant organization.';
     if (selectedUnit?.is_rented) return 'The selected unit is already leased under an active contract.';
+    if (contractedUnitMap[formData.unitId]) {
+      const c = contractedUnitMap[formData.unitId];
+      return `This unit is already covered by contract ${c.contractNumber} (${c.status}). Units under any contract other than Cancelled or Terminated cannot be leased again.`;
+    }
     if (!formData.contractStartDate) return 'Contract start date is required.';
     if (
       (!leaseDurationYears || parseInt(leaseDurationYears, 10) < 1) &&
@@ -1020,7 +1066,7 @@ export const ContractCreatePage = () => {
                       options={units.filter((u) => u.is_for_rent !== false)}
                       getOptionLabel={(option) => (typeof option === 'string' ? option : `Unit ${option.unit_number}`)}
                       isOptionEqualToValue={(option, val) => option?.id === (val?.id || val)}
-                      getOptionDisabled={(option) => Boolean(option.is_rented)}
+                      getOptionDisabled={(option) => Boolean(option.is_rented) || Boolean(contractedUnitMap[option.id])}
                       value={units.find((u) => u.id === formData.unitId) || null}
                       onChange={(event, newValue) => {
                         setFormData((p) => ({ ...p, unitId: newValue ? newValue.id : '' }));
@@ -1051,6 +1097,14 @@ export const ContractCreatePage = () => {
                                 size="small"
                                 sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#fee2e2', color: '#dc2626', flexShrink: 0 }}
                               />
+                            ) : contractedUnitMap[option.id] ? (
+                              <Tooltip title={`Already under contract ${contractedUnitMap[option.id].contractNumber} (${contractedUnitMap[option.id].status})`}>
+                                <Chip
+                                  label="In Contract"
+                                  size="small"
+                                  sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, backgroundColor: '#fef3c7', color: '#b45309', flexShrink: 0 }}
+                                />
+                              </Tooltip>
                             ) : (
                               <Chip
                                 label="Available"
