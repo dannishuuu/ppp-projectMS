@@ -119,7 +119,7 @@ class CompanyModel {
         address: data.address || null,
         logoUrl: data.logoUrl || null,
         description: data.description || null,
-        isActive: data.isActive,
+        isActive: data.isActive ?? true,
         createdBy: data.createdBy || null,
       },
       type: QueryTypes.SELECT,
