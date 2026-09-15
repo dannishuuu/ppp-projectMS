@@ -40,6 +40,9 @@ const buildingUnitRoutes = require('./routes/buildingRoutes/buildingUnits.routes
 const rentalContractRoutes = require('./routes/rentalContractRoutes/rentalContract.routes');
 const rentalPaymentRoutes = require('./routes/rentalContractRoutes/rentalPayments.routes');
 const businessSectorRoutes = require('./routes/foundationService/businessSector.routes');
+const companiesRoutes = require('./routes/companyRoutes/companies.routes');
+const orgUnitTypesRoutes = require('./routes/companyRoutes/orgUnitTypes.routes');
+const companyOrgUnitsRoutes = require('./routes/companyRoutes/companyOrganizationUnits.routes');
 
 
 // Middleware
@@ -151,6 +154,15 @@ app.use('/api/v1/rental-payments', rentalPaymentRoutes);
 
 // Business Sectors
 app.use('/api/v1/business-sectors', businessSectorRoutes);
+
+// Companies
+app.use('/api/v1/companies', companiesRoutes);
+
+// Organization unit types
+app.use('/api/v1/org-unit-types', orgUnitTypesRoutes);
+
+// Company organization units (hierarchy)
+app.use('/api/v1/company-org-units', companyOrgUnitsRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
