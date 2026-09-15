@@ -42,6 +42,8 @@ import { BuildingIndexPage, BuildingCreatePage, BuildingEditPage, BuildingDetail
 import { ContractIndexPage, ContractCreatePage, ContractEditPage, ContractDetailPage, ContractApprovalPage } from './pages/ContractRental';
 import { BusinessSectorPage } from './pages/Foundation/BusinessSectorPage';
 import { CompanyManagementPage } from './pages/Company/CompanyManagementPage';
+import { OrgUnitTypePage } from './pages/Company/OrgUnitTypePage';
+import { CompanyOrgUnitPage } from './pages/Company/CompanyOrgUnitPage';
 
 
 
@@ -146,6 +148,8 @@ function App() {
 
                   {/* Company Management pages */}
                   <Route path="company/companymanagement" element={<CompanyManagementPage />} />
+                  <Route path="company/orgunitype" element={<OrgUnitTypePage />} />
+                  <Route path="company/companyorgunit" element={<CompanyOrgUnitPage />} />
 
                   {/* Rental Contract pages */}
                   <Route path="contracts" element={<ContractIndexPage />} />

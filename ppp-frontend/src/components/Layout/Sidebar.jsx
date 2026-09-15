@@ -104,6 +104,8 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
 
   const companySubItems = [
     { text: 'Company List', icon: <CompanyNavIcon />, path: '/company/companymanagement' },
+    { text: 'Org Unit Types', icon: <CategoryIcon />, path: '/company/orgunitype' },
+    { text: 'Org Structure', icon: <FloorTypeIcon />, path: '/company/companyorgunit' },
   ];
 
   const buildingSubItems = [

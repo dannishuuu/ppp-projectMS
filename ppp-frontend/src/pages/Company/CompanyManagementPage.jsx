@@ -302,7 +302,7 @@ export const CompanyManagementPage = () => {
       error={Boolean(formErrors[field])}
       helperText={formErrors[field]}
       disabled={saving}
-      InputLabelProps={type === 'date' ? { shrink: true } : undefined}
+      slotProps={type === 'date' ? { inputLabel: { shrink: true } } : undefined}
       sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
     />
   );
@@ -412,7 +412,7 @@ export const CompanyManagementPage = () => {
             select
             size="small"
             label="Status"
-            InputLabelProps={{ shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } }}
+            slotProps={{ inputLabel: { shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } } }}
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
             sx={{
@@ -720,7 +720,7 @@ export const CompanyManagementPage = () => {
       </Paper>
 
       {/* ── Add / Edit / View Dialog ── */}
-      <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth={dialogMode === 'view' ? 'md' : 'sm'} fullWidth>
+      <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth="md" fullWidth>
         <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.05rem', pb: 1 }}>
           {getDialogTitle()}
         </DialogTitle>
@@ -812,16 +812,16 @@ export const CompanyManagementPage = () => {
                 Identity
               </Typography>
               <Grid container spacing={2} sx={{ mb: 1 }}>
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12} sm={6} md={4}>
                   {renderFormTextField('code', 'Company Code', { required: true, placeholder: 'e.g. ETHIOPPP' })}
                 </Grid>
-                <Grid item xs={12} sm={8}>
+                <Grid item xs={12} sm={6} md={8}>
                   {renderFormTextField('name', 'Company Name', { required: true, placeholder: 'e.g. Ethiopian Property Partner SC' })}
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={6} md={4}>
                   {renderFormTextField('nameAmharic', 'Amharic Name', { placeholder: 'e.g. ኢትዮጵያ ...' })}
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={6} md={8}>
                   {renderFormTextField('nameAfaanOromo', 'Afaan Oromo Name', { placeholder: 'e.g. Dhaabbata ...' })}
                 </Grid>
               </Grid>
@@ -830,14 +830,14 @@ export const CompanyManagementPage = () => {
                 Legal Registration
               </Typography>
               <Grid container spacing={2} sx={{ mb: 1 }}>
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12} sm={6} md={4}>
                   {renderFormTextField('tin', 'TIN', { placeholder: 'Tax Identification No.' })}
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12} sm={6} md={4}>
                   {renderFormTextField('registrationNumber', 'Registration Number')}
                 </Grid>
-                <Grid item xs={12} sm={4}>
-                  {renderFormTextField('registrationDate', 'Registration Date', { type: 'date' })}
+                <Grid item xs={12} sm={6} md={4}>
+                  {renderFormTextField('registrationDate', 'Registration Date', { type: 'date', placeholder: 'YYYY-MM-DD' })}
                 </Grid>
               </Grid>
 
@@ -845,19 +845,19 @@ export const CompanyManagementPage = () => {
                 Contact & Location
               </Typography>
               <Grid container spacing={2} sx={{ mb: 1 }}>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={6} md={4}>
                   {renderFormTextField('email', 'Email', { placeholder: 'info@company.et' })}
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={6} md={4}>
                   {renderFormTextField('phone', 'Phone', { placeholder: '+251 ...' })}
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={6} md={4}>
                   {renderFormTextField('website', 'Website', { placeholder: 'https://company.et' })}
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={6} md={4}>
                   {renderFormTextField('logoUrl', 'Logo URL', { placeholder: 'https://.../logo.png' })}
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} sm={6} md={8}>
                   {renderFormTextField('address', 'Address', { placeholder: 'City, sub-city, kebele, house no.' })}
                 </Grid>
                 <Grid item xs={12}>

@@ -298,7 +298,7 @@ export const BuildingIndexPage = () => {
           <TextField
             size="small"
             label="Search"
-            InputLabelProps={{ shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } }}
+            slotProps={{ inputLabel: { shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } } }}
             placeholder="Search by name, address..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -336,7 +336,7 @@ export const BuildingIndexPage = () => {
             select
             size="small"
             label="Building Type"
-            InputLabelProps={{ shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } }}
+            slotProps={{ inputLabel: { shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } } }}
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
             displayEmpty
@@ -374,7 +374,7 @@ export const BuildingIndexPage = () => {
             select
             size="small"
             label="Region"
-            InputLabelProps={{ shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } }}
+            slotProps={{ inputLabel: { shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } } }}
             value={regionFilter}
             onChange={(e) => setRegionFilter(e.target.value)}
             displayEmpty
@@ -412,7 +412,7 @@ export const BuildingIndexPage = () => {
             select
             size="small"
             label="Zone"
-            InputLabelProps={{ shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } }}
+            slotProps={{ inputLabel: { shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } } }}
             value={zoneFilter}
             onChange={(e) => setZoneFilter(e.target.value)}
             disabled={!regionFilter}
@@ -451,7 +451,7 @@ export const BuildingIndexPage = () => {
             select
             size="small"
             label="Woreda"
-            InputLabelProps={{ shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } }}
+            slotProps={{ inputLabel: { shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } } }}
             value={woredaFilter}
             onChange={(e) => setWoredaFilter(e.target.value)}
             disabled={!zoneFilter}
@@ -490,7 +490,7 @@ export const BuildingIndexPage = () => {
             select
             size="small"
             label="Status"
-            InputLabelProps={{ shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } }}
+            slotProps={{ inputLabel: { shrink: true, sx: { fontSize: '0.68rem', color: '#64748b', fontWeight: 600 } } }}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             sx={{
