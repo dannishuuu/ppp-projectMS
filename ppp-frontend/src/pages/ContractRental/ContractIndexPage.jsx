@@ -52,6 +52,10 @@ const formatCurrency = (val) => {
   return Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+// A unit is reserved while it is covered by any contract in these statuses;
+// CANCELLED, TERMINATED, EXPIRED and SUSPENDED contracts do not block submission.
+const UNIT_RESERVING_STATUSES = ['DRAFT', 'PENDING', 'ACTIVE', 'RENEWED'];
+
 const formatDate = (dateStr) => {
   if (!dateStr) return '—';
   return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
@@ -173,6 +177,26 @@ export const ContractIndexPage = () => {
     if (!submitTarget) return;
     setSubmitting(true);
     try {
+      // Double-booking guard: the unit must not be covered by another contract in a
+      // reserving status (anything except CANCELLED, TERMINATED, EXPIRED, SUSPENDED)
+      if (submitTarget.unit_id) {
+        const res = await rentalContractService.getContracts({ unitId: submitTarget.unit_id, limit: 500 });
+        const rows = res?.contracts || res?.rows || [];
+        const conflict = rows.find((o) => {
+          if (String(o.id) === String(submitTarget.id)) return false;
+          return UNIT_RESERVING_STATUSES.includes(String(o.contract_status || '').toUpperCase());
+        });
+        if (conflict) {
+          const conflictStatus = String(conflict.contract_status || 'DRAFT').toLowerCase();
+          enqueueSnackbar(
+            `Cannot submit: Unit${submitTarget.unit_number ? ` ${submitTarget.unit_number}` : ''} is already covered by contract "${conflict.contract_number || `#${conflict.id}`}" (${conflictStatus}). Cancel or terminate that contract first.`,
+            { variant: 'error' }
+          );
+          setSubmitDialogOpen(false);
+          setSubmitTarget(null);
+          return;
+        }
+      }
       await rentalContractService.submitContract(submitTarget.id);
       enqueueSnackbar(
         `Contract "${submitTarget.contract_number}" submitted — status is now PENDING.`,
