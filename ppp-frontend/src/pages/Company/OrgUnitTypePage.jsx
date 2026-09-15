@@ -15,17 +15,16 @@ import {
   TableRow,
   TablePagination,
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   CircularProgress,
   Avatar,
   Grid,
-  Divider,
   MenuItem,
   Alert,
   Breadcrumbs,
   Link,
+  IconButton,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -38,6 +37,7 @@ import {
   Category as CategoryIcon,
   FilterList as FilterIcon,
   RestartAlt as ResetIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -46,6 +46,34 @@ import { formatDate } from '../../utils/formatters';
 import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 
 const CODE_RE = /^[A-Z][A-Z0-9_-]{1,19}$/;
+
+// Shared gradient dialog header — icon tile, title, subtitle, close button
+const DialogHeader = ({ icon, title, subtitle, onClose }) => (
+  <Box
+    sx={{
+      px: 3,
+      py: 2.25,
+      background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%), #4f46e5',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1.5,
+    }}
+  >
+    <Box sx={{ width: 38, height: 38, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.16)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      {icon}
+    </Box>
+    <Box sx={{ minWidth: 0, flex: 1 }}>
+      <Typography sx={{ color: '#ffffff', fontWeight: 800, fontSize: '0.98rem', lineHeight: 1.25 }} noWrap>{title}</Typography>
+      {subtitle && <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.74rem' }} noWrap>{subtitle}</Typography>}
+    </Box>
+    <IconButton onClick={onClose} size="small" sx={{ color: 'rgba(255,255,255,0.85)', '&:hover': { backgroundColor: 'rgba(255,255,255,0.14)', color: '#ffffff' } }}>
+      <CloseIcon sx={{ fontSize: 20 }} />
+    </IconButton>
+  </Box>
+);
+
+const DIALOG_PAPER_SX = { borderRadius: 3, overflow: 'hidden', boxShadow: '0 24px 60px -12px rgba(15,23,42,0.35)' };
+const DIALOG_FOOTER_SX = { px: 3, py: 1.75, m: 0, gap: 1, borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc' };
 
 const emptyForm = {
   code: '',
@@ -525,7 +553,7 @@ export const OrgUnitTypePage = () => {
                             {type.is_active ? 'Deactivate' : 'Activate'}
                           </Button>
                         </Tooltip>
-                        <Tooltip title="Delete type (blocked while used by org units)" arrow placement="top">
+                        {/* <Tooltip title="Delete type (blocked while used by org units)" arrow placement="top">
                           <Button
                             size="small"
                             startIcon={<DeleteIcon sx={{ fontSize: 15 }} />}
@@ -534,7 +562,7 @@ export const OrgUnitTypePage = () => {
                           >
                             Delete
                           </Button>
-                        </Tooltip>
+                        </Tooltip> */}
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -561,12 +589,20 @@ export const OrgUnitTypePage = () => {
       </Paper>
 
       {/* Add / Edit / View Dialog */}
-      <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth={dialogMode === 'view' ? 'sm' : 'xs'} fullWidth>
-        <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.05rem', pb: 1 }}>
-          {getDialogTitle()}
-        </DialogTitle>
-        <Divider />
-        <DialogContent sx={{ pt: 2.5 }}>
+      <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth="md" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
+        <DialogHeader
+          icon={<CategoryIcon sx={{ fontSize: 20 }} />}
+          title={getDialogTitle()}
+          subtitle={
+            dialogMode === 'add'
+              ? 'Define a new kind of unit for company hierarchies'
+              : dialogMode === 'edit'
+                ? 'Update this unit type\'s identity and ordering'
+                : 'Full record of the organization unit type'
+          }
+          onClose={handleDialogClose}
+        />
+        <DialogContent sx={{ pt: 3, px: 3 }}>
           {dialogMode === 'view' && selectedType ? (
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
@@ -608,68 +644,73 @@ export const OrgUnitTypePage = () => {
               <Typography variant="caption" sx={{ color: '#94a3b8' }}>
                 Created {formatDate(selectedType.created_at)} · Updated {formatDate(selectedType.updated_at)}
               </Typography>
-
-              <DialogActions sx={{ px: 0, pt: 2 }}>
-                <Button onClick={handleDialogClose} color="inherit" sx={{ fontWeight: 600, textTransform: 'none' }}>Close</Button>
-                <Button
-                  variant="contained"
-                  startIcon={<EditIcon />}
-                  onClick={() => {
-                    const target = selectedType;
-                    handleDialogClose();
-                    handleDialogOpen('edit', target);
-                  }}
-                  sx={{ px: 2.5, borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
-                >
-                  Edit Type
-                </Button>
-              </DialogActions>
             </Box>
           ) : (
-            <Box component="form" onSubmit={handleFormSubmit} noValidate>
+            <Box component="form" onSubmit={handleFormSubmit} noValidate id="org-type-form">
               {errorMsg && (
                 <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
                   {errorMsg}
                 </Alert>
               )}
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={5}>
+              <Grid container spacing={2.5}>
+                <Grid item xs={12} sm={6} md={4}>
                   {renderFormTextField('code', 'Type Code', { required: true, placeholder: 'e.g. DEPT' })}
                 </Grid>
-                <Grid item xs={12} sm={7}>
+                <Grid item xs={12} sm={6} md={8}>
                   {renderFormTextField('name', 'Type Name', { required: true, placeholder: 'e.g. Department' })}
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={6} md={4}>
                   {renderFormTextField('nameAmharic', 'Amharic Name', { placeholder: 'e.g. መምሪያ' })}
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={6} md={4}>
                   {renderFormTextField('nameAfaanOromo', 'Afaan Oromo Name', { placeholder: 'e.g. Waajjira' })}
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12} sm={6} md={4}>
                   {renderFormTextField('sortOrder', 'Sort Order', { type: 'number', placeholder: '0' })}
                 </Grid>
                 <Grid item xs={12}>
                   {renderFormTextField('description', 'Description', { multiline: true, rows: 3, placeholder: 'What kinds of units belong to this type...' })}
                 </Grid>
               </Grid>
-
-              <DialogActions sx={{ px: 0, pt: 2 }}>
-                <Button onClick={handleDialogClose} color="inherit" disabled={saving} sx={{ fontWeight: 600, textTransform: 'none' }}>
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  disabled={saving}
-                  startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <ActivateIcon />}
-                  sx={{ px: 3, py: 1, borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
-                >
-                  {saving ? 'Saving...' : dialogMode === 'add' ? 'Create Type' : 'Save Changes'}
-                </Button>
-              </DialogActions>
             </Box>
           )}
         </DialogContent>
+
+        <DialogActions sx={DIALOG_FOOTER_SX}>
+          {dialogMode === 'view' ? (
+            <>
+              <Button onClick={handleDialogClose} color="inherit" sx={{ fontWeight: 600, textTransform: 'none' }}>Close</Button>
+              <Button
+                variant="contained"
+                startIcon={<EditIcon />}
+                onClick={() => {
+                  const target = selectedType;
+                  handleDialogClose();
+                  handleDialogOpen('edit', target);
+                }}
+                sx={{ px: 2.5, borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
+              >
+                Edit Type
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={handleDialogClose} color="inherit" disabled={saving} sx={{ fontWeight: 600, textTransform: 'none' }}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                form="org-type-form"
+                variant="contained"
+                disabled={saving}
+                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <ActivateIcon />}
+                sx={{ px: 3, py: 1, borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
+              >
+                {saving ? 'Saving...' : dialogMode === 'add' ? 'Create Type' : 'Save Changes'}
+              </Button>
+            </>
+          )}
+        </DialogActions>
       </Dialog>
 
       {/* Toggle / Delete confirmation */}

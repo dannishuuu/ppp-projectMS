@@ -26,6 +26,8 @@ import {
   Alert,
   Breadcrumbs,
   Link,
+  IconButton,
+  InputAdornment,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -45,6 +47,10 @@ import {
   Badge as TinIcon,
   AccountBalance as RegistrationIcon,
   Layers as OrgUnitsIcon,
+  Close as CloseIcon,
+  Save as SaveIcon,
+  CalendarToday as CalendarIcon,
+  Description as DescriptionIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -88,21 +94,122 @@ const companyToForm = (company) => ({
   description: company.description || '',
 });
 
-const DetailRow = ({ icon, label, value }) => (
-  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.25, py: 1 }}>
-    <Box sx={{ width: 30, height: 30, borderRadius: 1.5, backgroundColor: '#eef2ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      {icon}
+const FormSectionCard = ({ icon, title, subtitle, children }) => (
+  <Paper
+    elevation={0}
+    sx={{
+      p: { xs: 2, sm: 2.5 },
+      borderRadius: 2.5,
+      backgroundColor: '#ffffff',
+      border: '1px solid #e2e8f0',
+      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+    }}
+  >
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 2 }}>
+      <Box
+        sx={{
+          width: 32,
+          height: 32,
+          borderRadius: 1.5,
+          backgroundColor: '#eef2ff',
+          color: '#4f46e5',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
+      <Box>
+        <Typography
+          variant="subtitle2"
+          sx={{ fontWeight: 700, color: '#1e293b', fontSize: '0.88rem', lineHeight: 1.2 }}
+        >
+          {title}
+        </Typography>
+        {subtitle && (
+          <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.72rem', display: 'block', mt: 0.25 }}>
+            {subtitle}
+          </Typography>
+        )}
+      </Box>
     </Box>
-    <Box sx={{ minWidth: 0 }}>
-      <Typography variant="caption" sx={{ display: 'block', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.62rem', letterSpacing: '0.05em' }}>
-        {label}
-      </Typography>
-      <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 600, fontSize: '0.84rem', wordBreak: 'break-word' }}>
-        {value || '—'}
-      </Typography>
-    </Box>
-  </Box>
+    {children}
+  </Paper>
 );
+
+const DetailRow = ({ icon, label, value, href, isMono = false }) => {
+  const hasValue = Boolean(value && value !== '—');
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, py: 1.25 }}>
+      <Box
+        sx={{
+          width: 34,
+          height: 34,
+          borderRadius: 2,
+          backgroundColor: '#f1f5f9',
+          color: '#4f46e5',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          border: '1px solid #e2e8f0',
+        }}
+      >
+        {icon}
+      </Box>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography
+          variant="caption"
+          sx={{
+            display: 'block',
+            color: '#64748b',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            fontSize: '0.66rem',
+            letterSpacing: '0.05em',
+            mb: 0.25,
+          }}
+        >
+          {label}
+        </Typography>
+        {hasValue && href ? (
+          <Link
+            href={href}
+            target={href.startsWith('http') ? '_blank' : undefined}
+            rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}
+            underline="hover"
+            sx={{
+              color: '#4f46e5',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              wordBreak: 'break-word',
+              display: 'inline-flex',
+              alignItems: 'center',
+              fontFamily: isMono ? 'monospace' : 'inherit',
+            }}
+          >
+            {value}
+          </Link>
+        ) : (
+          <Typography
+            variant="body2"
+            sx={{
+              color: hasValue ? '#0f172a' : '#94a3b8',
+              fontWeight: hasValue ? 600 : 500,
+              fontSize: '0.85rem',
+              wordBreak: 'break-word',
+              fontFamily: isMono && hasValue ? 'monospace' : 'inherit',
+            }}
+          >
+            {value || '—'}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  );
+};
 
 export const CompanyManagementPage = () => {
   const { enqueueSnackbar } = useSnackbar();
@@ -193,7 +300,11 @@ export const CompanyManagementPage = () => {
   };
 
   const handleFormChange = (field) => (e) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    let val = e.target.value;
+    if (field === 'code') {
+      val = val.toUpperCase();
+    }
+    setForm((prev) => ({ ...prev, [field]: val }));
     if (formErrors[field]) setFormErrors((prev) => ({ ...prev, [field]: undefined }));
     if (errorMsg) setErrorMsg('');
   };
@@ -287,24 +398,76 @@ export const CompanyManagementPage = () => {
     }
   };
 
-  const renderFormTextField = (field, label, { required = false, multiline = false, rows = 3, type = 'text', placeholder = '' } = {}) => (
-    <TextField
-      required={required}
-      fullWidth
-      size="small"
-      type={type}
-      label={label}
-      placeholder={placeholder}
-      multiline={multiline}
-      rows={multiline ? rows : undefined}
-      value={form[field]}
-      onChange={handleFormChange(field)}
-      error={Boolean(formErrors[field])}
-      helperText={formErrors[field]}
-      disabled={saving}
-      slotProps={type === 'date' ? { inputLabel: { shrink: true } } : undefined}
-      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-    />
+  const renderFormTextField = (
+    field,
+    label,
+    {
+      required = false,
+      multiline = false,
+      rows = 3,
+      type = 'text',
+      placeholder = '',
+      startIcon = null,
+      helperText = null,
+    } = {}
+  ) => (
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      <Typography
+        variant="caption"
+        sx={{
+          fontWeight: 700,
+          color: '#334155',
+          fontSize: '0.74rem',
+          mb: 0.75,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+        }}
+      >
+        {label}
+        {required && (
+          <Box component="span" sx={{ color: '#ef4444', fontWeight: 800 }}>
+            *
+          </Box>
+        )}
+      </Typography>
+      <TextField
+        fullWidth
+        size="small"
+        type={type}
+        placeholder={placeholder}
+        multiline={multiline}
+        rows={multiline ? rows : undefined}
+        value={form[field]}
+        onChange={handleFormChange(field)}
+        error={Boolean(formErrors[field])}
+        helperText={formErrors[field] || helperText}
+        disabled={saving}
+        InputProps={
+          startIcon
+            ? {
+                startAdornment: (
+                  <InputAdornment position="start" sx={{ color: '#94a3b8', mr: 0.5 }}>
+                    {startIcon}
+                  </InputAdornment>
+                ),
+              }
+            : undefined
+        }
+        slotProps={type === 'date' ? { inputLabel: { shrink: true } } : undefined}
+        sx={{
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 2,
+            backgroundColor: '#ffffff',
+            fontSize: '0.84rem',
+            '& fieldset': { borderColor: '#cbd5e1' },
+            '&:hover fieldset': { borderColor: '#94a3b8' },
+            '&.Mui-focused fieldset': { borderColor: '#4f46e5', borderWidth: '1.5px' },
+          },
+          '& .MuiFormHelperText-root': { fontSize: '0.7rem', mt: 0.5 },
+        }}
+      />
+    </Box>
   );
 
   return (
@@ -684,7 +847,7 @@ export const CompanyManagementPage = () => {
                           </Button>
                         </Tooltip>
 
-                        <Tooltip title="Delete company (must have no organization units)" arrow placement="top">
+                        {/* <Tooltip title="Delete company (must have no organization units)" arrow placement="top">
                           <Button
                             size="small"
                             startIcon={<DeleteIcon sx={{ fontSize: 15 }} />}
@@ -693,7 +856,7 @@ export const CompanyManagementPage = () => {
                           >
                             Delete
                           </Button>
-                        </Tooltip>
+                        </Tooltip> */}
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -720,195 +883,628 @@ export const CompanyManagementPage = () => {
       </Paper>
 
       {/* ── Add / Edit / View Dialog ── */}
-      <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.05rem', pb: 1 }}>
-          {getDialogTitle()}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleDialogClose}
+        maxWidth={false}
+        PaperProps={{
+          sx: {
+            borderRadius: 3.5,
+            width: '100%',
+            maxWidth: dialogMode === 'view' ? '820px' : '880px',
+            maxHeight: '92vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.35)',
+            border: '1px solid rgba(226, 232, 240, 0.8)',
+          },
+        }}
+      >
+        {/* Header Banner */}
+        <DialogTitle
+          sx={{
+            m: 0,
+            p: { xs: 2.5, sm: 3 },
+            background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #4f46e5 100%)',
+            color: '#ffffff',
+            position: 'relative',
+            flexShrink: 0,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar
+                sx={{
+                  width: { xs: 42, sm: 48 },
+                  height: { xs: 42, sm: 48 },
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1.5px solid rgba(255, 255, 255, 0.25)',
+                  color: '#ffffff',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                }}
+              >
+                {dialogMode === 'add' ? (
+                  <BusinessIcon sx={{ fontSize: 26 }} />
+                ) : dialogMode === 'edit' ? (
+                  <EditIcon sx={{ fontSize: 24 }} />
+                ) : (
+                  <BusinessIcon sx={{ fontSize: 26 }} />
+                )}
+              </Avatar>
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 800,
+                      color: '#ffffff',
+                      fontSize: { xs: '1.05rem', sm: '1.2rem' },
+                      letterSpacing: '-0.01em',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {dialogMode === 'add'
+                      ? 'Register New Company'
+                      : dialogMode === 'edit'
+                      ? 'Edit Company Profile'
+                      : 'Company Details'}
+                  </Typography>
+                  {selectedCompany && dialogMode !== 'add' && (
+                    <Chip
+                      label={selectedCompany.is_active ? 'Active' : 'Inactive'}
+                      size="small"
+                      sx={{
+                        height: 22,
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        backgroundColor: selectedCompany.is_active
+                          ? 'rgba(16, 185, 129, 0.25)'
+                          : 'rgba(239, 68, 68, 0.25)',
+                        color: selectedCompany.is_active ? '#6ee7b7' : '#fca5a5',
+                        border: selectedCompany.is_active
+                          ? '1px solid rgba(52, 211, 153, 0.4)'
+                          : '1px solid rgba(248, 113, 113, 0.4)',
+                      }}
+                    />
+                  )}
+                </Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'rgba(255, 255, 255, 0.82)',
+                    fontSize: '0.78rem',
+                    fontWeight: 500,
+                    display: 'block',
+                    mt: 0.5,
+                  }}
+                >
+                  {dialogMode === 'add'
+                    ? 'Fill in corporate identity, tax registration, and primary contact channels.'
+                    : dialogMode === 'edit'
+                    ? `Update company details and legal records for ${selectedCompany?.name || 'this company'}.`
+                    : `Comprehensive corporate records and details for ${selectedCompany?.name || 'this company'}.`}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+          <IconButton
+            aria-label="close"
+            onClick={handleDialogClose}
+            sx={{
+              position: 'absolute',
+              right: 16,
+              top: 16,
+              color: 'rgba(255, 255, 255, 0.85)',
+              backgroundColor: 'rgba(255, 255, 255, 0.12)',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.22)',
+                color: '#ffffff',
+              },
+              width: 36,
+              height: 36,
+              borderRadius: 2,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 20 }} />
+          </IconButton>
         </DialogTitle>
-        <Divider />
-        <DialogContent sx={{ pt: 2.5 }}>
-          {dialogMode === 'view' && selectedCompany ? (
-            /* ── Details view ── */
-            <Grid container spacing={2.5}>
-              <Grid item xs={12} sm={7}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-                  <Avatar sx={{ width: 44, height: 44, backgroundColor: '#eef2ff', color: '#4f46e5' }}>
-                    <BusinessIcon />
+
+        {dialogMode === 'view' && selectedCompany ? (
+          /* ── Details View ── */
+          <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+            <DialogContent
+              sx={{
+                p: { xs: 2, sm: 3 },
+                backgroundColor: '#f8fafc',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2.5,
+              }}
+            >
+              {/* Profile Card Header */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2.5,
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2.5, flexWrap: 'wrap' }}>
+                  <Avatar
+                    src={selectedCompany.logo_url || undefined}
+                    alt={selectedCompany.name}
+                    sx={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: 2.5,
+                      backgroundColor: '#eef2ff',
+                      color: '#4f46e5',
+                      border: '2px solid #e0e7ff',
+                      boxShadow: '0 4px 12px rgba(79, 70, 229, 0.12)',
+                    }}
+                  >
+                    <BusinessIcon sx={{ fontSize: 32 }} />
                   </Avatar>
-                  <Box>
-                    <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1rem' }}>{selectedCompany.name}</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
+                  <Box sx={{ flex: 1, minWidth: 200 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.2rem', lineHeight: 1.2 }}>
+                      {selectedCompany.name}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 0.75 }}>
                       <Chip
                         label={selectedCompany.code}
                         size="small"
-                        sx={{ height: 20, fontSize: '0.68rem', fontWeight: 800, backgroundColor: '#f1f5f9', fontFamily: 'monospace' }}
+                        sx={{
+                          height: 22,
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          backgroundColor: '#f1f5f9',
+                          color: '#334155',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: 1.5,
+                          fontFamily: 'monospace',
+                        }}
                       />
                       <Chip
                         label={selectedCompany.is_active ? 'Active' : 'Inactive'}
                         size="small"
                         sx={{
-                          height: 20,
-                          fontSize: '0.68rem',
+                          height: 22,
+                          fontSize: '0.7rem',
                           fontWeight: 700,
                           backgroundColor: selectedCompany.is_active ? '#dcfce7' : '#fee2e2',
                           color: selectedCompany.is_active ? '#15803d' : '#b91c1c',
+                          borderRadius: 1.5,
+                        }}
+                      />
+                      <Chip
+                        icon={<OrgUnitsIcon sx={{ fontSize: '13px !important' }} />}
+                        label={`${selectedCompany.org_units_count ?? 0} Organization Units`}
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          backgroundColor: '#eef2ff',
+                          color: '#4f46e5',
+                          borderRadius: 1.5,
                         }}
                       />
                     </Box>
                   </Box>
                 </Box>
+
                 {(selectedCompany.name_amharic || selectedCompany.name_afaan_oromo) && (
-                  <Typography variant="body2" sx={{ color: '#64748b', mb: 1.5 }}>
-                    {[selectedCompany.name_amharic, selectedCompany.name_afaan_oromo].filter(Boolean).join('  ·  ')}
-                  </Typography>
-                )}
-                {selectedCompany.description && (
-                  <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                    <Typography variant="caption" sx={{ display: 'block', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.62rem', mb: 0.5 }}>
-                      Description
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '0.82rem' }}>
-                      {selectedCompany.description}
-                    </Typography>
+                  <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 2, pt: 2, borderTop: '1px solid #f1f5f9' }}>
+                    {selectedCompany.name_amharic && (
+                      <Box sx={{ px: 1.5, py: 0.6, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, fontSize: '0.7rem' }}>
+                          አማርኛ:
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#0f172a', fontWeight: 600, fontSize: '0.78rem' }}>
+                          {selectedCompany.name_amharic}
+                        </Typography>
+                      </Box>
+                    )}
+                    {selectedCompany.name_afaan_oromo && (
+                      <Box sx={{ px: 1.5, py: 0.6, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, fontSize: '0.7rem' }}>
+                          Afaan Oromoo:
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#0f172a', fontWeight: 600, fontSize: '0.78rem' }}>
+                          {selectedCompany.name_afaan_oromo}
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
                 )}
-              </Grid>
+              </Paper>
 
-              <Grid item xs={12} sm={5}>
-                <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', mb: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b' }}>Organization Units</Typography>
-                  <Chip
-                    icon={<OrgUnitsIcon sx={{ fontSize: '13px !important' }} />}
-                    label={`${selectedCompany.org_units_count ?? 0}`}
-                    size="small"
-                    sx={{ fontWeight: 800, backgroundColor: '#eef2ff', color: '#4f46e5' }}
-                  />
-                </Box>
-                <DetailRow icon={<TinIcon sx={{ fontSize: 15 }} />} label="TIN" value={selectedCompany.tin} />
-                <DetailRow icon={<RegistrationIcon sx={{ fontSize: 15 }} />} label="Registration No." value={selectedCompany.registration_number} />
-                <DetailRow icon={<RegistrationIcon sx={{ fontSize: 15 }} />} label="Registration Date" value={selectedCompany.registration_date ? formatDate(selectedCompany.registration_date) : null} />
-              </Grid>
+              {/* 2-Column Grid: Legal & Contact */}
+              <Grid container spacing={2.5}>
+                {/* Legal & Registration */}
+                <Grid item xs={12} sm={6}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 2.5,
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      height: '100%',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.5, pb: 1, borderBottom: '1px solid #f1f5f9' }}>
+                      <Box sx={{ width: 28, height: 28, borderRadius: 1.5, backgroundColor: '#eef2ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <RegistrationIcon sx={{ fontSize: 16 }} />
+                      </Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', fontSize: '0.85rem' }}>
+                        Registration & Tax
+                      </Typography>
+                    </Box>
+                    <DetailRow icon={<TinIcon sx={{ fontSize: 16 }} />} label="Taxpayer ID (TIN)" value={selectedCompany.tin} isMono />
+                    <DetailRow icon={<RegistrationIcon sx={{ fontSize: 16 }} />} label="Registration Number" value={selectedCompany.registration_number} isMono />
+                    <DetailRow icon={<CalendarIcon sx={{ fontSize: 16 }} />} label="Registration Date" value={selectedCompany.registration_date ? formatDate(selectedCompany.registration_date) : null} />
+                  </Paper>
+                </Grid>
 
-              <Grid item xs={12}>
-                <Divider sx={{ my: 0.5 }} />
-                <Grid container spacing={0.5}>
-                  <Grid item xs={12} sm={4}><DetailRow icon={<EmailIcon sx={{ fontSize: 15 }} />} label="Email" value={selectedCompany.email} /></Grid>
-                  <Grid item xs={12} sm={4}><DetailRow icon={<PhoneIcon sx={{ fontSize: 15 }} />} label="Phone" value={selectedCompany.phone} /></Grid>
-                  <Grid item xs={12} sm={4}><DetailRow icon={<WebsiteIcon sx={{ fontSize: 15 }} />} label="Website" value={selectedCompany.website} /></Grid>
-                  <Grid item xs={12} sm={6}><DetailRow icon={<AddressIcon sx={{ fontSize: 15 }} />} label="Address" value={selectedCompany.address} /></Grid>
-                  <Grid item xs={12} sm={6}><DetailRow icon={<BusinessIcon sx={{ fontSize: 15 }} />} label="Created / Updated" value={`${formatDate(selectedCompany.created_at)} · ${formatDate(selectedCompany.updated_at)}`} /></Grid>
+                {/* Contact Information */}
+                <Grid item xs={12} sm={6}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 2.5,
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      height: '100%',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.5, pb: 1, borderBottom: '1px solid #f1f5f9' }}>
+                      <Box sx={{ width: 28, height: 28, borderRadius: 1.5, backgroundColor: '#eef2ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <PhoneIcon sx={{ fontSize: 16 }} />
+                      </Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', fontSize: '0.85rem' }}>
+                        Contact Channels & Location
+                      </Typography>
+                    </Box>
+                    <DetailRow
+                      icon={<EmailIcon sx={{ fontSize: 16 }} />}
+                      label="Email Address"
+                      value={selectedCompany.email}
+                      href={selectedCompany.email ? `mailto:${selectedCompany.email}` : null}
+                    />
+                    <DetailRow
+                      icon={<PhoneIcon sx={{ fontSize: 16 }} />}
+                      label="Phone Number"
+                      value={selectedCompany.phone}
+                      href={selectedCompany.phone ? `tel:${selectedCompany.phone}` : null}
+                    />
+                    <DetailRow
+                      icon={<WebsiteIcon sx={{ fontSize: 16 }} />}
+                      label="Official Website"
+                      value={selectedCompany.website}
+                      href={
+                        selectedCompany.website
+                          ? selectedCompany.website.startsWith('http')
+                            ? selectedCompany.website
+                            : `https://${selectedCompany.website}`
+                          : null
+                      }
+                    />
+                    <DetailRow icon={<AddressIcon sx={{ fontSize: 16 }} />} label="Physical Address" value={selectedCompany.address} />
+                  </Paper>
                 </Grid>
-              </Grid>
-            </Grid>
-          ) : (
-            /* ── Add / Edit form ── */
-            <Box component="form" onSubmit={handleFormSubmit} noValidate>
-              {errorMsg && (
-                <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
-                  {errorMsg}
-                </Alert>
-              )}
 
-              <Typography variant="caption" sx={{ display: 'block', fontWeight: 800, color: '#1a237e', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1.5 }}>
-                Identity
-              </Typography>
-              <Grid container spacing={2} sx={{ mb: 1 }}>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('code', 'Company Code', { required: true, placeholder: 'e.g. ETHIOPPP' })}
-                </Grid>
-                <Grid item xs={12} sm={6} md={8}>
-                  {renderFormTextField('name', 'Company Name', { required: true, placeholder: 'e.g. Ethiopian Property Partner SC' })}
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('nameAmharic', 'Amharic Name', { placeholder: 'e.g. ኢትዮጵያ ...' })}
-                </Grid>
-                <Grid item xs={12} sm={6} md={8}>
-                  {renderFormTextField('nameAfaanOromo', 'Afaan Oromo Name', { placeholder: 'e.g. Dhaabbata ...' })}
-                </Grid>
-              </Grid>
-
-              <Typography variant="caption" sx={{ display: 'block', fontWeight: 800, color: '#1a237e', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1.5, mt: 1 }}>
-                Legal Registration
-              </Typography>
-              <Grid container spacing={2} sx={{ mb: 1 }}>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('tin', 'TIN', { placeholder: 'Tax Identification No.' })}
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('registrationNumber', 'Registration Number')}
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('registrationDate', 'Registration Date', { type: 'date', placeholder: 'YYYY-MM-DD' })}
-                </Grid>
-              </Grid>
-
-              <Typography variant="caption" sx={{ display: 'block', fontWeight: 800, color: '#1a237e', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 1.5, mt: 1 }}>
-                Contact & Location
-              </Typography>
-              <Grid container spacing={2} sx={{ mb: 1 }}>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('email', 'Email', { placeholder: 'info@company.et' })}
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('phone', 'Phone', { placeholder: '+251 ...' })}
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('website', 'Website', { placeholder: 'https://company.et' })}
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('logoUrl', 'Logo URL', { placeholder: 'https://.../logo.png' })}
-                </Grid>
-                <Grid item xs={12} sm={6} md={8}>
-                  {renderFormTextField('address', 'Address', { placeholder: 'City, sub-city, kebele, house no.' })}
-                </Grid>
+                {/* Description & Overview */}
                 <Grid item xs={12}>
-                  {renderFormTextField('description', 'Description & Notes', { multiline: true, rows: 3, placeholder: 'Purpose, scope of operations, notes...' })}
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 2.5,
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.5, pb: 1, borderBottom: '1px solid #f1f5f9' }}>
+                      <Box sx={{ width: 28, height: 28, borderRadius: 1.5, backgroundColor: '#eef2ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <DescriptionIcon sx={{ fontSize: 16 }} />
+                      </Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', fontSize: '0.85rem' }}>
+                        Operational Scope & Notes
+                      </Typography>
+                    </Box>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: selectedCompany.description ? '#334155' : '#94a3b8',
+                        fontSize: '0.86rem',
+                        lineHeight: 1.6,
+                        fontStyle: selectedCompany.description ? 'normal' : 'italic',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {selectedCompany.description || 'No operational description or notes provided.'}
+                    </Typography>
+                  </Paper>
                 </Grid>
               </Grid>
+            </DialogContent>
 
-              <DialogActions sx={{ px: 0, pt: 1 }}>
-                <Button onClick={handleDialogClose} color="inherit" disabled={saving} sx={{ fontWeight: 600, textTransform: 'none' }}>
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  disabled={saving}
-                  startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <ActivateIcon />}
-                  sx={{
-                    px: 3,
-                    py: 1,
-                    borderRadius: 2,
-                    fontWeight: 700,
-                    backgroundColor: '#4f46e5',
-                    '&:hover': { backgroundColor: '#4338ca' },
-                  }}
-                >
-                  {saving ? 'Saving...' : dialogMode === 'add' ? 'Create Company' : 'Save Changes'}
-                </Button>
-              </DialogActions>
-            </Box>
-          )}
-
-          {dialogMode === 'view' && (
-            <DialogActions sx={{ px: 3, py: 2 }}>
-              <Button onClick={handleDialogClose} color="inherit" sx={{ fontWeight: 600, textTransform: 'none' }}>
+            {/* View Mode Footer */}
+            <DialogActions
+              sx={{
+                px: { xs: 2.5, sm: 3.5 },
+                py: 2,
+                borderTop: '1px solid #e2e8f0',
+                backgroundColor: '#ffffff',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Button
+                onClick={handleDialogClose}
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  px: 3,
+                  py: 0.9,
+                  fontWeight: 600,
+                  fontSize: '0.84rem',
+                  textTransform: 'none',
+                  color: '#64748b',
+                  borderColor: '#cbd5e1',
+                  '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
+                }}
+              >
                 Close
               </Button>
               <Button
                 variant="contained"
-                startIcon={<EditIcon />}
+                startIcon={<EditIcon sx={{ fontSize: 17 }} />}
                 onClick={() => {
                   const target = selectedCompany;
                   handleDialogClose();
                   handleDialogOpen('edit', target);
                 }}
-                sx={{ px: 2.5, borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
+                sx={{
+                  px: 3,
+                  py: 0.9,
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  textTransform: 'none',
+                  backgroundColor: '#4f46e5',
+                  boxShadow: '0 4px 12px rgba(79, 70, 229, 0.28)',
+                  '&:hover': { backgroundColor: '#4338ca' },
+                }}
               >
                 Edit Company
               </Button>
             </DialogActions>
-          )}
-        </DialogContent>
+          </Box>
+        ) : (
+          /* ── Add / Edit Form ── */
+          <Box
+            component="form"
+            onSubmit={handleFormSubmit}
+            noValidate
+            sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+          >
+            <DialogContent
+              sx={{
+                p: { xs: 2, sm: 3 },
+                backgroundColor: '#f8fafc',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2.5,
+              }}
+            >
+              {errorMsg && (
+                <Alert severity="error" sx={{ borderRadius: 2, border: '1px solid #fecaca' }}>
+                  {errorMsg}
+                </Alert>
+              )}
+
+              {/* Section 1: Identity & Multilingual Names */}
+              <FormSectionCard
+                icon={<BusinessIcon sx={{ fontSize: 18 }} />}
+                title="Corporate Identity"
+                subtitle="Official corporate registration code and multilingual representations"
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    {renderFormTextField('code', 'Company Code', {
+                      required: true,
+                      placeholder: 'e.g. ETHIOPPP',
+                      helperText: '2-30 uppercase chars, digits, "-" or "_"',
+                    })}
+                  </Grid>
+                  <Grid item xs={12} sm={8}>
+                    {renderFormTextField('name', 'Company Name (English)', {
+                      required: true,
+                      placeholder: 'e.g. Ethiopian Property Partner S.C.',
+                    })}
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    {renderFormTextField('nameAmharic', 'የድርጅቱ ስም (Amharic)', {
+                      placeholder: 'e.g. የኢትዮጵያ ንብረት አጋር አክሲዮን ማኅበር',
+                    })}
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    {renderFormTextField('nameAfaanOromo', 'Maqaa Dhaabbataa (Afaan Oromoo)', {
+                      placeholder: 'e.g. Dhaabbata Hirmaattota Qabeenya Itoophiyaa',
+                    })}
+                  </Grid>
+                </Grid>
+              </FormSectionCard>
+
+              {/* Section 2: Legal & Tax Registration */}
+              <FormSectionCard
+                icon={<RegistrationIcon sx={{ fontSize: 18 }} />}
+                title="Tax & Legal Registration"
+                subtitle="Official commercial registry and tax identification credentials"
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    {renderFormTextField('tin', 'Taxpayer ID (TIN)', {
+                      placeholder: 'e.g. 0012345678',
+                      startIcon: <TinIcon sx={{ fontSize: 18 }} />,
+                    })}
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    {renderFormTextField('registrationNumber', 'Commercial Reg. Number', {
+                      placeholder: 'e.g. MT/AA/1/000123/2015',
+                      startIcon: <RegistrationIcon sx={{ fontSize: 18 }} />,
+                    })}
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    {renderFormTextField('registrationDate', 'Registration Date', {
+                      type: 'date',
+                      placeholder: 'YYYY-MM-DD',
+                      startIcon: <CalendarIcon sx={{ fontSize: 18 }} />,
+                    })}
+                  </Grid>
+                </Grid>
+              </FormSectionCard>
+
+              {/* Section 3: Contact Channels & Location */}
+              <FormSectionCard
+                icon={<PhoneIcon sx={{ fontSize: 18 }} />}
+                title="Contact Channels & Office Location"
+                subtitle="Official communication channels and headquarters address"
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    {renderFormTextField('email', 'Official Email Address', {
+                      type: 'email',
+                      placeholder: 'info@company.et',
+                      startIcon: <EmailIcon sx={{ fontSize: 18 }} />,
+                    })}
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    {renderFormTextField('phone', 'Primary Phone Number', {
+                      placeholder: '+251 11 123 4567',
+                      startIcon: <PhoneIcon sx={{ fontSize: 18 }} />,
+                    })}
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    {renderFormTextField('website', 'Company Website', {
+                      placeholder: 'https://www.company.et',
+                      startIcon: <WebsiteIcon sx={{ fontSize: 18 }} />,
+                    })}
+                  </Grid>
+                  <Grid item xs={12} sm={8}>
+                    {renderFormTextField('address', 'Physical Address / Headquarters', {
+                      placeholder: 'City, Sub-City, Woreda, Building name, Office No.',
+                      startIcon: <AddressIcon sx={{ fontSize: 18 }} />,
+                    })}
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    {renderFormTextField('logoUrl', 'Logo Image URL', {
+                      placeholder: 'https://.../logo.png',
+                    })}
+                  </Grid>
+                </Grid>
+              </FormSectionCard>
+
+              {/* Section 4: Operational Scope & Notes */}
+              <FormSectionCard
+                icon={<DescriptionIcon sx={{ fontSize: 18 }} />}
+                title="Description & Notes"
+                subtitle="Background overview, scope of business activities, or internal notes"
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    {renderFormTextField('description', 'Operational Scope & Description', {
+                      multiline: true,
+                      rows: 3,
+                      placeholder: 'Describe company background, core business scope, organizational notes...',
+                    })}
+                  </Grid>
+                </Grid>
+              </FormSectionCard>
+            </DialogContent>
+
+            {/* Form Footer */}
+            <DialogActions
+              sx={{
+                px: { xs: 2.5, sm: 3.5 },
+                py: 2,
+                borderTop: '1px solid #e2e8f0',
+                backgroundColor: '#ffffff',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Button
+                onClick={handleDialogClose}
+                disabled={saving}
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  px: 3,
+                  py: 0.9,
+                  fontWeight: 600,
+                  fontSize: '0.84rem',
+                  textTransform: 'none',
+                  color: '#64748b',
+                  borderColor: '#cbd5e1',
+                  '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={saving}
+                startIcon={
+                  saving ? (
+                    <CircularProgress size={16} color="inherit" />
+                  ) : dialogMode === 'add' ? (
+                    <AddIcon sx={{ fontSize: 18 }} />
+                  ) : (
+                    <SaveIcon sx={{ fontSize: 18 }} />
+                  )
+                }
+                sx={{
+                  px: 3.5,
+                  py: 0.9,
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  textTransform: 'none',
+                  backgroundColor: '#4f46e5',
+                  boxShadow: '0 4px 14px rgba(79, 70, 229, 0.3)',
+                  '&:hover': { backgroundColor: '#4338ca', boxShadow: '0 6px 18px rgba(79, 70, 229, 0.4)' },
+                }}
+              >
+                {saving
+                  ? 'Saving Company...'
+                  : dialogMode === 'add'
+                  ? 'Register Company'
+                  : 'Save Changes'}
+              </Button>
+            </DialogActions>
+          </Box>
+        )}
       </Dialog>
 
       {/* Toggle / Delete confirmation modal */}

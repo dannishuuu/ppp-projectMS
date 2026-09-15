@@ -9,13 +9,11 @@ import {
   Chip,
   Tooltip,
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   CircularProgress,
   Avatar,
   Grid,
-  Divider,
   Alert,
   Breadcrumbs,
   Link,
@@ -35,6 +33,7 @@ import {
   SwapHoriz as MoveIcon,
   Category as CategoryIcon,
   Business as BusinessIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -54,6 +53,34 @@ const TYPE_COLORS = {
   BR: { bg: '#fff7ed', color: '#ea580c' },
 };
 const typeColor = (code) => TYPE_COLORS[code] || { bg: '#f1f5f9', color: '#475569' };
+
+// Shared gradient dialog header — icon tile, title, subtitle, close button
+const DialogHeader = ({ icon, title, subtitle, onClose }) => (
+  <Box
+    sx={{
+      px: 3,
+      py: 2.25,
+      background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%), #4f46e5',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1.5,
+    }}
+  >
+    <Box sx={{ width: 38, height: 38, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.16)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      {icon}
+    </Box>
+    <Box sx={{ minWidth: 0, flex: 1 }}>
+      <Typography sx={{ color: '#ffffff', fontWeight: 800, fontSize: '0.98rem', lineHeight: 1.25 }} noWrap>{title}</Typography>
+      {subtitle && <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.74rem' }} noWrap>{subtitle}</Typography>}
+    </Box>
+    <IconButton onClick={onClose} size="small" sx={{ color: 'rgba(255,255,255,0.85)', '&:hover': { backgroundColor: 'rgba(255,255,255,0.14)', color: '#ffffff' } }}>
+      <CloseIcon sx={{ fontSize: 20 }} />
+    </IconButton>
+  </Box>
+);
+
+const DIALOG_PAPER_SX = { borderRadius: 3, overflow: 'hidden', boxShadow: '0 24px 60px -12px rgba(15,23,42,0.35)' };
+const DIALOG_FOOTER_SX = { px: 3, py: 1.75, m: 0, gap: 1, borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc' };
 
 const emptyForm = {
   parentId: '',
@@ -671,11 +698,11 @@ export const CompanyOrgUnitPage = () => {
                         {node.is_active ? <DeactivateIcon sx={{ fontSize: 16 }} /> : <ActivateIcon sx={{ fontSize: 16 }} />}
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Delete unit (must have no children)" arrow placement="top">
+                    {/* <Tooltip title="Delete unit (must have no children)" arrow placement="top">
                       <IconButton size="small" onClick={() => openConfirm('delete', node)} sx={{ color: '#ef4444', p: 0.5, '&:hover': { backgroundColor: '#fee2e2' } }}>
                         <DeleteIcon sx={{ fontSize: 16 }} />
                       </IconButton>
-                    </Tooltip>
+                    </Tooltip> */}
                   </Box>
                 </Box>
               );
@@ -685,22 +712,30 @@ export const CompanyOrgUnitPage = () => {
       </Paper>
 
       {/* ── Add / Edit dialog ── */}
-      <Dialog open={formOpen} onClose={closeFormDialog} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.05rem', pb: 1 }}>
-          {formMode === 'add'
-            ? form.parentId
-              ? `Add Unit Under: ${formParentLabel}`
-              : 'Add Root Unit (Company)'
-            : `Edit Unit: ${formTarget?.name || ''}`}
-        </DialogTitle>
-        <Divider />
-        <DialogContent sx={{ pt: 2.5 }}>
-          <Box component="form" onSubmit={handleFormSubmit} noValidate>
+      <Dialog open={formOpen} onClose={closeFormDialog} maxWidth="md" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
+        <DialogHeader
+          icon={<TreeIcon sx={{ fontSize: 20 }} />}
+          title={
+            formMode === 'add'
+              ? form.parentId
+                ? `Add Unit Under: ${formParentLabel}`
+                : 'Add Root Unit (Company)'
+              : `Edit Unit: ${formTarget?.name || ''}`
+          }
+          subtitle={
+            formMode === 'add'
+              ? 'Grow the organization hierarchy one level deeper'
+              : `Update the details of "${formTarget?.code || ''}"`
+          }
+          onClose={closeFormDialog}
+        />
+        <DialogContent sx={{ pt: 3, px: 3 }}>
+          <Box component="form" onSubmit={handleFormSubmit} noValidate id="org-unit-form">
             {errorMsg && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{errorMsg}</Alert>}
 
-            <Grid container spacing={2}>
+            <Grid container spacing={2.5}>
               {formMode === 'add' ? (
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6}>
                   <Autocomplete
                     size="small"
                     options={allFlat.map((f) => f.node)}
@@ -728,14 +763,14 @@ export const CompanyOrgUnitPage = () => {
                   />
                 </Grid>
               ) : (
-                <Grid item xs={12}>
+                <Grid item xs={12} md={6}>
                   <Typography variant="caption" sx={{ color: '#64748b' }}>
                     Parent: <strong>{formTarget?.parent_name || 'None (root)'}</strong> — use the Move action to re-parent.
                   </Typography>
                 </Grid>
               )}
 
-              <Grid item xs={12}>
+              <Grid item xs={12} md={6}>
                 <Autocomplete
                   size="small"
                   options={formTypeOptions}
@@ -765,49 +800,52 @@ export const CompanyOrgUnitPage = () => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={5}>
+              <Grid item xs={12} sm={6} md={4}>
                 {renderTextField('code', 'Unit Code', { required: true, placeholder: 'e.g. DIV-FIN' })}
               </Grid>
-              <Grid item xs={12} sm={7}>
+              <Grid item xs={12} sm={6} md={8}>
                 {renderTextField('name', 'Unit Name', { required: true, placeholder: 'e.g. Finance Division' })}
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={6} md={4}>
                 {renderTextField('nameAmharic', 'Amharic Name')}
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={6} md={4}>
                 {renderTextField('nameAfaanOromo', 'Afaan Oromo Name')}
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={6} md={4}>
                 {renderTextField('sortOrder', 'Sort Order', { type: 'number' })}
               </Grid>
               <Grid item xs={12}>
                 {renderTextField('description', 'Description', { multiline: true, rows: 2, placeholder: 'Scope, responsibilities...' })}
               </Grid>
             </Grid>
-
-            <DialogActions sx={{ px: 0, pt: 2 }}>
-              <Button onClick={closeFormDialog} color="inherit" disabled={saving} sx={{ fontWeight: 600, textTransform: 'none' }}>Cancel</Button>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={saving}
-                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <AddIcon />}
-                sx={{ px: 3, py: 1, borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
-              >
-                {saving ? 'Saving...' : formMode === 'add' ? 'Add Unit' : 'Save Changes'}
-              </Button>
-            </DialogActions>
           </Box>
         </DialogContent>
+
+        <DialogActions sx={DIALOG_FOOTER_SX}>
+          <Button onClick={closeFormDialog} color="inherit" disabled={saving} sx={{ fontWeight: 600, textTransform: 'none' }}>Cancel</Button>
+          <Button
+            type="submit"
+            form="org-unit-form"
+            variant="contained"
+            disabled={saving}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <AddIcon />}
+            sx={{ px: 3, py: 1, borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
+          >
+            {saving ? 'Saving...' : formMode === 'add' ? 'Add Unit' : 'Save Changes'}
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* ── Details dialog ── */}
-      <Dialog open={viewOpen} onClose={() => setViewOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.05rem', pb: 1 }}>
-          Unit Details: {viewTarget?.name || ''}
-        </DialogTitle>
-        <Divider />
-        <DialogContent sx={{ pt: 2.5 }}>
+      <Dialog open={viewOpen} onClose={() => setViewOpen(false)} maxWidth="md" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
+        <DialogHeader
+          icon={<TreeIcon sx={{ fontSize: 20 }} />}
+          title={`Unit Details — ${viewTarget?.name || ''}`}
+          subtitle={`${viewTarget?.unit_type_name || viewTarget?.unit_type_code || 'Unit'} · ${viewTarget?.code || ''}`}
+          onClose={() => setViewOpen(false)}
+        />
+        <DialogContent sx={{ pt: 3, px: 3 }}>
           {viewTarget && (
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
@@ -867,34 +905,36 @@ export const CompanyOrgUnitPage = () => {
                     : '—')}
                 </Typography>
               </Box>
-
-              <DialogActions sx={{ px: 0, pt: 2.5 }}>
-                <Button onClick={() => setViewOpen(false)} color="inherit" sx={{ fontWeight: 600, textTransform: 'none' }}>Close</Button>
-                <Button
-                  variant="contained"
-                  startIcon={<EditIcon />}
-                  onClick={() => {
-                    const target = viewTarget;
-                    setViewOpen(false);
-                    openEditDialog(target);
-                  }}
-                  sx={{ px: 2.5, borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
-                >
-                  Edit Unit
-                </Button>
-              </DialogActions>
             </Box>
           )}
         </DialogContent>
+
+        <DialogActions sx={DIALOG_FOOTER_SX}>
+          <Button onClick={() => setViewOpen(false)} color="inherit" sx={{ fontWeight: 600, textTransform: 'none' }}>Close</Button>
+          <Button
+            variant="contained"
+            startIcon={<EditIcon />}
+            onClick={() => {
+              const target = viewTarget;
+              setViewOpen(false);
+              openEditDialog(target);
+            }}
+            sx={{ px: 2.5, borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
+          >
+            Edit Unit
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* ── Move dialog ── */}
-      <Dialog open={moveOpen} onClose={() => setMoveOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.05rem', pb: 1 }}>
-          Move "{moveTarget?.name || ''}"
-        </DialogTitle>
-        <Divider />
-        <DialogContent sx={{ pt: 2.5 }}>
+      <Dialog open={moveOpen} onClose={() => setMoveOpen(false)} maxWidth="sm" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
+        <DialogHeader
+          icon={<MoveIcon sx={{ fontSize: 20 }} />}
+          title={`Move "${moveTarget?.name || ''}"`}
+          subtitle={moveTarget ? `Currently at level ${moveTarget.level} under ${moveTarget.parent_name || 'root'}` : undefined}
+          onClose={() => setMoveOpen(false)}
+        />
+        <DialogContent sx={{ pt: 3, px: 3 }}>
           {moveError && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{moveError}</Alert>}
           <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mb: 1.5 }}>
             The entire subtree below this unit moves with it. Cycles and cross-company moves are rejected by the server.
@@ -923,19 +963,20 @@ export const CompanyOrgUnitPage = () => {
               <TextField {...params} label="New Parent" placeholder="Blank = move to root" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }} />
             )}
           />
-          <DialogActions sx={{ px: 0, pt: 2.5 }}>
-            <Button onClick={() => setMoveOpen(false)} color="inherit" disabled={saving} sx={{ fontWeight: 600, textTransform: 'none' }}>Cancel</Button>
-            <Button
-              variant="contained"
-              disabled={saving}
-              onClick={handleMoveSubmit}
-              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <MoveIcon />}
-              sx={{ px: 3, py: 1, borderRadius: 2, fontWeight: 700, backgroundColor: '#7c3aed', '&:hover': { backgroundColor: '#6d28d9' } }}
-            >
-              {saving ? 'Moving...' : 'Move Unit'}
-            </Button>
-          </DialogActions>
         </DialogContent>
+
+        <DialogActions sx={DIALOG_FOOTER_SX}>
+          <Button onClick={() => setMoveOpen(false)} color="inherit" disabled={saving} sx={{ fontWeight: 600, textTransform: 'none' }}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={saving}
+            onClick={handleMoveSubmit}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <MoveIcon />}
+            sx={{ px: 3, py: 1, borderRadius: 2, fontWeight: 700, backgroundColor: '#7c3aed', '&:hover': { backgroundColor: '#6d28d9' } }}
+          >
+            {saving ? 'Moving...' : 'Move Unit'}
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* Toggle / delete confirmation */}
