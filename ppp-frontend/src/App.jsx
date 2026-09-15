@@ -41,6 +41,7 @@ import { FloorTypePage } from './pages/Foundation/FloorTypePage';
 import { BuildingIndexPage, BuildingCreatePage, BuildingEditPage, BuildingDetailPage } from './pages/Buildings';
 import { ContractIndexPage, ContractCreatePage, ContractEditPage, ContractDetailPage, ContractApprovalPage } from './pages/ContractRental';
 import { BusinessSectorPage } from './pages/Foundation/BusinessSectorPage';
+import { CompanyManagementPage } from './pages/Company/CompanyManagementPage';
 
 
 
@@ -143,10 +144,13 @@ function App() {
                   <Route path="buildings/:id" element={<BuildingDetailPage />} />
                   <Route path="buildings/:id/edit" element={<BuildingEditPage />} />
 
+                  {/* Company Management pages */}
+                  <Route path="company/companymanagement" element={<CompanyManagementPage />} />
+
                   {/* Rental Contract pages */}
                   <Route path="contracts" element={<ContractIndexPage />} />
                   <Route path="contracts/new" element={<ContractCreatePage />} />
-				  <Route path="contracts/approval" element={<ContractApprovalPage />} />
+				          <Route path="contracts/approval" element={<ContractApprovalPage />} />
                   <Route path="contracts/:id" element={<ContractDetailPage />} />
                   <Route path="contracts/:id/edit" element={<ContractEditPage />} />
                 </Route>

@@ -41,6 +41,7 @@ import {
   Straighten as AreaUnitIcon,
   Layers as FloorTypeIcon,
   Domain as BuildingNavIcon,
+  CorporateFare as CompanyNavIcon,
   Description as ContractNavIcon,
   PostAdd as NewContractIcon,
   FactCheck as ApprovalNavIcon,
@@ -65,8 +66,9 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const [openMenu, setOpenMenu] = useState(
     location.pathname.startsWith('/projects') && !location.pathname.startsWith('/projects/tracking-types') ? 'projects' :
       location.pathname.startsWith('/users') ? 'users' :
-        location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types') ? 'organizations' :
-          location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/foundation/') ? 'foundation' :
+    location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types') ? 'organizations' :
+      location.pathname.startsWith('/company') ? 'company' :
+        location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/foundation/') ? 'foundation' :
             location.pathname.startsWith('/document-sequences') ? 'docmgmt' :
               location.pathname.startsWith('/contracts') ? 'contracts' :
                 null
@@ -98,6 +100,10 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const orgSubItems = [
     { text: 'Organizations List', icon: <OrganizationIcon />, path: '/organizations' },
     { text: 'Create Organization', icon: <AddIcon />, path: '/organizations/new' },
+  ];
+
+  const companySubItems = [
+    { text: 'Company List', icon: <CompanyNavIcon />, path: '/company/companymanagement' },
   ];
 
   const buildingSubItems = [
@@ -137,6 +143,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const isProjectsGroupActive = location.pathname.startsWith('/projects') && !location.pathname.startsWith('/projects/tracking-types') && !location.pathname.startsWith('/project-categories');
   const isUsersGroupActive = location.pathname.startsWith('/users');
   const isOrgGroupActive = location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types');
+  const isCompanyGroupActive = location.pathname.startsWith('/company');
   const isBuildingsGroupActive = location.pathname.startsWith('/buildings');
   const isContractsGroupActive = location.pathname.startsWith('/contracts');
   const isFoundationGroupActive = location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/payment-timings') || location.pathname.startsWith('/rental-payment-types') || location.pathname.startsWith('/area-units') || location.pathname.startsWith('/floor-types') || location.pathname.startsWith('/foundation/');
@@ -488,6 +495,93 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
                 }}
               >
                 {filterSubItems(orgSubItems).map((item) => {
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <ListItem key={item.text} disablePadding>
+                      <ListItemButton
+                        onClick={() => handleNavigate(item.path)}
+                        sx={{
+                          borderRadius: '10px',
+                          py: 0.85,
+                          px: 1.5,
+                          backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+                          color: isActive ? '#a5b4fc' : '#94a3b8',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                            color: '#ffffff',
+                            transform: 'translateX(4px)',
+                          },
+                        }}
+                      >
+                        <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
+                          {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.text}
+                          primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </Collapse>
+          </ListItem>
+
+          {/* Company Management Group */}
+          <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+            <ListItemButton
+              onClick={() => handleMenuToggle('company')}
+              sx={{
+                borderRadius: '12px',
+                py: 1.1,
+                px: 1.75,
+                backgroundColor: isCompanyGroupActive && !isMenuOpen('company') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                color: isCompanyGroupActive ? '#ffffff' : '#cbd5e1',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                borderLeft: isCompanyGroupActive ? '3px solid #818cf8' : '3px solid transparent',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                  color: '#ffffff',
+                  transform: 'translateX(3px)',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: isCompanyGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
+                <CompanyNavIcon sx={{ fontSize: 20 }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Company Management"
+                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isCompanyGroupActive ? 700 : 500 }}
+              />
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  transition: 'transform 0.2s ease',
+                  transform: isMenuOpen('company') ? 'rotate(180deg)' : 'rotate(0deg)',
+                }}
+              >
+                <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
+              </Box>
+            </ListItemButton>
+
+            <Collapse in={isMenuOpen('company')} timeout="auto" unmountOnExit>
+              <List
+                disablePadding
+                sx={{
+                  ml: 2.2,
+                  pl: 1.5,
+                  pt: 0.6,
+                  pb: 0.6,
+                  borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0.4,
+                }}
+              >
+                {filterSubItems(companySubItems).map((item) => {
                   const isActive = location.pathname === item.path;
                   return (
                     <ListItem key={item.text} disablePadding>
