@@ -25,7 +25,6 @@ import {
   Edit as EditIcon,
   Block as DeactivateIcon,
   CheckCircle as ActivateIcon,
-  Delete as DeleteIcon,
   AccountTree as TreeIcon,
   KeyboardArrowDown as ExpandIcon,
   KeyboardArrowUp as CollapseIcon,
@@ -34,12 +33,14 @@ import {
   Category as CategoryIcon,
   Business as BusinessIcon,
   Close as CloseIcon,
+  Print as PrintIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { companyService, orgUnitTypeService, companyOrgUnitService } from '../../services/company';
 import { formatDate } from '../../utils/formatters';
 import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
+import { OrgChartPrintModal } from './OrgChartPrintModal';
 
 const CODE_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,49}$/;
 
@@ -148,6 +149,9 @@ export const CompanyOrgUnitPage = () => {
   const [confirmAction, setConfirmAction] = useState(null); // 'toggle' | 'delete'
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
+
+  // Print Org Chart dialog state
+  const [printModalOpen, setPrintModalOpen] = useState(false);
 
   // Initial lookups: companies + active types
   useEffect(() => {
@@ -561,6 +565,30 @@ export const CompanyOrgUnitPage = () => {
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
           <Chip label={`${allFlat.length} units`} size="small" sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700, backgroundColor: '#eef2ff', color: '#4f46e5' }} />
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<PrintIcon sx={{ fontSize: 16 }} />}
+            onClick={() => {
+              if (!treeData.roots || treeData.roots.length === 0) {
+                enqueueSnackbar('No organization structure to print for this company.', { variant: 'warning' });
+                return;
+              }
+              setPrintModalOpen(true);
+            }}
+            sx={{
+              borderRadius: 2,
+              borderColor: '#cbd5e1',
+              color: '#334155',
+              fontWeight: 700,
+              fontSize: '0.76rem',
+              textTransform: 'none',
+              px: 1.5,
+              '&:hover': { borderColor: '#2ea89d', color: '#2ea89d', backgroundColor: '#f0fdfa' },
+            }}
+          >
+            Print Chart
+          </Button>
           {visibleRows.length !== allFlat.length && (
             <Button size="small" onClick={() => setCollapsed(new Set())} sx={{ fontSize: '0.72rem', textTransform: 'none', fontWeight: 700, color: '#64748b' }}>
               Expand all
@@ -1142,6 +1170,15 @@ export const CompanyOrgUnitPage = () => {
         loading={confirmLoading}
         onConfirm={handleConfirm}
         onClose={() => { setConfirmOpen(false); setConfirmAction(null); setConfirmTarget(null); }}
+      />
+
+      {/* ── Organization Chart Print & Export Preview Modal ── */}
+      <OrgChartPrintModal
+        open={printModalOpen}
+        onClose={() => setPrintModalOpen(false)}
+        company={selectedCompany || treeData.company}
+        treeData={treeData}
+        allUnits={allFlat}
       />
     </Box>
   );
