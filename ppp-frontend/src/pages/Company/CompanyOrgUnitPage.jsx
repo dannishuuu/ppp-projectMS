@@ -473,7 +473,17 @@ export const CompanyOrgUnitPage = () => {
       helperText={formErrors[field]}
       disabled={saving}
       inputProps={type === 'number' ? { min: 0, step: 1 } : undefined}
-      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+      sx={{
+        width: '100%',
+        '& .MuiOutlinedInput-root': {
+          borderRadius: 2.5,
+          minHeight: multiline ? undefined : '44px',
+          backgroundColor: '#f8fafc',
+          fontSize: '0.86rem',
+          '&:hover': { backgroundColor: '#f1f5f9' },
+          '&.Mui-focused': { backgroundColor: '#ffffff' },
+        },
+      }}
     />
   );
 
@@ -832,12 +842,12 @@ export const CompanyOrgUnitPage = () => {
       </Paper>
 
       {/* ── Add / Edit dialog ── */}
-      <Dialog 
-        open={formOpen} 
-        onClose={closeFormDialog} 
-        maxWidth="md" 
-        fullWidth 
-        slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}
+      <Dialog
+        open={formOpen}
+        onClose={closeFormDialog}
+        maxWidth="lg"
+        fullWidth
+        slotProps={{ paper: { sx: { ...DIALOG_PAPER_SX, maxWidth: '980px' } } }}
       >
         <DialogHeader
           icon={<TreeIcon sx={{ fontSize: 22 }} />}
@@ -859,8 +869,8 @@ export const CompanyOrgUnitPage = () => {
         <DialogContent sx={{ p: 3.5, backgroundColor: '#ffffff' }}>
           <Box component="form" onSubmit={handleFormSubmit} noValidate id="org-unit-form">
             {errorMsg && (
-              <Alert 
-                severity="error" 
+              <Alert
+                severity="error"
                 sx={{ mb: 3, borderRadius: 2.5, fontWeight: 500, fontSize: '0.85rem' }}
               >
                 {errorMsg}
@@ -868,28 +878,28 @@ export const CompanyOrgUnitPage = () => {
             )}
 
             {/* Section 1: Hierarchy & Type */}
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                fontWeight: 800, 
-                color: '#64748b', 
-                textTransform: 'uppercase', 
-                letterSpacing: '0.06em', 
-                fontSize: '0.7rem', 
-                mb: 1.5, 
-                display: 'block' 
+            <Typography
+              variant="caption"
+              sx={{
+                fontWeight: 800,
+                color: '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                fontSize: '0.7rem',
+                mb: 1.5,
+                display: 'block'
               }}
             >
               Hierarchy & Classification
             </Typography>
 
-            <Box 
-              sx={{ 
-                display: 'flex', 
-                flexDirection: { xs: 'column', sm: 'row' }, 
-                gap: 2.5, 
-                width: '100%', 
-                mb: 3 
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: 2.5,
+                width: '100%',
+                mb: 3
               }}
             >
               {formMode === 'add' ? (
@@ -932,14 +942,14 @@ export const CompanyOrgUnitPage = () => {
                 </Box>
               ) : (
                 <Box sx={{ flex: 1, width: '100%' }}>
-                  <Box sx={{ 
-                    p: 1.5, 
-                    borderRadius: 2.5, 
-                    backgroundColor: '#f8fafc', 
-                    border: '1px solid #e2e8f0', 
-                    minHeight: '42px', 
-                    display: 'flex', 
-                    alignItems: 'center' 
+                  <Box sx={{
+                    p: 1.5,
+                    borderRadius: 2.5,
+                    backgroundColor: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    minHeight: '42px',
+                    display: 'flex',
+                    alignItems: 'center'
                   }}>
                     <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.84rem' }}>
                       Parent Unit: <strong style={{ color: '#0f172a' }}>{formTarget?.parent_name || 'None (root)'}</strong>
@@ -990,28 +1000,28 @@ export const CompanyOrgUnitPage = () => {
             </Box>
 
             {/* Section 2: Basic Details */}
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                fontWeight: 800, 
-                color: '#64748b', 
-                textTransform: 'uppercase', 
-                letterSpacing: '0.06em', 
-                fontSize: '0.7rem', 
-                mb: 1.5, 
-                display: 'block' 
+            <Typography
+              variant="caption"
+              sx={{
+                fontWeight: 800,
+                color: '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                fontSize: '0.7rem',
+                mb: 1.5,
+                display: 'block'
               }}
             >
               Basic Details
             </Typography>
 
-            <Box 
-              sx={{ 
-                display: 'flex', 
-                flexDirection: { xs: 'column', sm: 'row' }, 
-                gap: 2.5, 
-                width: '100%', 
-                mb: 3 
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: 2.5,
+                width: '100%',
+                mb: 3
               }}
             >
               <Box sx={{ flex: 1, width: '100%' }}>
@@ -1023,28 +1033,28 @@ export const CompanyOrgUnitPage = () => {
             </Box>
 
             {/* Section 3: Localization & Settings */}
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                fontWeight: 800, 
-                color: '#64748b', 
-                textTransform: 'uppercase', 
-                letterSpacing: '0.06em', 
-                fontSize: '0.7rem', 
-                mb: 1.5, 
-                display: 'block' 
+            <Typography
+              variant="caption"
+              sx={{
+                fontWeight: 800,
+                color: '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                fontSize: '0.7rem',
+                mb: 1.5,
+                display: 'block'
               }}
             >
               Localization & Settings
             </Typography>
 
-            <Box 
-              sx={{ 
-                display: 'flex', 
-                flexDirection: { xs: 'column', sm: 'row' }, 
-                gap: 2.5, 
-                width: '100%', 
-                mb: 2.5 
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: 2.5,
+                width: '100%',
+                mb: 2.5
               }}
             >
               <Box sx={{ flex: 1, width: '100%' }}>
@@ -1066,10 +1076,10 @@ export const CompanyOrgUnitPage = () => {
         </DialogContent>
 
         <DialogActions sx={{ ...DIALOG_FOOTER_SX, py: 2, px: 3 }}>
-          <Button 
-            onClick={closeFormDialog} 
-            color="inherit" 
-            disabled={saving} 
+          <Button
+            onClick={closeFormDialog}
+            color="inherit"
+            disabled={saving}
             sx={{ fontWeight: 600, textTransform: 'none', color: '#64748b', px: 2 }}
           >
             Cancel

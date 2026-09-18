@@ -25,7 +25,6 @@ import {
   Breadcrumbs,
   Link,
   IconButton,
-  InputAdornment,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -34,7 +33,6 @@ import {
   Edit as EditIcon,
   Block as DeactivateIcon,
   CheckCircle as ActivateIcon,
-  Delete as DeleteIcon,
   Category as CategoryIcon,
   FilterList as FilterIcon,
   RestartAlt as ResetIcon,
@@ -42,6 +40,7 @@ import {
   Save as SaveIcon,
   Sort as SortIcon,
   Description as DescriptionIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -247,6 +246,7 @@ export const OrgUnitTypePage = () => {
   };
 
   const handleFormChange = (field) => (e) => {
+    if (field === 'code' && dialogMode === 'edit') return;
     let val = e.target.value;
     if (field === 'code') {
       val = val.toUpperCase();
@@ -258,9 +258,11 @@ export const OrgUnitTypePage = () => {
 
   const validateForm = () => {
     const errors = {};
-    const code = form.code.trim().toUpperCase();
-    if (!code) errors.code = 'Type code is required.';
-    else if (!CODE_RE.test(code)) errors.code = '2-20 chars, start with a letter.';
+    if (dialogMode === 'add') {
+      const code = form.code.trim().toUpperCase();
+      if (!code) errors.code = 'Type code is required.';
+      else if (!CODE_RE.test(code)) errors.code = '2-20 chars, start with a letter.';
+    }
     if (!form.name.trim()) errors.name = 'Type name is required.';
     const n = parseInt(form.sortOrder, 10);
     if (form.sortOrder !== '' && (isNaN(n) || n < 0)) errors.sortOrder = 'Must be a non-negative integer.';
@@ -268,14 +270,19 @@ export const OrgUnitTypePage = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const buildPayload = () => ({
-    code: form.code.trim().toUpperCase(),
-    name: form.name.trim(),
-    nameAmharic: form.nameAmharic.trim() || null,
-    nameAfaanOromo: form.nameAfaanOromo.trim() || null,
-    description: form.description.trim() || null,
-    sortOrder: form.sortOrder === '' ? 0 : parseInt(form.sortOrder, 10),
-  });
+  const buildPayload = () => {
+    const payload = {
+      name: form.name.trim(),
+      nameAmharic: form.nameAmharic.trim() || null,
+      nameAfaanOromo: form.nameAfaanOromo.trim() || null,
+      description: form.description.trim() || null,
+      sortOrder: form.sortOrder === '' ? 0 : parseInt(form.sortOrder, 10),
+    };
+    if (dialogMode === 'add') {
+      payload.code = form.code.trim().toUpperCase();
+    }
+    return payload;
+  };
 
   const handleFormSubmit = async (e) => {
     e?.preventDefault();
@@ -343,8 +350,9 @@ export const OrgUnitTypePage = () => {
       rows = 3,
       type = 'text',
       placeholder = '',
-      startIcon = null,
       helperText = null,
+      disabled = false,
+      InputProps = undefined,
     } = {}
   ) => (
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -378,27 +386,32 @@ export const OrgUnitTypePage = () => {
         onChange={handleFormChange(field)}
         error={Boolean(formErrors[field])}
         helperText={formErrors[field] || helperText}
-        disabled={saving}
-        inputProps={type === 'number' ? { min: 0, step: 1 } : undefined}
-        InputProps={
-          startIcon
-            ? {
-                startAdornment: (
-                  <InputAdornment position="start" sx={{ color: '#94a3b8', mr: 0.5 }}>
-                    {startIcon}
-                  </InputAdornment>
-                ),
-              }
-            : undefined
-        }
+        disabled={saving || disabled}
+        InputProps={InputProps}
         sx={{
+          width: '100%',
           '& .MuiOutlinedInput-root': {
+            minHeight: multiline ? undefined : '44px',
             borderRadius: 2,
-            backgroundColor: '#ffffff',
-            fontSize: '0.84rem',
+            backgroundColor: disabled ? '#f8fafc' : '#ffffff',
+            fontSize: '0.86rem',
             '& fieldset': { borderColor: '#cbd5e1' },
-            '&:hover fieldset': { borderColor: '#94a3b8' },
+            '&:hover fieldset': { borderColor: disabled ? '#cbd5e1' : '#94a3b8' },
             '&.Mui-focused fieldset': { borderColor: '#4f46e5', borderWidth: '1.5px' },
+            '&.Mui-disabled': {
+              backgroundColor: '#f8fafc',
+              cursor: 'not-allowed',
+            },
+          },
+          '& .MuiInputBase-input': {
+            py: multiline ? undefined : 1.25,
+            fontSize: '0.86rem',
+          },
+          '& .MuiInputBase-input.Mui-disabled': {
+            WebkitTextFillColor: '#475569',
+            fontWeight: 700,
+            fontFamily: field === 'code' ? 'monospace' : 'inherit',
+            cursor: 'not-allowed',
           },
           '& .MuiFormHelperText-root': { fontSize: '0.7rem', mt: 0.5 },
         }}
@@ -726,7 +739,7 @@ export const OrgUnitTypePage = () => {
           sx: {
             borderRadius: 3.5,
             width: '100%',
-            maxWidth: dialogMode === 'view' ? '760px' : '800px',
+            maxWidth: dialogMode === 'view' ? '820px' : '980px',
             maxHeight: '92vh',
             display: 'flex',
             flexDirection: 'column',
@@ -783,8 +796,8 @@ export const OrgUnitTypePage = () => {
                     {dialogMode === 'add'
                       ? 'Add Organization Unit Type'
                       : dialogMode === 'edit'
-                      ? 'Edit Organization Unit Type'
-                      : 'Unit Type Details'}
+                        ? 'Edit Organization Unit Type'
+                        : 'Unit Type Details'}
                   </Typography>
                   {selectedType && dialogMode !== 'add' && (
                     <Chip
@@ -818,8 +831,8 @@ export const OrgUnitTypePage = () => {
                   {dialogMode === 'add'
                     ? 'Define a new category of unit (e.g. Division, Department, Section) for company structures.'
                     : dialogMode === 'edit'
-                    ? `Update configuration, ranking order, and naming for ${selectedType?.name || 'this unit type'}.`
-                    : `Configuration and structural properties for ${selectedType?.name || 'this unit type'}.`}
+                      ? `Update configuration, ranking order, and naming for ${selectedType?.name || 'this unit type'}.`
+                      : `Configuration and structural properties for ${selectedType?.name || 'this unit type'}.`}
                 </Typography>
               </Box>
             </Box>
@@ -1110,21 +1123,35 @@ export const OrgUnitTypePage = () => {
                 title="Unit Type Identity & Ranking"
                 subtitle="Official naming and ordering depth in the organization tree"
               >
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={4}>
+                <Grid container spacing={2.5}>
+                  <Grid item xs={12} sm={6}>
                     {renderFormTextField('code', 'Type Code', {
-                      required: true,
+                      required: dialogMode === 'add',
+                      disabled: dialogMode === 'edit',
                       placeholder: 'e.g. DEPT',
-                      helperText: '2-20 uppercase chars, starts with a letter',
+                      helperText:
+                        dialogMode === 'edit'
+                          ? 'Type code cannot be modified once created.'
+                          : '2-20 uppercase chars, starts with a letter',
+                      InputProps:
+                        dialogMode === 'edit'
+                          ? {
+                            endAdornment: (
+                              <Tooltip title="Type Code cannot be modified" arrow>
+                                <LockIcon sx={{ fontSize: 16, color: '#94a3b8', mr: 0.5 }} />
+                              </Tooltip>
+                            ),
+                          }
+                          : undefined,
                     })}
                   </Grid>
-                  <Grid item xs={12} sm={5}>
+                  <Grid item xs={12} sm={6}>
                     {renderFormTextField('name', 'Type Name (English)', {
                       required: true,
                       placeholder: 'e.g. Department',
                     })}
                   </Grid>
-                  <Grid item xs={12} sm={3}>
+                  <Grid item xs={12} sm={6}>
                     {renderFormTextField('sortOrder', 'Hierarchy Rank', {
                       type: 'number',
                       placeholder: '0',
@@ -1232,8 +1259,8 @@ export const OrgUnitTypePage = () => {
                 {saving
                   ? 'Saving Type...'
                   : dialogMode === 'add'
-                  ? 'Create Unit Type'
-                  : 'Save Changes'}
+                    ? 'Create Unit Type'
+                    : 'Save Changes'}
               </Button>
             </DialogActions>
           </Box>
