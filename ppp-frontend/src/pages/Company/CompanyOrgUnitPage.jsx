@@ -712,9 +712,15 @@ export const CompanyOrgUnitPage = () => {
       </Paper>
 
       {/* ── Add / Edit dialog ── */}
-      <Dialog open={formOpen} onClose={closeFormDialog} maxWidth="md" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
+      <Dialog 
+        open={formOpen} 
+        onClose={closeFormDialog} 
+        maxWidth="md" 
+        fullWidth 
+        slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}
+      >
         <DialogHeader
-          icon={<TreeIcon sx={{ fontSize: 20 }} />}
+          icon={<TreeIcon sx={{ fontSize: 22 }} />}
           title={
             formMode === 'add'
               ? form.parentId
@@ -725,18 +731,51 @@ export const CompanyOrgUnitPage = () => {
           subtitle={
             formMode === 'add'
               ? 'Grow the organization hierarchy one level deeper'
-              : `Update the details of "${formTarget?.code || ''}"`
+              : `Update details for unit code "${formTarget?.code || ''}"`
           }
           onClose={closeFormDialog}
         />
-        <DialogContent sx={{ pt: 3, px: 3 }}>
-          <Box component="form" onSubmit={handleFormSubmit} noValidate id="org-unit-form">
-            {errorMsg && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{errorMsg}</Alert>}
 
-            <Grid container spacing={2.5}>
+        <DialogContent sx={{ p: 3.5, backgroundColor: '#ffffff' }}>
+          <Box component="form" onSubmit={handleFormSubmit} noValidate id="org-unit-form">
+            {errorMsg && (
+              <Alert 
+                severity="error" 
+                sx={{ mb: 3, borderRadius: 2.5, fontWeight: 500, fontSize: '0.85rem' }}
+              >
+                {errorMsg}
+              </Alert>
+            )}
+
+            {/* Section 1: Hierarchy & Type */}
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                fontWeight: 800, 
+                color: '#64748b', 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.06em', 
+                fontSize: '0.7rem', 
+                mb: 1.5, 
+                display: 'block' 
+              }}
+            >
+              Hierarchy & Classification
+            </Typography>
+
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                flexDirection: { xs: 'column', sm: 'row' }, 
+                gap: 2.5, 
+                width: '100%', 
+                mb: 3 
+              }}
+            >
               {formMode === 'add' ? (
-                <Grid item xs={12} md={6}>
+                <Box sx={{ flex: 1, width: '100%' }}>
                   <Autocomplete
+                    fullWidth
                     size="small"
                     options={allFlat.map((f) => f.node)}
                     value={allFlat.find((f) => String(f.node.id) === String(form.parentId))?.node || null}
@@ -757,21 +796,41 @@ export const CompanyOrgUnitPage = () => {
                         placeholder="Blank = new root"
                         error={Boolean(formErrors.parentId)}
                         helperText={formErrors.parentId}
-                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                        sx={{
+                          width: '100%',
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2.5,
+                            backgroundColor: '#f8fafc',
+                            minHeight: '42px',
+                            '&:hover': { backgroundColor: '#f1f5f9' },
+                            '&.Mui-focused': { backgroundColor: '#ffffff' }
+                          }
+                        }}
                       />
                     )}
                   />
-                </Grid>
+                </Box>
               ) : (
-                <Grid item xs={12} md={6}>
-                  <Typography variant="caption" sx={{ color: '#64748b' }}>
-                    Parent: <strong>{formTarget?.parent_name || 'None (root)'}</strong> — use the Move action to re-parent.
-                  </Typography>
-                </Grid>
+                <Box sx={{ flex: 1, width: '100%' }}>
+                  <Box sx={{ 
+                    p: 1.5, 
+                    borderRadius: 2.5, 
+                    backgroundColor: '#f8fafc', 
+                    border: '1px solid #e2e8f0', 
+                    minHeight: '42px', 
+                    display: 'flex', 
+                    alignItems: 'center' 
+                  }}>
+                    <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.84rem' }}>
+                      Parent Unit: <strong style={{ color: '#0f172a' }}>{formTarget?.parent_name || 'None (root)'}</strong>
+                    </Typography>
+                  </Box>
+                </Box>
               )}
 
-              <Grid item xs={12} md={6}>
+              <Box sx={{ flex: 1, width: '100%' }}>
                 <Autocomplete
+                  fullWidth
                   size="small"
                   options={formTypeOptions}
                   value={types.find((t) => String(t.id) === String(form.unitTypeId)) || null}
@@ -794,45 +853,126 @@ export const CompanyOrgUnitPage = () => {
                       required
                       error={Boolean(formErrors.unitTypeId)}
                       helperText={formErrors.unitTypeId}
-                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      sx={{
+                        width: '100%',
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2.5,
+                          backgroundColor: '#f8fafc',
+                          minHeight: '42px',
+                          '&:hover': { backgroundColor: '#f1f5f9' },
+                          '&.Mui-focused': { backgroundColor: '#ffffff' }
+                        }
+                      }}
                     />
                   )}
                 />
-              </Grid>
+              </Box>
+            </Box>
 
-              <Grid item xs={12} sm={6} md={4}>
+            {/* Section 2: Basic Details */}
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                fontWeight: 800, 
+                color: '#64748b', 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.06em', 
+                fontSize: '0.7rem', 
+                mb: 1.5, 
+                display: 'block' 
+              }}
+            >
+              Basic Details
+            </Typography>
+
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                flexDirection: { xs: 'column', sm: 'row' }, 
+                gap: 2.5, 
+                width: '100%', 
+                mb: 3 
+              }}
+            >
+              <Box sx={{ flex: 1, width: '100%' }}>
                 {renderTextField('code', 'Unit Code', { required: true, placeholder: 'e.g. DIV-FIN' })}
-              </Grid>
-              <Grid item xs={12} sm={6} md={8}>
-                {renderTextField('name', 'Unit Name', { required: true, placeholder: 'e.g. Finance Division' })}
-              </Grid>
-              <Grid item xs={12} sm={6} md={4}>
-                {renderTextField('nameAmharic', 'Amharic Name')}
-              </Grid>
-              <Grid item xs={12} sm={6} md={4}>
-                {renderTextField('nameAfaanOromo', 'Afaan Oromo Name')}
-              </Grid>
-              <Grid item xs={12} sm={6} md={4}>
+              </Box>
+              <Box sx={{ flex: 2, width: '100%' }}>
+                {renderTextField('name', 'Unit Name (English)', { required: true, placeholder: 'e.g. Finance Division' })}
+              </Box>
+            </Box>
+
+            {/* Section 3: Localization & Settings */}
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                fontWeight: 800, 
+                color: '#64748b', 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.06em', 
+                fontSize: '0.7rem', 
+                mb: 1.5, 
+                display: 'block' 
+              }}
+            >
+              Localization & Settings
+            </Typography>
+
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                flexDirection: { xs: 'column', sm: 'row' }, 
+                gap: 2.5, 
+                width: '100%', 
+                mb: 2.5 
+              }}
+            >
+              <Box sx={{ flex: 1, width: '100%' }}>
+                {renderTextField('nameAmharic', 'Amharic Name', { placeholder: 'ስም በአማርኛ' })}
+              </Box>
+              <Box sx={{ flex: 1, width: '100%' }}>
+                {renderTextField('nameAfaanOromo', 'Afaan Oromo Name', { placeholder: 'Maqaa Afaan Oromootiin' })}
+              </Box>
+              <Box sx={{ width: { xs: '100%', sm: '120px' } }}>
                 {renderTextField('sortOrder', 'Sort Order', { type: 'number' })}
-              </Grid>
-              <Grid item xs={12}>
-                {renderTextField('description', 'Description', { multiline: true, rows: 2, placeholder: 'Scope, responsibilities...' })}
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
+
+            {/* Description Scope - Full Modal Width */}
+            <Box sx={{ width: '100%' }}>
+              {renderTextField('description', 'Description / Scope', { multiline: true, rows: 3, placeholder: 'Department objectives, primary responsibilities...' })}
+            </Box>
           </Box>
         </DialogContent>
 
-        <DialogActions sx={DIALOG_FOOTER_SX}>
-          <Button onClick={closeFormDialog} color="inherit" disabled={saving} sx={{ fontWeight: 600, textTransform: 'none' }}>Cancel</Button>
+        <DialogActions sx={{ ...DIALOG_FOOTER_SX, py: 2, px: 3 }}>
+          <Button 
+            onClick={closeFormDialog} 
+            color="inherit" 
+            disabled={saving} 
+            sx={{ fontWeight: 600, textTransform: 'none', color: '#64748b', px: 2 }}
+          >
+            Cancel
+          </Button>
           <Button
             type="submit"
             form="org-unit-form"
             variant="contained"
             disabled={saving}
-            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <AddIcon />}
-            sx={{ px: 3, py: 1, borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : formMode === 'add' ? <AddIcon /> : <EditIcon />}
+            sx={{
+              px: 3.5,
+              py: 1,
+              borderRadius: 2.5,
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              textTransform: 'none',
+              boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)',
+              backgroundColor: '#4f46e5',
+              '&:hover': { backgroundColor: '#4338ca', boxShadow: '0 6px 16px rgba(79, 70, 229, 0.35)' }
+            }}
           >
-            {saving ? 'Saving...' : formMode === 'add' ? 'Add Unit' : 'Save Changes'}
+            {saving ? 'Saving...' : formMode === 'add' ? 'Create Unit' : 'Save Changes'}
           </Button>
         </DialogActions>
       </Dialog>

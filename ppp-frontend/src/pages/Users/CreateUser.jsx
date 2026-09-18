@@ -38,13 +38,17 @@ import {
 
 const inputSx = {
   borderRadius: 2,
-  backgroundColor: '#f8fafc',
-  '& fieldset': { borderColor: '#e2e8f0' },
+  backgroundColor: '#ffffff',
+  fontSize: '0.84rem',
+  '& fieldset': { borderColor: '#cbd5e1' },
   '&:hover fieldset': { borderColor: '#94a3b8' },
-  '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+  '&.Mui-focused fieldset': { borderColor: '#4f46e5', borderWidth: '1.5px' },
 };
 
-const formFieldSx = { '& .MuiOutlinedInput-root': inputSx };
+const formFieldSx = {
+  '& .MuiOutlinedInput-root': inputSx,
+  '& .MuiFormHelperText-root': { fontSize: '0.7rem', mt: 0.5 },
+};
 
 const SectionHeader = ({ icon, title, color = '#1e40af' }) => (
   <Stack direction="row" alignItems="center" spacing={1}>

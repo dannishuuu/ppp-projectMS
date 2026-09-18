@@ -25,6 +25,7 @@ import {
   Breadcrumbs,
   Link,
   IconButton,
+  InputAdornment,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -38,6 +39,9 @@ import {
   FilterList as FilterIcon,
   RestartAlt as ResetIcon,
   Close as CloseIcon,
+  Save as SaveIcon,
+  Sort as SortIcon,
+  Description as DescriptionIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -47,33 +51,102 @@ import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 
 const CODE_RE = /^[A-Z][A-Z0-9_-]{1,19}$/;
 
-// Shared gradient dialog header — icon tile, title, subtitle, close button
-const DialogHeader = ({ icon, title, subtitle, onClose }) => (
-  <Box
+const FormSectionCard = ({ icon, title, subtitle, children }) => (
+  <Paper
+    elevation={0}
     sx={{
-      px: 3,
-      py: 2.25,
-      background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%), #4f46e5',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 1.5,
+      p: { xs: 2, sm: 2.5 },
+      borderRadius: 2.5,
+      backgroundColor: '#ffffff',
+      border: '1px solid #e2e8f0',
+      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
     }}
   >
-    <Box sx={{ width: 38, height: 38, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.16)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      {icon}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 2 }}>
+      <Box
+        sx={{
+          width: 32,
+          height: 32,
+          borderRadius: 1.5,
+          backgroundColor: '#eef2ff',
+          color: '#4f46e5',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
+      <Box>
+        <Typography
+          variant="subtitle2"
+          sx={{ fontWeight: 700, color: '#1e293b', fontSize: '0.88rem', lineHeight: 1.2 }}
+        >
+          {title}
+        </Typography>
+        {subtitle && (
+          <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.72rem', display: 'block', mt: 0.25 }}>
+            {subtitle}
+          </Typography>
+        )}
+      </Box>
     </Box>
-    <Box sx={{ minWidth: 0, flex: 1 }}>
-      <Typography sx={{ color: '#ffffff', fontWeight: 800, fontSize: '0.98rem', lineHeight: 1.25 }} noWrap>{title}</Typography>
-      {subtitle && <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.74rem' }} noWrap>{subtitle}</Typography>}
-    </Box>
-    <IconButton onClick={onClose} size="small" sx={{ color: 'rgba(255,255,255,0.85)', '&:hover': { backgroundColor: 'rgba(255,255,255,0.14)', color: '#ffffff' } }}>
-      <CloseIcon sx={{ fontSize: 20 }} />
-    </IconButton>
-  </Box>
+    {children}
+  </Paper>
 );
 
-const DIALOG_PAPER_SX = { borderRadius: 3, overflow: 'hidden', boxShadow: '0 24px 60px -12px rgba(15,23,42,0.35)' };
-const DIALOG_FOOTER_SX = { px: 3, py: 1.75, m: 0, gap: 1, borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc' };
+const DetailRow = ({ icon, label, value, isMono = false }) => {
+  const hasValue = Boolean(value && value !== '—');
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, py: 1.25 }}>
+      <Box
+        sx={{
+          width: 34,
+          height: 34,
+          borderRadius: 2,
+          backgroundColor: '#f1f5f9',
+          color: '#4f46e5',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          border: '1px solid #e2e8f0',
+        }}
+      >
+        {icon}
+      </Box>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography
+          variant="caption"
+          sx={{
+            display: 'block',
+            color: '#64748b',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            fontSize: '0.66rem',
+            letterSpacing: '0.05em',
+            mb: 0.25,
+          }}
+        >
+          {label}
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            color: hasValue ? '#0f172a' : '#94a3b8',
+            fontWeight: hasValue ? 600 : 500,
+            fontSize: '0.85rem',
+            wordBreak: 'break-word',
+            fontFamily: isMono && hasValue ? 'monospace' : 'inherit',
+          }}
+        >
+          {value || '—'}
+        </Typography>
+      </Box>
+    </Box>
+  );
+};
 
 const emptyForm = {
   code: '',
@@ -174,7 +247,11 @@ export const OrgUnitTypePage = () => {
   };
 
   const handleFormChange = (field) => (e) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    let val = e.target.value;
+    if (field === 'code') {
+      val = val.toUpperCase();
+    }
+    setForm((prev) => ({ ...prev, [field]: val }));
     if (formErrors[field]) setFormErrors((prev) => ({ ...prev, [field]: undefined }));
     if (errorMsg) setErrorMsg('');
   };
@@ -257,24 +334,76 @@ export const OrgUnitTypePage = () => {
     }
   };
 
-  const renderFormTextField = (field, label, { required = false, multiline = false, rows = 3, type = 'text', placeholder = '' } = {}) => (
-    <TextField
-      required={required}
-      fullWidth
-      size="small"
-      type={type}
-      label={label}
-      placeholder={placeholder}
-      multiline={multiline}
-      rows={multiline ? rows : undefined}
-      value={form[field]}
-      onChange={handleFormChange(field)}
-      error={Boolean(formErrors[field])}
-      helperText={formErrors[field]}
-      disabled={saving}
-      inputProps={type === 'number' ? { min: 0, step: 1 } : undefined}
-      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-    />
+  const renderFormTextField = (
+    field,
+    label,
+    {
+      required = false,
+      multiline = false,
+      rows = 3,
+      type = 'text',
+      placeholder = '',
+      startIcon = null,
+      helperText = null,
+    } = {}
+  ) => (
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      <Typography
+        variant="caption"
+        sx={{
+          fontWeight: 700,
+          color: '#334155',
+          fontSize: '0.74rem',
+          mb: 0.75,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+        }}
+      >
+        {label}
+        {required && (
+          <Box component="span" sx={{ color: '#ef4444', fontWeight: 800 }}>
+            *
+          </Box>
+        )}
+      </Typography>
+      <TextField
+        fullWidth
+        size="small"
+        type={type}
+        placeholder={placeholder}
+        multiline={multiline}
+        rows={multiline ? rows : undefined}
+        value={form[field]}
+        onChange={handleFormChange(field)}
+        error={Boolean(formErrors[field])}
+        helperText={formErrors[field] || helperText}
+        disabled={saving}
+        inputProps={type === 'number' ? { min: 0, step: 1 } : undefined}
+        InputProps={
+          startIcon
+            ? {
+                startAdornment: (
+                  <InputAdornment position="start" sx={{ color: '#94a3b8', mr: 0.5 }}>
+                    {startIcon}
+                  </InputAdornment>
+                ),
+              }
+            : undefined
+        }
+        sx={{
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 2,
+            backgroundColor: '#ffffff',
+            fontSize: '0.84rem',
+            '& fieldset': { borderColor: '#cbd5e1' },
+            '&:hover fieldset': { borderColor: '#94a3b8' },
+            '&.Mui-focused fieldset': { borderColor: '#4f46e5', borderWidth: '1.5px' },
+          },
+          '& .MuiFormHelperText-root': { fontSize: '0.7rem', mt: 0.5 },
+        }}
+      />
+    </Box>
   );
 
   return (
@@ -589,128 +718,526 @@ export const OrgUnitTypePage = () => {
       </Paper>
 
       {/* Add / Edit / View Dialog */}
-      <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth="md" fullWidth slotProps={{ paper: { sx: DIALOG_PAPER_SX } }}>
-        <DialogHeader
-          icon={<CategoryIcon sx={{ fontSize: 20 }} />}
-          title={getDialogTitle()}
-          subtitle={
-            dialogMode === 'add'
-              ? 'Define a new kind of unit for company hierarchies'
-              : dialogMode === 'edit'
-                ? 'Update this unit type\'s identity and ordering'
-                : 'Full record of the organization unit type'
-          }
-          onClose={handleDialogClose}
-        />
-        <DialogContent sx={{ pt: 3, px: 3 }}>
-          {dialogMode === 'view' && selectedType ? (
-            <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                <Avatar sx={{ width: 44, height: 44, backgroundColor: '#eef2ff', color: '#4f46e5' }}>
-                  <CategoryIcon />
-                </Avatar>
-                <Box>
-                  <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1rem' }}>{selectedType.name}</Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
-                    <Chip label={selectedType.code} size="small" sx={{ height: 20, fontSize: '0.68rem', fontWeight: 800, fontFamily: 'monospace', backgroundColor: '#eef2ff', color: '#4f46e5' }} />
-                    <Chip label={`Order ${selectedType.sort_order}`} size="small" sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700, backgroundColor: '#f1f5f9' }} />
+      <Dialog
+        open={dialogOpen}
+        onClose={handleDialogClose}
+        maxWidth={false}
+        PaperProps={{
+          sx: {
+            borderRadius: 3.5,
+            width: '100%',
+            maxWidth: dialogMode === 'view' ? '760px' : '800px',
+            maxHeight: '92vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.35)',
+            border: '1px solid rgba(226, 232, 240, 0.8)',
+          },
+        }}
+      >
+        {/* Header Banner */}
+        <Box
+          sx={{
+            m: 0,
+            p: { xs: 2.5, sm: 3 },
+            background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #4f46e5 100%)',
+            color: '#ffffff',
+            position: 'relative',
+            flexShrink: 0,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar
+                sx={{
+                  width: { xs: 42, sm: 48 },
+                  height: { xs: 42, sm: 48 },
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1.5px solid rgba(255, 255, 255, 0.25)',
+                  color: '#ffffff',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                }}
+              >
+                {dialogMode === 'add' ? (
+                  <CategoryIcon sx={{ fontSize: 26 }} />
+                ) : dialogMode === 'edit' ? (
+                  <EditIcon sx={{ fontSize: 24 }} />
+                ) : (
+                  <CategoryIcon sx={{ fontSize: 26 }} />
+                )}
+              </Avatar>
+              <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 800,
+                      color: '#ffffff',
+                      fontSize: { xs: '1.05rem', sm: '1.2rem' },
+                      letterSpacing: '-0.01em',
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {dialogMode === 'add'
+                      ? 'Add Organization Unit Type'
+                      : dialogMode === 'edit'
+                      ? 'Edit Organization Unit Type'
+                      : 'Unit Type Details'}
+                  </Typography>
+                  {selectedType && dialogMode !== 'add' && (
                     <Chip
                       label={selectedType.is_active ? 'Active' : 'Inactive'}
                       size="small"
                       sx={{
-                        height: 20,
+                        height: 22,
                         fontSize: '0.68rem',
                         fontWeight: 700,
-                        backgroundColor: selectedType.is_active ? '#dcfce7' : '#fee2e2',
-                        color: selectedType.is_active ? '#15803d' : '#b91c1c',
+                        backgroundColor: selectedType.is_active
+                          ? 'rgba(16, 185, 129, 0.25)'
+                          : 'rgba(239, 68, 68, 0.25)',
+                        color: selectedType.is_active ? '#6ee7b7' : '#fca5a5',
+                        border: selectedType.is_active
+                          ? '1px solid rgba(52, 211, 153, 0.4)'
+                          : '1px solid rgba(248, 113, 113, 0.4)',
                       }}
                     />
+                  )}
+                </Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'rgba(255, 255, 255, 0.82)',
+                    fontSize: '0.78rem',
+                    fontWeight: 500,
+                    display: 'block',
+                    mt: 0.5,
+                  }}
+                >
+                  {dialogMode === 'add'
+                    ? 'Define a new category of unit (e.g. Division, Department, Section) for company structures.'
+                    : dialogMode === 'edit'
+                    ? `Update configuration, ranking order, and naming for ${selectedType?.name || 'this unit type'}.`
+                    : `Configuration and structural properties for ${selectedType?.name || 'this unit type'}.`}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+          <IconButton
+            aria-label="close"
+            onClick={handleDialogClose}
+            sx={{
+              position: 'absolute',
+              right: 16,
+              top: 16,
+              color: 'rgba(255, 255, 255, 0.85)',
+              backgroundColor: 'rgba(255, 255, 255, 0.12)',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.22)',
+                color: '#ffffff',
+              },
+              width: 36,
+              height: 36,
+              borderRadius: 2,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <CloseIcon sx={{ fontSize: 20 }} />
+          </IconButton>
+        </Box>
+
+        {dialogMode === 'view' && selectedType ? (
+          /* ── Details View ── */
+          <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+            <DialogContent
+              sx={{
+                p: { xs: 2, sm: 3 },
+                backgroundColor: '#f8fafc',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2.5,
+              }}
+            >
+              {/* Profile Card */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2.5,
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2.5, flexWrap: 'wrap' }}>
+                  <Avatar
+                    sx={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 2.5,
+                      backgroundColor: '#eef2ff',
+                      color: '#4f46e5',
+                      border: '2px solid #e0e7ff',
+                      boxShadow: '0 4px 12px rgba(79, 70, 229, 0.12)',
+                    }}
+                  >
+                    <CategoryIcon sx={{ fontSize: 30 }} />
+                  </Avatar>
+                  <Box sx={{ flex: 1, minWidth: 200 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.15rem', lineHeight: 1.2 }}>
+                      {selectedType.name}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 0.75 }}>
+                      <Chip
+                        label={selectedType.code}
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          backgroundColor: '#f1f5f9',
+                          color: '#334155',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: 1.5,
+                          fontFamily: 'monospace',
+                        }}
+                      />
+                      <Chip
+                        label={`Hierarchy Rank ${selectedType.sort_order}`}
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          backgroundColor: '#eef2ff',
+                          color: '#4f46e5',
+                          borderRadius: 1.5,
+                        }}
+                      />
+                      <Chip
+                        label={selectedType.is_active ? 'Active' : 'Inactive'}
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          backgroundColor: selectedType.is_active ? '#dcfce7' : '#fee2e2',
+                          color: selectedType.is_active ? '#15803d' : '#b91c1c',
+                          borderRadius: 1.5,
+                        }}
+                      />
+                    </Box>
                   </Box>
                 </Box>
-              </Box>
-              {(selectedType.name_amharic || selectedType.name_afaan_oromo) && (
-                <Typography variant="body2" sx={{ color: '#64748b', mb: 1.5 }}>
-                  {[selectedType.name_amharic, selectedType.name_afaan_oromo].filter(Boolean).join('  ·  ')}
-                </Typography>
-              )}
-              <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', mb: 1.5 }}>
-                <Typography variant="caption" sx={{ display: 'block', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.62rem', mb: 0.5 }}>
-                  Description
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#334155', fontSize: '0.82rem' }}>
-                  {selectedType.description || '—'}
-                </Typography>
-              </Box>
-              <Typography variant="caption" sx={{ color: '#94a3b8' }}>
-                Created {formatDate(selectedType.created_at)} · Updated {formatDate(selectedType.updated_at)}
-              </Typography>
-            </Box>
-          ) : (
-            <Box component="form" onSubmit={handleFormSubmit} noValidate id="org-type-form">
-              {errorMsg && (
-                <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
-                  {errorMsg}
-                </Alert>
-              )}
+
+                {(selectedType.name_amharic || selectedType.name_afaan_oromo) && (
+                  <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 2, pt: 2, borderTop: '1px solid #f1f5f9' }}>
+                    {selectedType.name_amharic && (
+                      <Box sx={{ px: 1.5, py: 0.6, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, fontSize: '0.7rem' }}>
+                          አማርኛ:
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#0f172a', fontWeight: 600, fontSize: '0.78rem' }}>
+                          {selectedType.name_amharic}
+                        </Typography>
+                      </Box>
+                    )}
+                    {selectedType.name_afaan_oromo && (
+                      <Box sx={{ px: 1.5, py: 0.6, borderRadius: 1.5, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 700, fontSize: '0.7rem' }}>
+                          Afaan Oromoo:
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#0f172a', fontWeight: 600, fontSize: '0.78rem' }}>
+                          {selectedType.name_afaan_oromo}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                )}
+              </Paper>
+
+              {/* 2-Column Info Grid */}
               <Grid container spacing={2.5}>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('code', 'Type Code', { required: true, placeholder: 'e.g. DEPT' })}
+                {/* Configuration */}
+                <Grid item xs={12} sm={6}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 2.5,
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      height: '100%',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.5, pb: 1, borderBottom: '1px solid #f1f5f9' }}>
+                      <Box sx={{ width: 28, height: 28, borderRadius: 1.5, backgroundColor: '#eef2ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <CategoryIcon sx={{ fontSize: 16 }} />
+                      </Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', fontSize: '0.85rem' }}>
+                        Structure & Hierarchy
+                      </Typography>
+                    </Box>
+                    <DetailRow icon={<CategoryIcon sx={{ fontSize: 16 }} />} label="Type Identifier Code" value={selectedType.code} isMono />
+                    <DetailRow icon={<SortIcon sx={{ fontSize: 16 }} />} label="Sort Order Index" value={`Level ${selectedType.sort_order}`} />
+                    <DetailRow icon={<ActivateIcon sx={{ fontSize: 16 }} />} label="Status" value={selectedType.is_active ? 'Active' : 'Inactive'} />
+                  </Paper>
                 </Grid>
-                <Grid item xs={12} sm={6} md={8}>
-                  {renderFormTextField('name', 'Type Name', { required: true, placeholder: 'e.g. Department' })}
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('nameAmharic', 'Amharic Name', { placeholder: 'e.g. መምሪያ' })}
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('nameAfaanOromo', 'Afaan Oromo Name', { placeholder: 'e.g. Waajjira' })}
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  {renderFormTextField('sortOrder', 'Sort Order', { type: 'number', placeholder: '0' })}
-                </Grid>
-                <Grid item xs={12}>
-                  {renderFormTextField('description', 'Description', { multiline: true, rows: 3, placeholder: 'What kinds of units belong to this type...' })}
+
+                {/* Scope & Description */}
+                <Grid item xs={12} sm={6}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 2.5,
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      height: '100%',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.5, pb: 1, borderBottom: '1px solid #f1f5f9' }}>
+                      <Box sx={{ width: 28, height: 28, borderRadius: 1.5, backgroundColor: '#eef2ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <DescriptionIcon sx={{ fontSize: 16 }} />
+                      </Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', fontSize: '0.85rem' }}>
+                        Operational Scope
+                      </Typography>
+                    </Box>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: selectedType.description ? '#334155' : '#94a3b8',
+                        fontSize: '0.86rem',
+                        lineHeight: 1.6,
+                        fontStyle: selectedType.description ? 'normal' : 'italic',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {selectedType.description || 'No operational description or notes specified.'}
+                    </Typography>
+                  </Paper>
                 </Grid>
               </Grid>
-            </Box>
-          )}
-        </DialogContent>
+            </DialogContent>
 
-        <DialogActions sx={DIALOG_FOOTER_SX}>
-          {dialogMode === 'view' ? (
-            <>
-              <Button onClick={handleDialogClose} color="inherit" sx={{ fontWeight: 600, textTransform: 'none' }}>Close</Button>
+            {/* View Mode Footer */}
+            <DialogActions
+              sx={{
+                px: { xs: 2.5, sm: 3.5 },
+                py: 2,
+                borderTop: '1px solid #e2e8f0',
+                backgroundColor: '#ffffff',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Button
+                onClick={handleDialogClose}
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  px: 3,
+                  py: 0.9,
+                  fontWeight: 600,
+                  fontSize: '0.84rem',
+                  textTransform: 'none',
+                  color: '#64748b',
+                  borderColor: '#cbd5e1',
+                  '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
+                }}
+              >
+                Close
+              </Button>
               <Button
                 variant="contained"
-                startIcon={<EditIcon />}
+                startIcon={<EditIcon sx={{ fontSize: 17 }} />}
                 onClick={() => {
                   const target = selectedType;
                   handleDialogClose();
                   handleDialogOpen('edit', target);
                 }}
-                sx={{ px: 2.5, borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
+                sx={{
+                  px: 3,
+                  py: 0.9,
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  textTransform: 'none',
+                  backgroundColor: '#4f46e5',
+                  boxShadow: '0 4px 12px rgba(79, 70, 229, 0.28)',
+                  '&:hover': { backgroundColor: '#4338ca' },
+                }}
               >
                 Edit Type
               </Button>
-            </>
-          ) : (
-            <>
-              <Button onClick={handleDialogClose} color="inherit" disabled={saving} sx={{ fontWeight: 600, textTransform: 'none' }}>
+            </DialogActions>
+          </Box>
+        ) : (
+          /* ── Add / Edit Form ── */
+          <Box
+            component="form"
+            onSubmit={handleFormSubmit}
+            noValidate
+            sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+          >
+            <DialogContent
+              sx={{
+                p: { xs: 2, sm: 3 },
+                backgroundColor: '#f8fafc',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2.5,
+              }}
+            >
+              {errorMsg && (
+                <Alert severity="error" sx={{ borderRadius: 2, border: '1px solid #fecaca' }}>
+                  {errorMsg}
+                </Alert>
+              )}
+
+              {/* Section 1: Type Identity & Hierarchy */}
+              <FormSectionCard
+                icon={<CategoryIcon sx={{ fontSize: 18 }} />}
+                title="Unit Type Identity & Ranking"
+                subtitle="Official naming and ordering depth in the organization tree"
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    {renderFormTextField('code', 'Type Code', {
+                      required: true,
+                      placeholder: 'e.g. DEPT',
+                      helperText: '2-20 uppercase chars, starts with a letter',
+                    })}
+                  </Grid>
+                  <Grid item xs={12} sm={5}>
+                    {renderFormTextField('name', 'Type Name (English)', {
+                      required: true,
+                      placeholder: 'e.g. Department',
+                    })}
+                  </Grid>
+                  <Grid item xs={12} sm={3}>
+                    {renderFormTextField('sortOrder', 'Hierarchy Rank', {
+                      type: 'number',
+                      placeholder: '0',
+                      startIcon: <SortIcon sx={{ fontSize: 18 }} />,
+                      helperText: 'Lower = higher level (0 is root)',
+                    })}
+                  </Grid>
+                </Grid>
+              </FormSectionCard>
+
+              {/* Section 2: Multilingual Representations */}
+              <FormSectionCard
+                icon={<CategoryIcon sx={{ fontSize: 18 }} />}
+                title="Multilingual Names"
+                subtitle="Local language designations for organizational units"
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    {renderFormTextField('nameAmharic', 'የክፍሉ ዓይነት ስም (Amharic)', {
+                      placeholder: 'e.g. መምሪያ',
+                    })}
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    {renderFormTextField('nameAfaanOromo', 'Maqaa Gosa Kutaa (Afaan Oromoo)', {
+                      placeholder: 'e.g. Waajjira',
+                    })}
+                  </Grid>
+                </Grid>
+              </FormSectionCard>
+
+              {/* Section 3: Scope & Description */}
+              <FormSectionCard
+                icon={<DescriptionIcon sx={{ fontSize: 18 }} />}
+                title="Operational Scope & Description"
+                subtitle="Guidance on what units belong to this classification"
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    {renderFormTextField('description', 'Description & Scope Notes', {
+                      multiline: true,
+                      rows: 3,
+                      placeholder: 'Describe what kinds of organizational units belong to this type, typical reporting lines, responsibilities...',
+                    })}
+                  </Grid>
+                </Grid>
+              </FormSectionCard>
+            </DialogContent>
+
+            {/* Form Footer */}
+            <DialogActions
+              sx={{
+                px: { xs: 2.5, sm: 3.5 },
+                py: 2,
+                borderTop: '1px solid #e2e8f0',
+                backgroundColor: '#ffffff',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Button
+                onClick={handleDialogClose}
+                disabled={saving}
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  px: 3,
+                  py: 0.9,
+                  fontWeight: 600,
+                  fontSize: '0.84rem',
+                  textTransform: 'none',
+                  color: '#64748b',
+                  borderColor: '#cbd5e1',
+                  '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
+                }}
+              >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                form="org-type-form"
                 variant="contained"
                 disabled={saving}
-                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <ActivateIcon />}
-                sx={{ px: 3, py: 1, borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
+                startIcon={
+                  saving ? (
+                    <CircularProgress size={16} color="inherit" />
+                  ) : dialogMode === 'add' ? (
+                    <AddIcon sx={{ fontSize: 18 }} />
+                  ) : (
+                    <SaveIcon sx={{ fontSize: 18 }} />
+                  )
+                }
+                sx={{
+                  px: 3.5,
+                  py: 0.9,
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  textTransform: 'none',
+                  backgroundColor: '#4f46e5',
+                  boxShadow: '0 4px 14px rgba(79, 70, 229, 0.3)',
+                  '&:hover': { backgroundColor: '#4338ca', boxShadow: '0 6px 18px rgba(79, 70, 229, 0.4)' },
+                }}
               >
-                {saving ? 'Saving...' : dialogMode === 'add' ? 'Create Type' : 'Save Changes'}
+                {saving
+                  ? 'Saving Type...'
+                  : dialogMode === 'add'
+                  ? 'Create Unit Type'
+                  : 'Save Changes'}
               </Button>
-            </>
-          )}
-        </DialogActions>
+            </DialogActions>
+          </Box>
+        )}
       </Dialog>
 
       {/* Toggle / Delete confirmation */}
