@@ -204,6 +204,7 @@ export const CompanyOrgUnitPage = () => {
     [treeData, collapsed]
   );
   const hasRoot = (treeData.roots || []).length > 0;
+  const isCompanyActive = Boolean(selectedCompany && selectedCompany.is_active !== false);
 
   const toggleCollapsed = (id) => {
     setCollapsed((prev) => {
@@ -247,6 +248,10 @@ export const CompanyOrgUnitPage = () => {
       enqueueSnackbar('Select a company first.', { variant: 'warning' });
       return;
     }
+    if (!isCompanyActive) {
+      enqueueSnackbar(`Cannot add units: "${selectedCompany.name}" is inactive. Structure building is disabled.`, { variant: 'warning' });
+      return;
+    }
     setFormMode('add');
     setFormTarget(null);
     setForm({ ...emptyForm, parentId: parentNode ? String(parentNode.id) : '' });
@@ -257,6 +262,10 @@ export const CompanyOrgUnitPage = () => {
   };
 
   const openEditDialog = (unit) => {
+    if (!isCompanyActive) {
+      enqueueSnackbar(`Cannot edit units: "${selectedCompany?.name || 'This company'}" is inactive.`, { variant: 'warning' });
+      return;
+    }
     setFormMode('edit');
     setFormTarget(unit);
     setForm({
@@ -378,6 +387,10 @@ export const CompanyOrgUnitPage = () => {
   // ── Move dialog ────────────────────────────────────────────────────────────
 
   const openMoveDialog = (unit) => {
+    if (!isCompanyActive) {
+      enqueueSnackbar(`Cannot move units: "${selectedCompany?.name || 'This company'}" is inactive.`, { variant: 'warning' });
+      return;
+    }
     setMoveTarget(unit);
     setMoveParentId(unit.parent_id ? String(unit.parent_id) : '');
     setMoveError('');
@@ -411,6 +424,10 @@ export const CompanyOrgUnitPage = () => {
   // ── Toggle / delete ────────────────────────────────────────────────────────
 
   const openConfirm = (action, unit) => {
+    if (!isCompanyActive) {
+      enqueueSnackbar(`Cannot modify unit status: "${selectedCompany?.name || 'This company'}" is inactive.`, { variant: 'warning' });
+      return;
+    }
     setConfirmAction(action);
     setConfirmTarget(unit);
     setConfirmOpen(true);
@@ -511,10 +528,16 @@ export const CompanyOrgUnitPage = () => {
             noOptionsText={loadingCompanies ? 'Loading...' : 'No companies found — register one first.'}
             renderOption={(props, option) => {
               const { key, ...rest } = props;
+              const isOptActive = option.is_active !== false;
               return (
                 <Box component="li" key={option.id || key} {...rest} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>{option.name}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>{option.name}</Typography>
+                      {!isOptActive && (
+                        <Chip label="Inactive" size="small" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 800, backgroundColor: '#fee2e2', color: '#b91c1c' }} />
+                      )}
+                    </Box>
                     {option.name_amharic && (
                       <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block' }}>{option.name_amharic}</Typography>
                     )}
@@ -543,18 +566,48 @@ export const CompanyOrgUnitPage = () => {
               />
             )}
           />
+          {selectedCompany && !isCompanyActive && (
+            <Chip
+              label="Company Inactive"
+              size="small"
+              sx={{ height: 26, fontSize: '0.72rem', fontWeight: 800, backgroundColor: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5' }}
+            />
+          )}
           <Box sx={{ flexGrow: 1 }} />
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => openAddDialog(null)}
-            disabled={!selectedCompany || saving}
-            sx={{ borderRadius: 2, px: 2.5, fontWeight: 700, fontSize: '0.82rem', backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
-          >
-            {hasRoot ? 'Add Unit' : 'Add Root Unit'}
-          </Button>
+          <Tooltip title={selectedCompany && !isCompanyActive ? 'Structure building disabled for inactive company' : ''} arrow>
+            <span>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => openAddDialog(null)}
+                disabled={!selectedCompany || saving || !isCompanyActive}
+                sx={{ borderRadius: 2, px: 2.5, fontWeight: 700, fontSize: '0.82rem', backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' } }}
+              >
+                {hasRoot ? 'Add Unit' : 'Add Root Unit'}
+              </Button>
+            </span>
+          </Tooltip>
         </Box>
       </Paper>
+
+      {/* Inactive Company Warning Banner */}
+      {selectedCompany && !isCompanyActive && (
+        <Alert
+          severity="warning"
+          sx={{
+            mb: 3,
+            borderRadius: 2.5,
+            border: '1px solid #fed7aa',
+            backgroundColor: '#fffbeb',
+            color: '#9a3412',
+            fontWeight: 600,
+            fontSize: '0.84rem',
+            '& .MuiAlert-icon': { color: '#ea580c' },
+          }}
+        >
+          <strong>Inactive Company:</strong> "{selectedCompany.name}" is currently deactivated. Structure building, adding new units, editing units, re-parenting, and status changes are not accepted for inactive companies.
+        </Alert>
+      )}
 
       {/* Tree */}
       <Paper elevation={0} sx={{ borderRadius: 2.5, border: '1px solid #e2e8f0', backgroundColor: '#ffffff', overflow: 'hidden' }}>
@@ -697,40 +750,79 @@ export const CompanyOrgUnitPage = () => {
 
                   {/* Row actions */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
-                    <Tooltip title="Add a child unit under this one" arrow placement="top">
-                      <IconButton size="small" onClick={() => openAddDialog(node)} sx={{ color: '#16a34a', p: 0.5, '&:hover': { backgroundColor: '#dcfce7' } }}>
-                        <AddIcon sx={{ fontSize: 16 }} />
-                      </IconButton>
+                    <Tooltip title={!isCompanyActive ? 'Company inactive — adding units disabled' : 'Add a child unit under this one'} arrow placement="top">
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={() => openAddDialog(node)}
+                          disabled={!isCompanyActive}
+                          sx={{
+                            color: '#16a34a',
+                            p: 0.5,
+                            '&:hover': { backgroundColor: '#dcfce7' },
+                            '&.Mui-disabled': { color: '#cbd5e1' },
+                          }}
+                        >
+                          <AddIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </span>
                     </Tooltip>
                     <Tooltip title="View details" arrow placement="top">
                       <IconButton size="small" onClick={() => openViewDialog(node)} sx={{ color: '#64748b', p: 0.5, '&:hover': { color: '#4f46e5', backgroundColor: '#eef2ff' } }}>
                         <ViewIcon sx={{ fontSize: 16 }} />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Edit unit information" arrow placement="top">
-                      <IconButton size="small" onClick={() => openEditDialog(node)} sx={{ color: '#64748b', p: 0.5, '&:hover': { color: '#0284c7', backgroundColor: '#e0f2fe' } }}>
-                        <EditIcon sx={{ fontSize: 16 }} />
-                      </IconButton>
+                    <Tooltip title={!isCompanyActive ? 'Company inactive — editing disabled' : 'Edit unit information'} arrow placement="top">
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={() => openEditDialog(node)}
+                          disabled={!isCompanyActive}
+                          sx={{
+                            color: '#64748b',
+                            p: 0.5,
+                            '&:hover': { color: '#0284c7', backgroundColor: '#e0f2fe' },
+                            '&.Mui-disabled': { color: '#cbd5e1' },
+                          }}
+                        >
+                          <EditIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </span>
                     </Tooltip>
-                    <Tooltip title="Move this unit (and its subtree) under another parent" arrow placement="top">
-                      <IconButton size="small" onClick={() => openMoveDialog(node)} sx={{ color: '#64748b', p: 0.5, '&:hover': { color: '#7c3aed', backgroundColor: '#f5f3ff' } }}>
-                        <MoveIcon sx={{ fontSize: 16 }} />
-                      </IconButton>
+                    <Tooltip title={!isCompanyActive ? 'Company inactive — moving disabled' : 'Move this unit (and its subtree) under another parent'} arrow placement="top">
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={() => openMoveDialog(node)}
+                          disabled={!isCompanyActive}
+                          sx={{
+                            color: '#64748b',
+                            p: 0.5,
+                            '&:hover': { color: '#7c3aed', backgroundColor: '#f5f3ff' },
+                            '&.Mui-disabled': { color: '#cbd5e1' },
+                          }}
+                        >
+                          <MoveIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </span>
                     </Tooltip>
-                    <Tooltip title={node.is_active ? 'Deactivate unit' : 'Activate unit'} arrow placement="top">
-                      <IconButton
-                        size="small"
-                        onClick={() => openConfirm('toggle', node)}
-                        sx={{ color: node.is_active ? '#ca8a04' : '#16a34a', p: 0.5, '&:hover': { backgroundColor: node.is_active ? '#fef9c3' : '#dcfce7' } }}
-                      >
-                        {node.is_active ? <DeactivateIcon sx={{ fontSize: 16 }} /> : <ActivateIcon sx={{ fontSize: 16 }} />}
-                      </IconButton>
+                    <Tooltip title={!isCompanyActive ? 'Company inactive — status changes disabled' : node.is_active ? 'Deactivate unit' : 'Activate unit'} arrow placement="top">
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={() => openConfirm('toggle', node)}
+                          disabled={!isCompanyActive}
+                          sx={{
+                            color: node.is_active ? '#ca8a04' : '#16a34a',
+                            p: 0.5,
+                            '&:hover': { backgroundColor: node.is_active ? '#fef9c3' : '#dcfce7' },
+                            '&.Mui-disabled': { color: '#cbd5e1' },
+                          }}
+                        >
+                          {node.is_active ? <DeactivateIcon sx={{ fontSize: 16 }} /> : <ActivateIcon sx={{ fontSize: 16 }} />}
+                        </IconButton>
+                      </span>
                     </Tooltip>
-                    {/* <Tooltip title="Delete unit (must have no children)" arrow placement="top">
-                      <IconButton size="small" onClick={() => openConfirm('delete', node)} sx={{ color: '#ef4444', p: 0.5, '&:hover': { backgroundColor: '#fee2e2' } }}>
-                        <DeleteIcon sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </Tooltip> */}
                   </Box>
                 </Box>
               );
@@ -1081,6 +1173,7 @@ export const CompanyOrgUnitPage = () => {
           <Button onClick={() => setViewOpen(false)} color="inherit" sx={{ fontWeight: 600, textTransform: 'none' }}>Close</Button>
           <Button
             variant="contained"
+            disabled={!isCompanyActive}
             startIcon={<EditIcon />}
             onClick={() => {
               const target = viewTarget;
