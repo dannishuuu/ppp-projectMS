@@ -88,9 +88,12 @@ class CompanyOrganizationUnitsService {
 
   // ── Shared validation helpers ─────────────────────────────────────────────
 
-  static async resolveCompany(companyId) {
+  static async resolveCompany(companyId, requireActive = true) {
     const company = await CompanyModel.findById(companyId);
     if (!company) httpError('Company not found.', 404);
+    if (requireActive && !company.is_active) {
+      httpError(`Company "${company.name}" is inactive. Organization structure building and modifications are not allowed.`, 400);
+    }
     return company;
   }
 
@@ -219,6 +222,7 @@ class CompanyOrganizationUnitsService {
 
   static async updateUnit(id, payload, actorId) {
     const unit = await this.getUnitById(id);
+    await this.resolveCompany(unit.company_id);
     const clean = {};
 
     if (payload.code !== undefined) {
@@ -273,6 +277,7 @@ class CompanyOrganizationUnitsService {
    */
   static async moveUnit(id, payload, actorId) {
     const unit = await this.getUnitById(id);
+    await this.resolveCompany(unit.company_id);
     const newParentId = payload.parentId === undefined ? null : payload.parentId;
 
     if (newParentId && String(newParentId) === String(id)) {
@@ -306,6 +311,7 @@ class CompanyOrganizationUnitsService {
 
   static async toggleUnitStatus(id, actorId) {
     const unit = await this.getUnitById(id);
+    await this.resolveCompany(unit.company_id);
     const result = await CompanyOrganizationUnitModel.update(id, {
       isActive: !unit.is_active,
       updatedBy: actorId,
@@ -319,6 +325,7 @@ class CompanyOrganizationUnitsService {
 
   static async deleteUnit(id, actorId) {
     const unit = await this.getUnitById(id);
+    await this.resolveCompany(unit.company_id);
     const hasChildren = await CompanyOrganizationUnitModel.hasChildren(id);
     if (hasChildren) {
       httpError(

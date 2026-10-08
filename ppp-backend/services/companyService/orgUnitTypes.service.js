@@ -83,10 +83,8 @@ class OrgUnitTypeService {
     await this.getOrgUnitTypeById(id);
     const clean = this.validatePayload(payload, { requireCode: false, requireName: false });
 
-    if (clean.code) {
-      const existingCode = await OrgUnitTypeModel.findByCode(clean.code, id);
-      if (existingCode) httpError(`An organization unit type with code "${clean.code}" already exists.`, 409);
-    }
+    // Type code is permanent and cannot be modified once created
+    delete clean.code;
 
     const updated = await OrgUnitTypeModel.update(id, { ...clean, updatedBy: actorId });
     if (!updated) httpError('No changes were applied.', 400);

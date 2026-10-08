@@ -1,0 +1,414 @@
+◇ injected env (14) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+Server running on port 5000
+[0mGET /api/v1/login [33m404[0m 3.461 ms - 151[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('does.not.exist@example.com');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('does.not.exist@example.com') AND is_deleted = FALSE;
+[0mPOST /api/v1/login [31m500[0m 168.874 ms - 49[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('api.login.test@example.com');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('api.login.test@example.com') AND is_deleted = FALSE;
+[0mPOST /api/v1/login [31m500[0m 56.407 ms - 49[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('api.login.test@example.com');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('api.login.test@example.com') AND is_deleted = FALSE;
+[0mPOST /api/v1/login [31m500[0m 59.528 ms - 49[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('api.login.test@example.com');
+Executing (default): UPDATE users
+      SET failed_login_attempts = 0, locked_until = NULL
+      WHERE id = '3a55a781-8083-4401-9e7c-7cb9bbd0fb92';
+Executing (default): UPDATE users
+      SET last_login_at = NOW(),
+          last_login_ip = '::1',
+          last_login_user_agent = 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.26100.9444'
+      WHERE id = '3a55a781-8083-4401-9e7c-7cb9bbd0fb92';
+Executing (default): SELECT 
+        u.id, u.email, u.username, u.first_name, u.last_name, u.display_name, u.phone, u.avatar_url, u.bio,
+        u.country, u.city, u.address, u.mfa_enabled, u.email_verified, u.timezone, u.locale,
+        u.notification_prefs, u.dashboard_layout, u.is_active, u.created_at, u.updated_at,
+        ul.id AS user_location_id,
+        ul.country_id,
+        ul.region_id,
+        ul.zone_id,
+        ul.woreda_id,
+        c.name AS location_country_name,
+        r.name AS location_region_name,
+        z.name AS location_zone_name,
+        w.name AS location_woreda_name
+      FROM users u
+      LEFT JOIN user_location ul ON ul.user_id = u.id AND ul.is_deleted = FALSE
+      LEFT JOIN countries c ON c.id = ul.country_id
+      LEFT JOIN regions r ON r.id = ul.region_id
+      LEFT JOIN zones z ON z.id = ul.zone_id
+      LEFT JOIN woredas w ON w.id = ul.woreda_id
+      WHERE u.id = '3a55a781-8083-4401-9e7c-7cb9bbd0fb92' AND u.is_deleted = FALSE;
+[0mPOST /api/v1/login [32m200[0m 273.454 ms - 1196[0m
+[0mGET /api/v1/users/profile [33m401[0m 0.575 ms - 47[0m
+Executing (default): SELECT 
+        u.id, u.email, u.username, u.first_name, u.last_name, u.display_name, u.phone, u.avatar_url, u.bio,
+        u.country, u.city, u.address, u.mfa_enabled, u.email_verified, u.timezone, u.locale,
+        u.notification_prefs, u.dashboard_layout, u.is_active, u.created_at, u.updated_at,
+        ul.id AS user_location_id,
+        ul.country_id,
+        ul.region_id,
+        ul.zone_id,
+        ul.woreda_id,
+        c.name AS location_country_name,
+        r.name AS location_region_name,
+        z.name AS location_zone_name,
+        w.name AS location_woreda_name
+      FROM users u
+      LEFT JOIN user_location ul ON ul.user_id = u.id AND ul.is_deleted = FALSE
+      LEFT JOIN countries c ON c.id = ul.country_id
+      LEFT JOIN regions r ON r.id = ul.region_id
+      LEFT JOIN zones z ON z.id = ul.zone_id
+      LEFT JOIN woredas w ON w.id = ul.woreda_id
+      WHERE u.id = '355d7aed-6e96-421d-b70b-6547f29f8286 ' AND u.is_deleted = FALSE;
+[0mGET /api/v1/users/profile [33m401[0m 181.777 ms - 54[0m
+Executing (default): SELECT 
+        u.id, u.email, u.username, u.first_name, u.last_name, u.display_name, u.phone, u.avatar_url, u.bio,
+        u.country, u.city, u.address, u.mfa_enabled, u.email_verified, u.timezone, u.locale,
+        u.notification_prefs, u.dashboard_layout, u.is_active, u.created_at, u.updated_at,
+        ul.id AS user_location_id,
+        ul.country_id,
+        ul.region_id,
+        ul.zone_id,
+        ul.woreda_id,
+        c.name AS location_country_name,
+        r.name AS location_region_name,
+        z.name AS location_zone_name,
+        w.name AS location_woreda_name
+      FROM users u
+      LEFT JOIN user_location ul ON ul.user_id = u.id AND ul.is_deleted = FALSE
+      LEFT JOIN countries c ON c.id = ul.country_id
+      LEFT JOIN regions r ON r.id = ul.region_id
+      LEFT JOIN zones z ON z.id = ul.zone_id
+      LEFT JOIN woredas w ON w.id = ul.woreda_id
+      WHERE u.id = '355d7aed-6e96-421d-b70b-6547f29f8286' AND u.is_deleted = FALSE;
+Executing (default): SELECT 
+        u.id, u.email, u.username, u.first_name, u.last_name, u.display_name, u.phone, u.avatar_url, u.bio,
+        u.country, u.city, u.address, u.mfa_enabled, u.email_verified, u.timezone, u.locale,
+        u.notification_prefs, u.dashboard_layout, u.is_active, u.created_at, u.updated_at,
+        ul.id AS user_location_id,
+        ul.country_id,
+        ul.region_id,
+        ul.zone_id,
+        ul.woreda_id,
+        c.name AS location_country_name,
+        r.name AS location_region_name,
+        z.name AS location_zone_name,
+        w.name AS location_woreda_name
+      FROM users u
+      LEFT JOIN user_location ul ON ul.user_id = u.id AND ul.is_deleted = FALSE
+      LEFT JOIN countries c ON c.id = ul.country_id
+      LEFT JOIN regions r ON r.id = ul.region_id
+      LEFT JOIN zones z ON z.id = ul.zone_id
+      LEFT JOIN woredas w ON w.id = ul.woreda_id
+      WHERE u.id = '355d7aed-6e96-421d-b70b-6547f29f8286' AND u.is_deleted = FALSE;
+[0mGET /api/v1/users/profile [32m200[0m 240.688 ms - 887[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('danielgd');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('danielgd') AND is_deleted = FALSE;
+Executing (default): UPDATE users
+      SET failed_login_attempts = failed_login_attempts + 1,
+          locked_until = CASE 
+            WHEN failed_login_attempts + 1 >= 5 THEN NOW() + INTERVAL '15 minutes'
+            ELSE locked_until
+          END
+      WHERE id = 'a6f6798f-967b-4cd1-aaae-86b8ff5df181'
+      RETURNING failed_login_attempts, locked_until;
+[0mPOST /api/v1/login [31m500[0m 420.861 ms - 49[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('danielgd');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('danielgd') AND is_deleted = FALSE;
+Executing (default): UPDATE users
+      SET failed_login_attempts = failed_login_attempts + 1,
+          locked_until = CASE 
+            WHEN failed_login_attempts + 1 >= 5 THEN NOW() + INTERVAL '15 minutes'
+            ELSE locked_until
+          END
+      WHERE id = 'a6f6798f-967b-4cd1-aaae-86b8ff5df181'
+      RETURNING failed_login_attempts, locked_until;
+[0mPOST /api/v1/login [31m500[0m 154.804 ms - 49[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('adanecha');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('adanecha') AND is_deleted = FALSE;
+Executing (default): UPDATE users
+      SET failed_login_attempts = failed_login_attempts + 1,
+          locked_until = CASE 
+            WHEN failed_login_attempts + 1 >= 5 THEN NOW() + INTERVAL '15 minutes'
+            ELSE locked_until
+          END
+      WHERE id = '12f27c35-5496-470d-a9c6-3853530ef4a1'
+      RETURNING failed_login_attempts, locked_until;
+[0mPOST /api/v1/login [31m500[0m 887.820 ms - 49[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('adanecha');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('adanecha') AND is_deleted = FALSE;
+Executing (default): UPDATE users
+      SET failed_login_attempts = failed_login_attempts + 1,
+          locked_until = CASE 
+            WHEN failed_login_attempts + 1 >= 5 THEN NOW() + INTERVAL '15 minutes'
+            ELSE locked_until
+          END
+      WHERE id = '12f27c35-5496-470d-a9c6-3853530ef4a1'
+      RETURNING failed_login_attempts, locked_until;
+[0mPOST /api/v1/login [31m500[0m 291.209 ms - 49[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('adanecha');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('adanecha') AND is_deleted = FALSE;
+Executing (default): UPDATE users
+      SET failed_login_attempts = failed_login_attempts + 1,
+          locked_until = CASE 
+            WHEN failed_login_attempts + 1 >= 5 THEN NOW() + INTERVAL '15 minutes'
+            ELSE locked_until
+          END
+      WHERE id = '12f27c35-5496-470d-a9c6-3853530ef4a1'
+      RETURNING failed_login_attempts, locked_until;
+[0mPOST /api/v1/login [31m500[0m 578.121 ms - 49[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('danielgd');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('danielgd') AND is_deleted = FALSE;
+Executing (default): UPDATE users
+      SET failed_login_attempts = failed_login_attempts + 1,
+          locked_until = CASE 
+            WHEN failed_login_attempts + 1 >= 5 THEN NOW() + INTERVAL '15 minutes'
+            ELSE locked_until
+          END
+      WHERE id = 'a6f6798f-967b-4cd1-aaae-86b8ff5df181'
+      RETURNING failed_login_attempts, locked_until;
+[0mPOST /api/v1/login [31m500[0m 172.405 ms - 49[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('danielgd');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('danielgd') AND is_deleted = FALSE;
+Executing (default): UPDATE users
+      SET failed_login_attempts = failed_login_attempts + 1,
+          locked_until = CASE 
+            WHEN failed_login_attempts + 1 >= 5 THEN NOW() + INTERVAL '15 minutes'
+            ELSE locked_until
+          END
+      WHERE id = 'a6f6798f-967b-4cd1-aaae-86b8ff5df181'
+      RETURNING failed_login_attempts, locked_until;
+[0mPOST /api/v1/login [31m500[0m 265.674 ms - 49[0m
+[0mGET /api/v1/login [33m404[0m 6.737 ms - 151[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('danielgd');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('danielgd') AND is_deleted = FALSE;
+Executing (default): UPDATE users
+      SET failed_login_attempts = failed_login_attempts + 1,
+          locked_until = CASE 
+            WHEN failed_login_attempts + 1 >= 5 THEN NOW() + INTERVAL '15 minutes'
+            ELSE locked_until
+          END
+      WHERE id = 'a6f6798f-967b-4cd1-aaae-86b8ff5df181'
+      RETURNING failed_login_attempts, locked_until;
+[0mPOST /api/v1/login [31m500[0m 146.384 ms - 49[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('danielgd');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('danielgd') AND is_deleted = FALSE;
+[0mPOST /api/v1/login [31m500[0m 3.642 ms - 84[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('danielgd');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('danielgd') AND is_deleted = FALSE;
+[0mPOST /api/v1/login [31m500[0m 101.541 ms - 84[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('danielgd');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('danielgd') AND is_deleted = FALSE;
+[0mPOST /api/v1/login [31m500[0m 66.595 ms - 84[0m
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('fenetb');
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+            failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE LOWER(username) = LOWER('fenetb') AND is_deleted = FALSE;
+Executing (default): UPDATE users
+      SET failed_login_attempts = failed_login_attempts + 1,
+          locked_until = CASE 
+            WHEN failed_login_attempts + 1 >= 5 THEN NOW() + INTERVAL '15 minutes'
+            ELSE locked_until
+          END
+      WHERE id = '562b00d9-e1a6-4aa1-b186-d2eda45d746f'
+      RETURNING failed_login_attempts, locked_until;
+[0mPOST /api/v1/login [31m500[0m 253.505 ms - 49[0m
+Executing (default): SELECT 
+        u.id, u.email, u.username, u.first_name, u.last_name, u.display_name, u.phone, u.avatar_url, u.bio,
+        u.country, u.city, u.address, u.mfa_enabled, u.email_verified, u.timezone, u.locale,
+        u.notification_prefs, u.dashboard_layout, u.is_active, u.created_at, u.updated_at,
+        ul.id AS user_location_id,
+        ul.country_id,
+        ul.region_id,
+        ul.zone_id,
+        ul.woreda_id,
+        c.name AS location_country_name,
+        r.name AS location_region_name,
+        z.name AS location_zone_name,
+        w.name AS location_woreda_name
+      FROM users u
+      LEFT JOIN user_location ul ON ul.user_id = u.id AND ul.is_deleted = FALSE
+      LEFT JOIN countries c ON c.id = ul.country_id
+      LEFT JOIN regions r ON r.id = ul.region_id
+      LEFT JOIN zones z ON z.id = ul.zone_id
+      LEFT JOIN woredas w ON w.id = ul.woreda_id
+      WHERE u.id = '355d7aed-6e96-421d-b70b-6547f29f8286' AND u.is_deleted = FALSE;
+Executing (default): SELECT id, email, password_hash, mfa_enabled, mfa_secret, 
+             failed_login_attempts, locked_until, is_active, is_deleted
+      FROM users 
+      WHERE email_normalized = LOWER('postman.test@example.com');
+Executing (default): SELECT 
+  id, email, username, first_name, last_name, display_name, phone, avatar_url, bio,
+  country, city, address, mfa_enabled, email_verified, timezone, locale,
+  notification_prefs, dashboard_layout, is_active, created_at, updated_at
+ 
+      FROM users 
+      WHERE username = 'postmantest' AND is_deleted = FALSE;
+Executing (default): INSERT INTO users (email, password_hash, username, first_name, last_name, phone)
+      VALUES ('postman.test@example.com', '$2b$10$k0psTgQuA6NCRPRjx/UWC.ti.L0tv/yBmpnGWQcXCuIjUlWe.6PKe', 'postmantest', 'Post', 'Man', '0999999001')
+      RETURNING 
+  id, email, username, first_name, last_name, display_name, phone, avatar_url, bio,
+  country, city, address, mfa_enabled, email_verified, timezone, locale,
+  notification_prefs, dashboard_layout, is_active, created_at, updated_at
+;
+Executing (default): SELECT 
+        u.id, u.email, u.username, u.first_name, u.last_name, u.display_name, u.phone, u.avatar_url, u.bio,
+        u.country, u.city, u.address, u.mfa_enabled, u.email_verified, u.timezone, u.locale,
+        u.notification_prefs, u.dashboard_layout, u.is_active, u.created_at, u.updated_at,
+        ul.id AS user_location_id,
+        ul.country_id,
+        ul.region_id,
+        ul.zone_id,
+        ul.woreda_id,
+        c.name AS location_country_name,
+        r.name AS location_region_name,
+        z.name AS location_zone_name,
+        w.name AS location_woreda_name
+      FROM users u
+      LEFT JOIN user_location ul ON ul.user_id = u.id AND ul.is_deleted = FALSE
+      LEFT JOIN countries c ON c.id = ul.country_id
+      LEFT JOIN regions r ON r.id = ul.region_id
+      LEFT JOIN zones z ON z.id = ul.zone_id
+      LEFT JOIN woredas w ON w.id = ul.woreda_id
+      WHERE u.id = 'bcc7883d-29a1-4d3f-9c7e-c31a40273fcd' AND u.is_deleted = FALSE;
+[0mPOST /api/v1/users/register [32m201[0m 187.137 ms - 775[0m
+Executing (default): SELECT 
+        u.id, u.email, u.username, u.first_name, u.last_name, u.display_name, u.phone, u.avatar_url, u.bio,
+        u.country, u.city, u.address, u.mfa_enabled, u.email_verified, u.timezone, u.locale,
+        u.notification_prefs, u.dashboard_layout, u.is_active, u.created_at, u.updated_at,
+        ul.id AS user_location_id,
+        ul.country_id,
+        ul.region_id,
+        ul.zone_id,
+        ul.woreda_id,
+        c.name AS location_country_name,
+        r.name AS location_region_name,
+        z.name AS location_zone_name,
+        w.name AS location_woreda_name
+      FROM users u
+      LEFT JOIN user_location ul ON ul.user_id = u.id AND ul.is_deleted = FALSE
+      LEFT JOIN countries c ON c.id = ul.country_id
+      LEFT JOIN regions r ON r.id = ul.region_id
+      LEFT JOIN zones z ON z.id = ul.zone_id
+      LEFT JOIN woredas w ON w.id = ul.woreda_id
+      WHERE u.id = '355d7aed-6e96-421d-b70b-6547f29f8286' AND u.is_deleted = FALSE;
+Executing (default): SELECT 
+        u.id, u.email, u.username, u.first_name, u.last_name, u.display_name, u.phone, u.avatar_url, u.bio,
+        u.country, u.city, u.address, u.mfa_enabled, u.email_verified, u.timezone, u.locale,
+        u.notification_prefs, u.dashboard_layout, u.is_active, u.created_at, u.updated_at,
+        ul.id AS user_location_id,
+        ul.country_id,
+        ul.region_id,
+        ul.zone_id,
+        ul.woreda_id,
+        c.name AS location_country_name,
+        r.name AS location_region_name,
+        z.name AS location_zone_name,
+        w.name AS location_woreda_name
+      FROM users u
+      LEFT JOIN user_location ul ON ul.user_id = u.id AND ul.is_deleted = FALSE
+      LEFT JOIN countries c ON c.id = ul.country_id
+      LEFT JOIN regions r ON r.id = ul.region_id
+      LEFT JOIN zones z ON z.id = ul.zone_id
+      LEFT JOIN woredas w ON w.id = ul.woreda_id
+      WHERE u.id = 'bcc7883d-29a1-4d3f-9c7e-c31a40273fcd' AND u.is_deleted = FALSE;
+Executing (default): UPDATE users 
+      SET is_deleted = TRUE, 
+          deleted_at = NOW(), 
+          deleted_by = 'bcc7883d-29a1-4d3f-9c7e-c31a40273fcd'
+      WHERE id = 'bcc7883d-29a1-4d3f-9c7e-c31a40273fcd';
+[0mDELETE /api/v1/users/bcc7883d-29a1-4d3f-9c7e-c31a40273fcd [32m200[0m 13.079 ms - 64[0m
+[0mGET /api/v1/login [33m404[0m 1.254 ms - 151[0m

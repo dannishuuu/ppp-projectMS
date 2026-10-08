@@ -1,0 +1,47 @@
+(node:13656) DeprecationWarning: Using the automatically created return value from client.query as an event emitter is deprecated and will be removed in pg@7.0. Please see the upgrade guide at https://node-postgres.com/guides/upgrading
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Error: Invalid credentials
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:21:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Invalid credentials
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:21:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Invalid credentials
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:21:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Invalid credentials
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:38:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Invalid credentials
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:38:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Invalid credentials
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:38:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Invalid credentials
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:38:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Invalid credentials
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:38:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Invalid credentials
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:38:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Invalid credentials
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:38:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Invalid credentials
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:38:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Account is temporarily locked. Please try again later.
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:26:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Account is temporarily locked. Please try again later.
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:26:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Account is temporarily locked. Please try again later.
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:26:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
+Error: Invalid credentials
+    at LoginService.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\services\authService\login.service.js:38:13)
+    at async exports.login (D:\Back-up from Personal\Dump20260307\AAPPP\ppp-backend\controllers\authController\login.controller.js:17:20)
