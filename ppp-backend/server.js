@@ -13,6 +13,8 @@ const orgTypeRoutes = require('./routes/organizationRoles/organizationType.route
 const orgRoutes = require('./routes/organizationRoles/organization.routes');
 const projectCatRoutes = require('./routes/projectController/projectCategory.routes');
 const projectProposalRoutes = require('./routes/projectController/projectProposal.routes');
+const pppProjectRoutes = require('./routes/projectController/pppProject.routes');
+const projectTrackingRoutes = require('./routes/projectController/projectTracking.routes');
 const projectReviewersRoutes = require('./routes/projectController/projectReviewers.routes');
 const trackingItemTypeRoutes = require('./routes/projectController/trackingItemType.routes');
 const trackingAreaRoutes = require('./routes/projectController/trackingArea.routes');
@@ -70,6 +72,12 @@ app.use('/api/v1/project-categories', projectCatRoutes);
 
 // Project proposal routes
 app.use('/api/v1/project-proposals', projectProposalRoutes);
+
+// Official PPP Projects routes
+app.use('/api/v1/projects', pppProjectRoutes);
+
+// Project WBS Tracking routes
+app.use('/api/v1/project-tracking', projectTrackingRoutes);
 
 // Project proposal reviewers routes
 app.use('/api/v1/project-proposal-reviewers', projectReviewersRoutes);
