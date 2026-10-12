@@ -226,7 +226,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
               fontSize: '0.95rem',
             }}
           >
-            CBR &amp; PPP Portal
+            PPP Portal
           </Typography>
           <Typography
             variant="caption"
@@ -618,7 +618,9 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
             </Collapse>
           </ListItem>
 
-          {/* Buildings Group */}
+          {/* Buildings Group — TEMPORARILY HIDDEN (uncomment to re-enable) */}
+          {false && (
+          <>
           <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
             <ListItemButton
               onClick={() => handleMenuToggle('buildings')}
@@ -791,6 +793,8 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
               </List>
             </Collapse>
           </ListItem>
+          </>
+          )}
 
         </List>
 

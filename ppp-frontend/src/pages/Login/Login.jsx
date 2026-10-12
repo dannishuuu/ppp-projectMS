@@ -20,7 +20,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import aapppLogo from '../../assets/AAPPP.png';
-import logoCollidor from '../../assets/LogoCollidor.png';
 
 export const Login = () => {
   const { login, loginError, loading: authLoading } = useAuth();
@@ -106,23 +105,6 @@ export const Login = () => {
             >
               <Box component="img" src={aapppLogo} alt="AAPPP Logo" sx={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             </Box>
-            <Box
-              sx={{
-                width: 58,
-                height: 58,
-                borderRadius: 3,
-                backgroundColor: 'rgba(255,255,255,0.12)',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(255,255,255,0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                p: 0.5,
-              }}
-            >
-              <Box component="img" src={logoCollidor} alt="Corridor Logo" sx={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-            </Box>
             <Box sx={{ ml: 0.5 }}>
               <Typography sx={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', lineHeight: 1.1 }}>
                 Addis Ababa
@@ -140,20 +122,20 @@ export const Login = () => {
               variant="h4"
               sx={{ color: '#fff', fontWeight: 800, lineHeight: 1.2, mb: 2, maxWidth: 420 }}
             >
-              Corridor &amp; Partnership
+              Public-Private Partnership
               <br />
               Management System
             </Typography>
 
             <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', lineHeight: 1.7, maxWidth: 380 }}>
-              A unified platform for Corridor Development and Public-Private
-              Partnership operations.
+              A unified platform for Public-Private Partnership
+              project and proposal operations.
             </Typography>
           </Box>
 
           {/* Feature pills */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
-            {['Corridor building & rental management', 'Public-private partnership projects'].map((item) => (
+            {['Public-private partnership project management', 'Proposal review & pipeline tracking'].map((item) => (
               <Box
                 key={item}
                 sx={{
@@ -219,28 +201,12 @@ export const Login = () => {
                     filter: 'drop-shadow(0 4px 10px rgba(26,35,126,0.18))',
                   }}
                 />
-                <Divider
-                  orientation="vertical"
-                  flexItem
-                  sx={{ height: 38, my: 'auto', borderColor: '#e2e8f0', borderWidth: 1 }}
-                />
-                <Box
-                  component="img"
-                  src={logoCollidor}
-                  alt="Corridor Logo"
-                  sx={{
-                    width: 62,
-                    height: 62,
-                    objectFit: 'contain',
-                    filter: 'drop-shadow(0 4px 10px rgba(0,105,92,0.18))',
-                  }}
-                />
               </Box>
               <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', mb: 0.5 }}>
                 Welcome back
               </Typography>
               <Typography variant="body2" sx={{ color: '#64748b' }}>
-                Access CBR &amp; PPP Portal
+                Access PPP Portal
               </Typography>
             </Box>
 

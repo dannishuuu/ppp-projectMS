@@ -117,6 +117,15 @@ const flattenAll = (nodes, depth = 0, out = []) => {
   return out;
 };
 
+// Count all descendants of a node (for the "N hidden" badge when collapsed)
+const countDescendants = (node) => {
+  let count = 0;
+  for (const child of node.children || []) {
+    count += 1 + countDescendants(child);
+  }
+  return count;
+};
+
 // Recursive vertical org-chart node — renders the classic top-down tree
 // layout with CSS connector lines (parent drop → horizontal bus → child),
 // mirroring the reference org chart. Each card shows the unit-type color,
@@ -129,10 +138,13 @@ const OrgChartNode = ({
   onEdit,
   onMove,
   onToggle,
+  collapsed,
+  onToggleCollapse,
 }) => {
   const color = typeColor(node.unit_type_code);
   const children = node.children || [];
   const hasChildren = children.length > 0;
+  const isCollapsed = collapsed.has(String(node.id));
 
   const actionBtn = {
     p: 0.4,
@@ -220,8 +232,29 @@ const OrgChartNode = ({
         </Tooltip>
       </Box>
 
-      {/* Connectors + children */}
+      {/* Collapse / expand toggle */}
       {hasChildren && (
+        <Tooltip title={isCollapsed ? `Expand ${countDescendants(node)} hidden unit(s)` : 'Collapse branch'} arrow>
+          <IconButton
+            size="small"
+            onClick={() => onToggleCollapse(node.id)}
+            sx={{
+              mt: 0.5,
+              width: 24,
+              height: 24,
+              backgroundColor: '#ffffff',
+              border: '1.5px solid #cbd5e1',
+              color: '#475569',
+              '&:hover': { backgroundColor: color.bg, borderColor: color.color, color: color.color },
+            }}
+          >
+            {isCollapsed ? <ExpandIcon sx={{ fontSize: 16 }} /> : <CollapseIcon sx={{ fontSize: 16 }} />}
+          </IconButton>
+        </Tooltip>
+      )}
+
+      {/* Connectors + children (hidden when collapsed) */}
+      {hasChildren && !isCollapsed && (
         <>
           <Box sx={{ width: 2, height: 18, backgroundColor: '#cbd5e1' }} />
           <Box sx={{ display: 'flex' }}>
@@ -265,6 +298,8 @@ const OrgChartNode = ({
                   onEdit={onEdit}
                   onMove={onMove}
                   onToggle={onToggle}
+                  collapsed={collapsed}
+                  onToggleCollapse={onToggleCollapse}
                 />
               </Box>
             ))}
@@ -287,6 +322,9 @@ export const CompanyOrgUnitPage = () => {
   const [loadingCompanies, setLoadingCompanies] = useState(true);
   const [loadingTree, setLoadingTree] = useState(false);
   const [collapsed, setCollapsed] = useState(new Set());
+
+  // Chart-view collapse state (independent from the outline's collapse set)
+  const [chartCollapsed, setChartCollapsed] = useState(new Set());
 
   // Dialog state: form ('add' | 'edit'), view, move
   const [formOpen, setFormOpen] = useState(false);
@@ -359,6 +397,7 @@ export const CompanyOrgUnitPage = () => {
   useEffect(() => {
     fetchTree();
     setCollapsed(new Set());
+    setChartCollapsed(new Set());
   }, [fetchTree]);
 
   const typeById = useMemo(() => new Map(types.map((t) => [String(t.id), t])), [types]);
@@ -377,6 +416,27 @@ export const CompanyOrgUnitPage = () => {
       else next.add(String(id));
       return next;
     });
+  };
+
+  // Chart-view collapse helpers (independent state from the outline view)
+  const toggleChartCollapse = (id) => {
+    setChartCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(String(id))) next.delete(String(id));
+      else next.add(String(id));
+      return next;
+    });
+  };
+
+  const expandAllChart = () => setChartCollapsed(new Set());
+
+  // Collapse every node that has children (keeps only roots + their cards visible)
+  const collapseAllChart = () => {
+    const ids = new Set();
+    allFlat.forEach(({ node }) => {
+      if ((node.children?.length || 0) > 0) ids.add(String(node.id));
+    });
+    setChartCollapsed(ids);
   };
 
   // ── Allowed unit types given a parent (and, on edit, the node's children) ──
@@ -855,6 +915,16 @@ export const CompanyOrgUnitPage = () => {
               Expand all
             </Button>
           )}
+          {viewMode === 'chart' && allFlat.some(({ node }) => (node.children?.length || 0) > 0) && (
+            <>
+              <Button size="small" startIcon={<ExpandIcon sx={{ fontSize: 16 }} />} onClick={expandAllChart} sx={{ fontSize: '0.72rem', textTransform: 'none', fontWeight: 700, color: '#64748b' }}>
+                Expand all
+              </Button>
+              <Button size="small" startIcon={<CollapseIcon sx={{ fontSize: 16 }} />} onClick={collapseAllChart} sx={{ fontSize: '0.72rem', textTransform: 'none', fontWeight: 700, color: '#64748b' }}>
+                Collapse all
+              </Button>
+            </>
+          )}
         </Box>
 
         {loadingTree ? (
@@ -890,6 +960,8 @@ export const CompanyOrgUnitPage = () => {
                     onEdit={openEditDialog}
                     onMove={openMoveDialog}
                     onToggle={(u) => openConfirm('toggle', u)}
+                    collapsed={chartCollapsed}
+                    onToggleCollapse={toggleChartCollapse}
                   />
                 </Box>
               ))}
