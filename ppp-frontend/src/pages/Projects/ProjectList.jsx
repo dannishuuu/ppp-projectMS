@@ -25,7 +25,6 @@ import {
   Add as AddIcon,
   FilterAltOff as ResetIcon,
   Close as CloseIcon,
-  LocationOn as LocationIcon,
   QueryStats as StatsIcon,
   MoreVert as MoreIcon,
   TrendingUp as TrendUpIcon,
@@ -329,38 +328,21 @@ export const ProjectList = () => {
   const columns = [
     {
       field: 'name',
-      headerName: 'Project & Location',
+      headerName: 'Project',
       flex: 2.2, minWidth: 260,
       renderHeader: () => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, cursor: 'pointer' }}>
-          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: D.textMuted, fontFamily: 'Inter, sans-serif' }}>Project &amp; Location</Typography>
+          <Typography sx={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: D.textMuted, fontFamily: 'Inter, sans-serif' }}>Project</Typography>
           <SortDownIcon sx={{ fontSize: 14, color: D.textMuted }} />
         </Box>
       ),
       renderCell: ({ row }) => (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3, py: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <Typography
-              onClick={() => navigate(`/projects/${row.id}`)}
-              sx={{ fontWeight: 700, fontSize: '0.8125rem', color: D.textPrimary, fontFamily: 'Inter, sans-serif', cursor: 'pointer', '&:hover': { color: D.primaryCont } }}
-            >
-              {row.name || '—'}
-            </Typography>
-            {row.id && (
-              <Box sx={{ px: 1, py: 0.2, borderRadius: '4px', bgcolor: D.primaryLight, color: D.primaryCont, border: `1px solid ${D.primaryLight}`, fontSize: '0.625rem', fontWeight: 700, fontFamily: 'ui-monospace, monospace', whiteSpace: 'nowrap' }}>
-                #{String(row.id).slice(0, 8).toUpperCase()}
-              </Box>
-            )}
-          </Box>
-          {row.address && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-              <LocationIcon sx={{ fontSize: 13, color: D.textLight }} />
-              <Typography sx={{ fontSize: '0.6875rem', color: D.textMuted, fontFamily: 'Inter, sans-serif' }}>
-                {row.address}
-              </Typography>
-            </Box>
-          )}
-        </Box>
+        <Typography
+          onClick={() => navigate(`/projects/${row.id}`)}
+          sx={{ fontWeight: 700, fontSize: '0.8125rem', color: D.textPrimary, fontFamily: 'Inter, sans-serif', cursor: 'pointer', '&:hover': { color: D.primaryCont } }}
+        >
+          {row.name || '—'}
+        </Typography>
       ),
     },
     {
@@ -443,20 +425,21 @@ export const ProjectList = () => {
         const cats = Array.isArray(value) ? value : [];
         if (!cats.length) return <Typography sx={{ color: D.textLight, fontSize: '0.8125rem' }}>—</Typography>;
         return (
-          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', py: 0.5 }}>
-            {cats.slice(0, 1).map((c, i) => (
-              <Box key={i} sx={{ px: 1.25, py: 0.3, borderRadius: '4px', bgcolor: D.primaryLight, color: D.primaryCont, border: `1px solid ${D.primaryLight}`, fontSize: '0.6875rem', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', py: 0.5 }}>
+            {cats.map((c, i) => (
+              <Box
+                key={i}
+                sx={{
+                  px: 1.25, py: 0.3, borderRadius: '4px',
+                  bgcolor: i === 0 ? D.primaryLight : D.borderSubtle,
+                  color: i === 0 ? D.primaryCont : D.textMuted,
+                  border: i === 0 ? `1px solid ${D.primaryLight}` : 'none',
+                  fontSize: '0.6875rem', fontWeight: 500, fontFamily: 'Inter, sans-serif',
+                }}
+              >
                 {c.category_name || c.name || c}
               </Box>
             ))}
-            {cats.slice(1, 2).map((c, i) => (
-              <Box key={i} sx={{ px: 1.25, py: 0.3, borderRadius: '4px', bgcolor: D.borderSubtle, color: D.textMuted, fontSize: '0.6875rem', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
-                {c.category_name || c.name || c}
-              </Box>
-            ))}
-            {cats.length > 2 && (
-              <Box sx={{ px: 1, py: 0.3, borderRadius: '4px', bgcolor: D.borderSubtle, color: D.textMuted, fontSize: '0.6875rem' }}>+{cats.length - 2}</Box>
-            )}
           </Box>
         );
       },
