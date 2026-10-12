@@ -34,6 +34,9 @@ import {
   AccountTree as PipelineIcon,
   ArrowDownward as SortDownIcon,
   UnfoldMore as UnsortedIcon,
+  Payments as PaymentsIcon,
+  Cancel as CancelIcon,
+  MoreHoriz as MoreHorizIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -68,16 +71,16 @@ const D = {
 const resolveStatus = (name = '') => {
   const n = name.toLowerCase();
   if (n.includes('operational') || n.includes('active'))
-    return { bg: D.activeBg,    fg: D.activeFg,    dot: D.activeDot,    pulse: true  };
+    return { bg: D.activeBg, fg: D.activeFg, dot: D.activeDot, icon: <CheckCircleIcon /> };
   if (n.includes('construct') || n.includes('epc') || n.includes('progress'))
-    return { bg: D.constructBg, fg: D.constructFg, dot: D.constructDot, pulse: false };
+    return { bg: D.constructBg, fg: D.constructFg, dot: D.constructDot, icon: <ConstructIcon /> };
   if (n.includes('complet') || n.includes('handed') || n.includes('revert'))
-    return { bg: D.completedBg, fg: D.completedFg, dot: D.completedDot, pulse: false };
+    return { bg: D.completedBg, fg: D.completedFg, dot: D.completedDot, icon: <VerifiedIcon /> };
   if (n.includes('financ') || n.includes('close') || n.includes('sign'))
-    return { bg: D.financeBg,   fg: D.financeFg,   dot: D.financeDot,   pulse: false };
+    return { bg: D.financeBg, fg: D.financeFg, dot: D.financeDot, icon: <PaymentsIcon /> };
   if (n.includes('cancel') || n.includes('terminat') || n.includes('suspend'))
-    return { bg: D.errorBg,     fg: D.errorFg,     dot: D.errorDot,     pulse: false };
-  return { bg: D.neutralBg, fg: D.neutralFg, dot: D.neutralDot, pulse: false };
+    return { bg: D.errorBg, fg: D.errorFg, dot: D.errorDot, icon: <CancelIcon /> };
+  return { bg: D.neutralBg, fg: D.neutralFg, dot: D.neutralDot, icon: <MoreHorizIcon /> };
 };
 
 /* ── Tiny sparkline SVG ──────────────────────────────────────────────────────── */
@@ -182,25 +185,38 @@ const FilterChip = ({ label, color, bg, border, onRemove }) => (
 const StatusPill = ({ name }) => {
   const s = resolveStatus(name);
   return (
-    <Box sx={{
-      display: 'inline-flex', alignItems: 'center', gap: 0.75,
-      px: 1.5, py: 0.5, borderRadius: '99px',
-      bgcolor: s.bg, border: `1px solid ${s.dot}33`,
-      fontSize: '0.6875rem', fontWeight: 700, color: s.fg,
-      fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap',
-    }}>
+    <Box
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 0.6,
+        px: 1.25,
+        py: 0.4,
+        borderRadius: '6px',
+        bgcolor: s.bg,
+        border: `1px solid ${s.dot}33`,
+        fontSize: '0.6875rem',
+        fontWeight: 600,
+        letterSpacing: '0.01em',
+        color: s.fg,
+        fontFamily: 'Inter, sans-serif',
+        whiteSpace: 'nowrap',
+        lineHeight: 1.4,
+        transition: 'all 0.15s ease',
+        '&:hover': { borderColor: `${s.dot}66`, boxShadow: `0 1px 4px ${s.dot}22` },
+      }}
+    >
       <Box
         sx={{
-          width: 6, height: 6, borderRadius: '50%', bgcolor: s.dot, flexShrink: 0,
-          ...(s.pulse ? {
-            animation: 'ppppulse 1.8s cubic-bezier(0.4,0,0.6,1) infinite',
-            '@keyframes ppppulse': {
-              '0%, 100%': { opacity: 1 },
-              '50%': { opacity: 0.35 },
-            },
-          } : {}),
+          display: 'inline-flex',
+          alignItems: 'center',
+          color: s.dot,
+          flexShrink: 0,
+          '& svg': { fontSize: 14 },
         }}
-      />
+      >
+        {s.icon}
+      </Box>
       {name}
     </Box>
   );
