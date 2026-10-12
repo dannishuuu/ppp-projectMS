@@ -128,7 +128,7 @@ export const Login = () => {
                 Addis Ababa
               </Typography>
               <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.72rem', fontWeight: 500, letterSpacing: 1.2 }}>
-                PUBLIC PRIORITY PANEL
+                CITY ADMINISTRATION
               </Typography>
             </Box>
           </Box>
@@ -140,22 +140,20 @@ export const Login = () => {
               variant="h4"
               sx={{ color: '#fff', fontWeight: 800, lineHeight: 1.2, mb: 2, maxWidth: 420 }}
             >
-              Corridor
-              <br />
-              Building & Rental
+              Corridor &amp; Partnership
               <br />
               Management System
             </Typography>
 
             <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', lineHeight: 1.7, maxWidth: 380 }}>
-              Unified platform for Addis Ababa Corridor Development building
-              & office rental operations.
+              A unified platform for Corridor Development and Public-Private
+              Partnership operations.
             </Typography>
           </Box>
 
           {/* Feature pills */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
-            {['Building & office rental management', 'Multi-department operations'].map((item) => (
+            {['Corridor building & rental management', 'Public-private partnership projects'].map((item) => (
               <Box
                 key={item}
                 sx={{
@@ -242,7 +240,7 @@ export const Login = () => {
                 Welcome back
               </Typography>
               <Typography variant="body2" sx={{ color: '#64748b' }}>
-                Access CBR Portal
+                Access CBR &amp; PPP Portal
               </Typography>
             </Box>
 
