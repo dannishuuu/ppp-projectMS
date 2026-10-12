@@ -86,11 +86,26 @@ const COLORS = {
 };
 
 // ─── Validation schema ────────────────────────────────────────────────────────
-const buildSchema = (mode) =>
+const buildSchema = (mode, proposals = [], isEdit = false, currentProjectId = null) =>
   yup.object().shape({
     proposalId:
       mode === 'from_proposal'
-        ? yup.string().required('Please select an approved proposal to convert')
+        ? yup
+            .string()
+            .required('Please select an approved proposal to convert')
+            .test(
+              'is-unconverted',
+              'This proposal has already been converted into an official project (converted_project_id must be null).',
+              (val) => {
+                if (!val) return true;
+                const found = proposals.find((p) => String(p.id) === String(val));
+                if (!found) return true;
+                if (isEdit && currentProjectId && String(found.converted_project_id) === String(currentProjectId)) {
+                  return true;
+                }
+                return found.converted_project_id == null || found.converted_project_id === '';
+              }
+            )
         : yup.string().nullable(),
 
     name: yup.string().required('Project name is required').min(3, 'Minimum 3 characters'),
@@ -164,7 +179,10 @@ export const ProjectForm = () => {
   const [orgOptions, setOrgOptions] = useState([]);
   const [orgTypeOptions, setOrgTypeOptions] = useState([]);
 
-  const schema = buildSchema(mode);
+  const schema = React.useMemo(
+    () => buildSchema(mode, proposals, isEdit, id),
+    [mode, proposals, isEdit, id]
+  );
 
   const {
     control,
@@ -276,21 +294,42 @@ export const ProjectForm = () => {
         return sName === 'approve' || sName === 'approved' || sStep === 3;
       };
 
-      const eligibleProposals = list.filter(isApprovedOrStep3);
-      // Prefer proposals that have not yet been converted into an official project
-      const unconverted = eligibleProposals.filter((p) => !p.converted_project_id);
-      setProposals(unconverted.length > 0 ? unconverted : eligibleProposals);
+      // For project creation with proposal, check also that converted_project_id must be null (unconverted)
+      const eligibleProposals = list.filter((p) => {
+        const isApproved = isApprovedOrStep3(p);
+        const isUnconverted = p.converted_project_id == null || p.converted_project_id === '';
+        // If editing this specific project, allow the proposal already attached to it
+        const isCurrentProjectProposal = isEdit && id && String(p.converted_project_id) === String(id);
+        return isApproved && (isUnconverted || isCurrentProjectProposal);
+      });
+
+      setProposals(eligibleProposals);
     } catch (err) {
       console.error('Failed to load proposals:', err);
       enqueueSnackbar('Failed to load proposals', { variant: 'warning' });
     }
-  }, [enqueueSnackbar]);
+  }, [enqueueSnackbar, isEdit, id]);
 
   // ── Auto-fill from proposal ───────────────────────────────────────────────────
   useEffect(() => {
     if (!watchedProposalId) return;
     const proposal = proposals.find((p) => String(p.id) === String(watchedProposalId));
     if (!proposal) return;
+
+    // Check if the project proposal's converted_project_id is not null
+    const isAlreadyConverted =
+      proposal.converted_project_id != null &&
+      proposal.converted_project_id !== '' &&
+      (!isEdit || String(proposal.converted_project_id) !== String(id));
+
+    if (isAlreadyConverted) {
+      enqueueSnackbar(
+        `Selected proposal #${proposal.prop_number || proposal.id} is already converted into project #${proposal.converted_project_id}. Only proposals with converted_project_id = null can be converted.`,
+        { variant: 'error' }
+      );
+      setValue('proposalId', '');
+      return;
+    }
 
     setValue('name', proposal.proposed_project_name || proposal.name || '');
     setValue('description', proposal.description || '');
@@ -892,27 +931,43 @@ export const ProjectForm = () => {
                           }}
                         >
                           <MenuItem disabled value="">
-                            <em>Select an approved proposal…</em>
+                            <em>Select an approved proposal (converted_project_id must be null)…</em>
                           </MenuItem>
                           {proposals && proposals.length > 0 ? (
-                            proposals.map((p) => (
-                              <MenuItem key={p.id} value={p.id}>
-                                <Box sx={{ py: 0.3 }}>
-                                  <Typography variant="body2" fontWeight={600} sx={{ color: COLORS.onSurface, fontSize: '0.84rem' }}>
-                                    {p.prop_number ? `${p.prop_number} — ` : ''}
-                                    {p.proposed_project_name || p.name || 'Untitled Proposal'}
-                                  </Typography>
-                                  {(p.organization_name || p.status_name) && (
-                                    <Typography variant="caption" sx={{ color: COLORS.secondary }}>
-                                      {[p.organization_name, p.status_name].filter(Boolean).join(' • ')}
-                                    </Typography>
-                                  )}
-                                </Box>
-                              </MenuItem>
-                            ))
+                            proposals.map((p) => {
+                              const isAlreadyConverted =
+                                p.converted_project_id != null &&
+                                p.converted_project_id !== '' &&
+                                (!isEdit || String(p.converted_project_id) !== String(id));
+
+                              return (
+                                <MenuItem key={p.id} value={p.id} disabled={isAlreadyConverted}>
+                                  <Box sx={{ py: 0.3, width: '100%' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                                      <Typography variant="body2" fontWeight={600} sx={{ color: isAlreadyConverted ? COLORS.secondary : COLORS.onSurface, fontSize: '0.84rem' }}>
+                                        {p.prop_number ? `${p.prop_number} — ` : ''}
+                                        {p.proposed_project_name || p.name || 'Untitled Proposal'}
+                                      </Typography>
+                                      {isAlreadyConverted && (
+                                        <Chip
+                                          label="Already Converted"
+                                          size="small"
+                                          sx={{ height: 18, fontSize: '0.62rem', fontWeight: 800, backgroundColor: '#fee2e2', color: '#b91c1c' }}
+                                        />
+                                      )}
+                                    </Box>
+                                    {(p.organization_name || p.status_name) && (
+                                      <Typography variant="caption" sx={{ color: COLORS.secondary }}>
+                                        {[p.organization_name, p.status_name].filter(Boolean).join(' • ')}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                </MenuItem>
+                              );
+                            })
                           ) : (
                             <MenuItem disabled value="">
-                              <em>No approved proposals (Status: Approve / Step 3) available</em>
+                              <em>No approved proposals (with converted_project_id = null) available</em>
                             </MenuItem>
                           )}
                         </Select>
@@ -925,9 +980,15 @@ export const ProjectForm = () => {
 
               {/* Proposal Metadata Summary Grid (4 Columns) */}
               {selectedProposal && (
-                <Grid
-                  container
-                  spacing={2}
+                <>
+                  {selectedProposal.converted_project_id && (!isEdit || String(selectedProposal.converted_project_id) !== String(id)) && (
+                    <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>
+                      <strong>Proposal Already Converted:</strong> This proposal has already been converted into Project #{selectedProposal.converted_project_id}. Only unconverted proposals (converted_project_id is null) are eligible.
+                    </Alert>
+                  )}
+                  <Grid
+                    container
+                    spacing={2}
                   sx={{
                     pt: 2,
                     mt: 1,
@@ -975,7 +1036,8 @@ export const ProjectForm = () => {
                     </Typography>
                   </Grid>
                 </Grid>
-              )}
+              </>
+            )}
             </Paper>
           )}
 

@@ -86,7 +86,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   };
 
   const projectSubItems = [
-    { text: 'Projects List', icon: <ListIcon />, path: '/projects', badge: projects?.length || 0 },
+    { text: 'Projects List', icon: <ListIcon />, path: '/projects'},
     { text: 'Create Project', icon: <AddIcon />, path: '/projects/new' },
     { text: 'Project Proposals', icon: <ProposalIcon />, path: '/projects/proposals' },
     { text: 'Proposal Reviewers', icon: <UsersIcon />, path: '/projects/reviews' },
