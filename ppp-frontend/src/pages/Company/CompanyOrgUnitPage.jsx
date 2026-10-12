@@ -18,6 +18,8 @@ import {
   Breadcrumbs,
   Link,
   IconButton,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -34,6 +36,7 @@ import {
   Business as BusinessIcon,
   Close as CloseIcon,
   Print as PrintIcon,
+  ViewList as ListViewIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -114,6 +117,164 @@ const flattenAll = (nodes, depth = 0, out = []) => {
   return out;
 };
 
+// Recursive vertical org-chart node — renders the classic top-down tree
+// layout with CSS connector lines (parent drop → horizontal bus → child),
+// mirroring the reference org chart. Each card shows the unit-type color,
+// name and code, plus a compact row of actions.
+const OrgChartNode = ({
+  node,
+  isCompanyActive,
+  onAddChild,
+  onView,
+  onEdit,
+  onMove,
+  onToggle,
+}) => {
+  const color = typeColor(node.unit_type_code);
+  const children = node.children || [];
+  const hasChildren = children.length > 0;
+
+  const actionBtn = {
+    p: 0.4,
+    color: '#94a3b8',
+    '&:not(.Mui-disabled):hover': { backgroundColor: '#f1f5f9', color: '#334155' },
+    '&.Mui-disabled': { color: '#cbd5e1' },
+  };
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      {/* Node card */}
+      <Paper
+        elevation={0}
+        onClick={() => onView(node)}
+        sx={{
+          width: 168,
+          borderRadius: 2,
+          border: '2px solid',
+          borderColor: color.color,
+          backgroundColor: '#ffffff',
+          overflow: 'hidden',
+          textAlign: 'center',
+          cursor: 'pointer',
+          transition: 'all 0.15s ease',
+          '&:hover': { boxShadow: '0 10px 24px rgba(15,23,42,0.14)', transform: 'translateY(-2px)' },
+        }}
+      >
+        <Box
+          sx={{
+            backgroundColor: color.bg,
+            color: color.color,
+            px: 1,
+            py: 0.4,
+            fontWeight: 800,
+            fontSize: '0.58rem',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            borderBottom: '1px solid',
+            borderColor: `${color.color}55`,
+          }}
+        >
+          {node.unit_type_code || 'UNIT'}
+        </Box>
+        <Box sx={{ px: 1.25, py: 1 }}>
+          <Typography sx={{ fontWeight: 800, fontSize: '0.72rem', color: '#0f172a', textTransform: 'uppercase', lineHeight: 1.3 }}>
+            {node.name}
+          </Typography>
+          <Typography sx={{ fontSize: '0.6rem', color: '#94a3b8', fontFamily: 'monospace', mt: 0.25 }}>
+            {node.code}
+          </Typography>
+          {!node.is_active && (
+            <Chip label="Inactive" size="small" sx={{ mt: 0.5, height: 16, fontSize: '0.55rem', fontWeight: 800, backgroundColor: '#fee2e2', color: '#b91c1c' }} />
+          )}
+        </Box>
+      </Paper>
+
+      {/* Row actions */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.1, mt: 0.25 }}>
+        <Tooltip title="Add child unit" arrow>
+          <span>
+            <IconButton size="small" disabled={!isCompanyActive} onClick={() => onAddChild(node)} sx={{ ...actionBtn, '&:not(.Mui-disabled):hover': { backgroundColor: '#dcfce7', color: '#16a34a' } }}>
+              <AddIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="View details" arrow>
+          <IconButton size="small" onClick={() => onView(node)} sx={actionBtn}><ViewIcon sx={{ fontSize: 15 }} /></IconButton>
+        </Tooltip>
+        <Tooltip title="Edit unit" arrow>
+          <span>
+            <IconButton size="small" disabled={!isCompanyActive} onClick={() => onEdit(node)} sx={{ ...actionBtn, '&:not(.Mui-disabled):hover': { backgroundColor: '#e0f2fe', color: '#0284c7' } }}><EditIcon sx={{ fontSize: 15 }} /></IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Move unit" arrow>
+          <span>
+            <IconButton size="small" disabled={!isCompanyActive} onClick={() => onMove(node)} sx={{ ...actionBtn, '&:not(.Mui-disabled):hover': { backgroundColor: '#f5f3ff', color: '#7c3aed' } }}><MoveIcon sx={{ fontSize: 15 }} /></IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title={node.is_active ? 'Deactivate unit' : 'Activate unit'} arrow>
+          <span>
+            <IconButton size="small" disabled={!isCompanyActive} onClick={() => onToggle(node)} sx={{ ...actionBtn, color: node.is_active ? '#ca8a04' : '#16a34a' }}>
+              {node.is_active ? <DeactivateIcon sx={{ fontSize: 15 }} /> : <ActivateIcon sx={{ fontSize: 15 }} />}
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Box>
+
+      {/* Connectors + children */}
+      {hasChildren && (
+        <>
+          <Box sx={{ width: 2, height: 18, backgroundColor: '#cbd5e1' }} />
+          <Box sx={{ display: 'flex' }}>
+            {children.map((child) => (
+              <Box
+                key={child.id}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  position: 'relative',
+                  pt: '18px',
+                  px: 1,
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: '50%',
+                    width: '2px',
+                    height: '18px',
+                    backgroundColor: '#cbd5e1',
+                  },
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '2px',
+                    backgroundColor: '#cbd5e1',
+                  },
+                  '&:first-of-type::after': { left: '50%' },
+                  '&:last-of-type::after': { right: '50%' },
+                }}
+              >
+                <OrgChartNode
+                  node={child}
+                  isCompanyActive={isCompanyActive}
+                  onAddChild={onAddChild}
+                  onView={onView}
+                  onEdit={onEdit}
+                  onMove={onMove}
+                  onToggle={onToggle}
+                />
+              </Box>
+            ))}
+          </Box>
+        </>
+      )}
+    </Box>
+  );
+};
+
 export const CompanyOrgUnitPage = () => {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
@@ -152,6 +313,9 @@ export const CompanyOrgUnitPage = () => {
 
   // Print Org Chart dialog state
   const [printModalOpen, setPrintModalOpen] = useState(false);
+
+  // View mode: 'outline' (indented list) | 'chart' (vertical org chart)
+  const [viewMode, setViewMode] = useState('outline');
 
   // Initial lookups: companies + active types
   useEffect(() => {
@@ -627,6 +791,40 @@ export const CompanyOrgUnitPage = () => {
             Organization Chart {treeData.company ? `— ${treeData.company.name}` : ''}
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={viewMode}
+            onChange={(e, val) => { if (val) setViewMode(val); }}
+            aria-label="view mode"
+            sx={{
+              '& .MuiToggleButton-root': {
+                textTransform: 'none',
+                fontWeight: 700,
+                fontSize: '0.74rem',
+                px: 1.25,
+                py: 0.4,
+                color: '#64748b',
+                borderColor: '#e2e8f0',
+                gap: 0.5,
+                '&.Mui-selected': {
+                  color: '#4f46e5',
+                  backgroundColor: '#eef2ff',
+                  '&:hover': { backgroundColor: '#e0e7ff' },
+                },
+                '&:hover': { backgroundColor: '#f1f5f9' },
+              },
+            }}
+          >
+            <ToggleButton value="outline" aria-label="outline view">
+              <ListViewIcon sx={{ fontSize: 16 }} />
+              Outline
+            </ToggleButton>
+            <ToggleButton value="chart" aria-label="chart view">
+              <TreeIcon sx={{ fontSize: 16 }} />
+              Chart
+            </ToggleButton>
+          </ToggleButtonGroup>
           <Chip label={`${allFlat.length} units`} size="small" sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700, backgroundColor: '#eef2ff', color: '#4f46e5' }} />
           <Button
             variant="outlined"
@@ -652,7 +850,7 @@ export const CompanyOrgUnitPage = () => {
           >
             Print Chart
           </Button>
-          {visibleRows.length !== allFlat.length && (
+          {viewMode === 'outline' && visibleRows.length !== allFlat.length && (
             <Button size="small" onClick={() => setCollapsed(new Set())} sx={{ fontSize: '0.72rem', textTransform: 'none', fontWeight: 700, color: '#64748b' }}>
               Expand all
             </Button>
@@ -678,6 +876,24 @@ export const CompanyOrgUnitPage = () => {
             <Typography variant="caption" sx={{ color: '#94a3b8' }}>
               Start by adding the root <strong>COMP</strong> unit (named after the company), then add divisions and departments under it.
             </Typography>
+          </Box>
+        ) : viewMode === 'chart' ? (
+          <Box sx={{ overflowX: 'auto', overflowY: 'hidden', py: 3, backgroundColor: '#fcfdff' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', width: 'max-content', minWidth: '100%', px: 3, mx: 'auto' }}>
+              {treeData.roots.map((node) => (
+                <Box key={node.id} sx={{ px: 2 }}>
+                  <OrgChartNode
+                    node={node}
+                    isCompanyActive={isCompanyActive}
+                    onAddChild={openAddDialog}
+                    onView={openViewDialog}
+                    onEdit={openEditDialog}
+                    onMove={openMoveDialog}
+                    onToggle={(u) => openConfirm('toggle', u)}
+                  />
+                </Box>
+              ))}
+            </Box>
           </Box>
         ) : (
           <Box sx={{ py: 1 }}>
