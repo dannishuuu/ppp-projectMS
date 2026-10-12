@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -25,6 +25,8 @@ import {
   Breadcrumbs,
   Link,
   IconButton,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -41,6 +43,9 @@ import {
   Sort as SortIcon,
   Description as DescriptionIcon,
   Lock as LockIcon,
+  AccountTree as TreeIcon,
+  ViewList as ListViewIcon,
+  Business as BusinessIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -165,6 +170,176 @@ const typeToForm = (type) => ({
   sortOrder: type.sort_order !== null && type.sort_order !== undefined ? String(type.sort_order) : '0',
 });
 
+// Visual language per seeded unit type code (mirrors CompanyOrgUnitPage)
+const TYPE_COLORS = {
+  COMP: { bg: '#eef2ff', color: '#4f46e5' },
+  DIV: { bg: '#f5f3ff', color: '#7c3aed' },
+  DEPT: { bg: '#e0f2fe', color: '#0284c7' },
+  SEC: { bg: '#cffafe', color: '#0891b2' },
+  TEAM: { bg: '#ecfdf5', color: '#059669' },
+  BR: { bg: '#fff7ed', color: '#ea580c' },
+};
+const typeColor = (code) => TYPE_COLORS[code] || { bg: '#f1f5f9', color: '#475569' };
+
+// Build a nested hierarchy from a flat list of unit types using their
+// "hierarchy rank" (sort_order). A type becomes a child of the nearest
+// preceding type with a lower sort_order, producing a Company → Division →
+// Department → Section → Team style tree purely from the rank ordering.
+const buildTypeTree = (types) => {
+  const sorted = [...types].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.name || '').localeCompare(String(b.name || ''))
+  );
+  const roots = [];
+  const stack = [];
+  sorted.forEach((type) => {
+    const rank = type.sort_order ?? 0;
+    const node = { ...type, children: [] };
+    while (stack.length && stack[stack.length - 1].rank >= rank) stack.pop();
+    if (stack.length) stack[stack.length - 1].node.children.push(node);
+    else roots.push(node);
+    stack.push({ rank, node });
+  });
+  return roots;
+};
+
+// Recursive tree node — renders one unit type and indents its children,
+// with connector lines to visually convey the org hierarchy.
+const TypeTreeNode = ({ node, depth = 0, onView, onEdit, onToggle }) => {
+  const c = typeColor(node.code);
+  const hasChildren = node.children && node.children.length > 0;
+  return (
+    <Box sx={{ position: 'relative' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          p: 1.25,
+          ml: depth === 0 ? 0 : `${depth * 28}px`,
+          mb: 0.75,
+          borderRadius: 2,
+          border: '1px solid #e2e8f0',
+          backgroundColor: depth === 0 ? '#ffffff' : '#fbfcfe',
+          position: 'relative',
+          zIndex: 1,
+          transition: 'all 0.15s ease',
+          '&:hover': { borderColor: '#c7d2fe', boxShadow: '0 4px 14px rgba(79,70,229,0.08)' },
+        }}
+      >
+        {/* Level connector dot + line */}
+        <Box
+          sx={{
+            width: 30,
+            height: 30,
+            borderRadius: 1.5,
+            backgroundColor: c.bg,
+            color: c.color,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            fontWeight: 800,
+            fontSize: '0.68rem',
+            border: `1px solid ${c.color}33`,
+          }}
+        >
+          {node.code}
+        </Box>
+
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+            <Typography
+              onClick={() => onView(node)}
+              sx={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.86rem', color: '#0f172a', '&:hover': { color: '#4f46e5', textDecoration: 'underline' } }}
+            >
+              {node.name}
+            </Typography>
+            <Chip
+              label={`Rank ${node.sort_order ?? 0}`}
+              size="small"
+              sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: 1 }}
+            />
+            <Chip
+              label={node.is_active ? 'Active' : 'Inactive'}
+              size="small"
+              sx={{
+                height: 18,
+                fontSize: '0.62rem',
+                fontWeight: 700,
+                borderRadius: 1,
+                backgroundColor: node.is_active ? '#dcfce7' : '#fee2e2',
+                color: node.is_active ? '#15803d' : '#b91c1c',
+              }}
+            />
+          </Box>
+          {(node.name_amharic || node.name_afaan_oromo) && (
+            <Typography variant="caption" sx={{ display: 'block', color: '#94a3b8', fontSize: '0.7rem', mt: 0.15 }}>
+              {[node.name_amharic, node.name_afaan_oromo].filter(Boolean).join('  ·  ')}
+            </Typography>
+          )}
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+          <Tooltip title="View type details" arrow placement="top">
+            <Button
+              size="small"
+              startIcon={<ViewIcon sx={{ fontSize: 14 }} />}
+              onClick={() => onView(node)}
+              sx={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'none', color: '#64748b', px: 1, minWidth: 0, gap: 0.4, '&:hover': { color: '#4f46e5', backgroundColor: '#eef2ff' } }}
+            >
+              View
+            </Button>
+          </Tooltip>
+          <Tooltip title="Edit unit type" arrow placement="top">
+            <Button
+              size="small"
+              startIcon={<EditIcon sx={{ fontSize: 14 }} />}
+              onClick={() => onEdit(node)}
+              sx={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'none', color: '#64748b', px: 1, minWidth: 0, gap: 0.4, '&:hover': { color: '#0284c7', backgroundColor: '#e0f2fe' } }}
+            >
+              Edit
+            </Button>
+          </Tooltip>
+          <Tooltip title={node.is_active ? 'Deactivate this type' : 'Activate this type'} arrow placement="top">
+            <Button
+              size="small"
+              startIcon={node.is_active ? <DeactivateIcon sx={{ fontSize: 14 }} /> : <ActivateIcon sx={{ fontSize: 14 }} />}
+              onClick={() => onToggle(node)}
+              sx={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                textTransform: 'none',
+                color: node.is_active ? '#ca8a04' : '#16a34a',
+                px: 1,
+                minWidth: 0,
+                gap: 0.4,
+                '&:hover': { backgroundColor: node.is_active ? '#fef9c3' : '#dcfce7' },
+              }}
+            >
+              {node.is_active ? 'Deactivate' : 'Activate'}
+            </Button>
+          </Tooltip>
+        </Box>
+      </Box>
+
+      {/* Children with a left connector rail */}
+      {hasChildren && (
+        <Box
+          sx={{
+            ml: `${depth * 28 + 15}px`,
+            pl: 2,
+            borderLeft: '1.5px dashed #dbe3ee',
+          }}
+        >
+          {node.children.map((child) => (
+            <TypeTreeNode key={child.id} node={child} depth={depth + 1} onView={onView} onEdit={onEdit} onToggle={onToggle} />
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
 export const OrgUnitTypePage = () => {
   const { enqueueSnackbar } = useSnackbar();
 
@@ -177,6 +352,9 @@ export const OrgUnitTypePage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // View mode: 'list' (table) | 'tree' (org-structure hierarchy)
+  const [viewMode, setViewMode] = useState('list');
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -211,9 +389,41 @@ export const OrgUnitTypePage = () => {
     }
   }, [page, rowsPerPage, appliedSearch, statusFilter, enqueueSnackbar]);
 
+  // Tree mode fetches the full (filtered) set so the hierarchy is complete
+  const [treeTypes, setTreeTypes] = useState([]);
+  const [treeLoading, setTreeLoading] = useState(false);
+
+  const fetchTreeTypes = useCallback(async () => {
+    setTreeLoading(true);
+    try {
+      const result = await orgUnitTypeService.getOrgUnitTypes({
+        page: 1,
+        limit: 200,
+        search: appliedSearch,
+        status: statusFilter,
+      });
+      setTreeTypes(result?.orgUnitTypes || []);
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Failed to load organization structure.', { variant: 'error' });
+    } finally {
+      setTreeLoading(false);
+    }
+  }, [appliedSearch, statusFilter, enqueueSnackbar]);
+
   useEffect(() => {
     fetchTypes();
   }, [fetchTypes]);
+
+  // Load tree data whenever tree mode is active or filters change
+  useEffect(() => {
+    if (viewMode === 'tree') fetchTreeTypes();
+  }, [viewMode, fetchTreeTypes]);
+
+  const typeTree = useMemo(() => buildTypeTree(treeTypes), [treeTypes]);
+  const totalTreeCount = useMemo(() => {
+    const count = (nodes) => nodes.reduce((sum, n) => sum + 1 + count(n.children || []), 0);
+    return count(typeTree);
+  }, [typeTree]);
 
   const handleSearch = () => {
     setPage(0);
@@ -300,6 +510,7 @@ export const OrgUnitTypePage = () => {
       }
       handleDialogClose();
       fetchTypes();
+      if (viewMode === 'tree') fetchTreeTypes();
     } catch (err) {
       setErrorMsg(err.message || 'Failed to save unit type.');
     } finally {
@@ -334,6 +545,7 @@ export const OrgUnitTypePage = () => {
       setConfirmAction(null);
       setConfirmTarget(null);
       fetchTypes();
+      if (viewMode === 'tree') fetchTreeTypes();
     } catch (err) {
       enqueueSnackbar(err.message || 'Action failed.', { variant: 'error' });
     } finally {
@@ -446,23 +658,60 @@ export const OrgUnitTypePage = () => {
           </Typography>
         </Box>
 
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleDialogOpen('add')}
-          sx={{
-            borderRadius: 2,
-            px: 2.5,
-            py: 1,
-            fontWeight: 700,
-            fontSize: '0.84rem',
-            backgroundColor: '#4f46e5',
-            boxShadow: '0 4px 12px rgba(79, 70, 229, 0.28)',
-            '&:hover': { backgroundColor: '#4338ca' },
-          }}
-        >
-          Add Unit Type
-        </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={viewMode}
+            onChange={(e, val) => { if (val) setViewMode(val); }}
+            aria-label="view mode"
+            sx={{
+              '& .MuiToggleButton-root': {
+                textTransform: 'none',
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                px: 1.75,
+                py: 0.7,
+                color: '#64748b',
+                borderColor: '#e2e8f0',
+                gap: 0.75,
+                '&.Mui-selected': {
+                  color: '#4f46e5',
+                  backgroundColor: '#eef2ff',
+                  '&:hover': { backgroundColor: '#e0e7ff' },
+                },
+                '&:hover': { backgroundColor: '#f8fafc' },
+              },
+            }}
+          >
+            <ToggleButton value="list" aria-label="list view">
+              <ListViewIcon sx={{ fontSize: 18 }} />
+              List
+            </ToggleButton>
+            <ToggleButton value="tree" aria-label="tree view">
+              <TreeIcon sx={{ fontSize: 18 }} />
+              Structure
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleDialogOpen('add')}
+            sx={{
+              borderRadius: 2,
+              px: 2.5,
+              py: 1,
+              fontWeight: 700,
+              fontSize: '0.84rem',
+              backgroundColor: '#4f46e5',
+              boxShadow: '0 4px 12px rgba(79, 70, 229, 0.28)',
+              '&:hover': { backgroundColor: '#4338ca' },
+            }}
+          >
+            Add Unit Type
+          </Button>
+        </Box>
       </Box>
 
       {/* Filter Toolbar */}
@@ -559,7 +808,73 @@ export const OrgUnitTypePage = () => {
         </Box>
       </Paper>
 
-      {/* Types Table */}
+      {/* Org Structure Tree View */}
+      {viewMode === 'tree' && (
+        <Paper elevation={0} sx={{ borderRadius: 2.5, border: '1px solid #e2e8f0', overflow: 'hidden', backgroundColor: '#ffffff' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
+              px: 2.5,
+              py: 1.75,
+              borderBottom: '1px solid #e2e8f0',
+              background: 'linear-gradient(135deg, #eef2ff 0%, #ffffff 100%)',
+            }}
+          >
+            <Box sx={{ width: 34, height: 34, borderRadius: 1.5, backgroundColor: '#eef2ff', color: '#4f46e5', border: '1px solid #e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BusinessIcon sx={{ fontSize: 19 }} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem', lineHeight: 1.2 }}>
+                Organization Structure
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.74rem' }}>
+                Unit types nested by hierarchy rank (Company → Division → Department → …) · {totalTreeCount} type{totalTreeCount === 1 ? '' : 's'}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ p: { xs: 1.5, sm: 2.5 } }}>
+            {treeLoading ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 7 }}>
+                <CircularProgress size={30} sx={{ color: '#4f46e5', mb: 1.5 }} />
+                <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 500 }}>
+                  Building organization structure...
+                </Typography>
+              </Box>
+            ) : typeTree.length === 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 7, textAlign: 'center' }}>
+                <BusinessIcon sx={{ fontSize: 44, color: '#cbd5e1', mb: 1 }} />
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#475569' }}>
+                  No structure to display
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                  {appliedSearch || statusFilter !== 'all'
+                    ? 'Try clearing or changing your filters.'
+                    : 'Add unit types to build your organization hierarchy.'}
+                </Typography>
+              </Box>
+            ) : (
+              <Box>
+                {typeTree.map((node) => (
+                  <TypeTreeNode
+                    key={node.id}
+                    node={node}
+                    depth={0}
+                    onView={(t) => handleDialogOpen('view', t)}
+                    onEdit={(t) => handleDialogOpen('edit', t)}
+                    onToggle={(t) => openConfirm('toggle', t)}
+                  />
+                ))}
+              </Box>
+            )}
+          </Box>
+        </Paper>
+      )}
+
+      {/* Types Table (List view) */}
+      {viewMode === 'list' && (
       <Paper elevation={0} sx={{ borderRadius: 2.5, border: '1px solid #e2e8f0', overflow: 'hidden', backgroundColor: '#ffffff' }}>
         <TableContainer>
           <Table sx={{ minWidth: 850 }}>
@@ -729,6 +1044,7 @@ export const OrgUnitTypePage = () => {
           }}
         />
       </Paper>
+      )}
 
       {/* Add / Edit / View Dialog */}
       <Dialog
