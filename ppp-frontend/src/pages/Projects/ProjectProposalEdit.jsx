@@ -109,8 +109,8 @@ const SectionHeader = ({ accent, title, meta }) => (
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      pb: 2,
-      mb: 2.5,
+      pb: 1.5,
+      mb: 1.8,
       borderBottom: `1px solid ${COLORS.borderLight}`,
     }}
   >
@@ -130,7 +130,7 @@ const SectionHeader = ({ accent, title, meta }) => (
 );
 
 const FieldLabel = ({ children, required, caption }) => (
-  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.8, gap: 1 }}>
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5, gap: 1 }}>
     <Typography variant="body2" sx={{ fontWeight: 600, color: COLORS.onSurface, fontSize: '0.85rem' }}>
       {children} {required && <span style={{ color: COLORS.error }}>*</span>}
     </Typography>
@@ -334,16 +334,15 @@ export const ProjectProposalEdit = () => {
     <Box
       sx={{
         width: '100%',
-        minHeight: '100vh',
         backgroundColor: COLORS.background,
         px: { xs: 2, sm: 3, md: 4, lg: 5 },
-        py: { xs: 2.5, md: 3.5 },
+        py: { xs: 1.5, md: 2 },
         boxSizing: 'border-box',
       }}
     >
       {/* ── TOP ACTION BAR & PAGE HEADER ── */}
-      <Box sx={{ width: '100%', mb: 2.5 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5, mb: 1 }}>
+      <Box sx={{ width: '100%', mb: 1.5 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
           <Button
             size="small"
             startIcon={<ArrowBackIcon sx={{ fontSize: 16 }} />}
@@ -427,7 +426,7 @@ export const ProjectProposalEdit = () => {
             justifyContent: 'space-between',
             alignItems: { xs: 'flex-start', lg: 'center' },
             gap: 2,
-            pt: 0.5,
+            pt: 0,
           }}
         >
           <Box sx={{ maxWidth: 850 }}>
@@ -437,13 +436,13 @@ export const ProjectProposalEdit = () => {
                 fontWeight: 800,
                 color: COLORS.onSurface,
                 letterSpacing: '-0.02em',
-                fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
+                fontSize: { xs: '1.3rem', sm: '1.5rem', md: '1.7rem' },
                 lineHeight: 1.2,
               }}
             >
               Edit Project Proposal
             </Typography>
-            <Typography variant="body2" sx={{ color: COLORS.onSurfaceVariant, mt: 0.8, fontSize: '0.9rem' }}>
+            <Typography variant="body2" sx={{ color: COLORS.onSurfaceVariant, mt: 0.4, fontSize: '0.9rem' }}>
               {formData.proposedProjectName
                 ? `Revising "${formData.proposedProjectName}" — update the concession details before saving.`
                 : 'Update the concession details, financials, and supporting documents before saving.'}
@@ -480,7 +479,7 @@ export const ProjectProposalEdit = () => {
       </Box>
 
       {errorMsg && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
           {errorMsg}
         </Alert>
       )}
@@ -489,8 +488,8 @@ export const ProjectProposalEdit = () => {
         elevation={0}
         sx={{
           width: '100%',
-          p: 2,
-          mb: 3,
+          p: 1.5,
+          mb: 2,
           borderRadius: 3,
           backgroundColor: COLORS.surface,
           border: `1px solid ${COLORS.border}`,
@@ -509,8 +508,8 @@ export const ProjectProposalEdit = () => {
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1.8,
-                  p: 1.5,
+                  gap: 1.2,
+                  p: 1,
                   borderRadius: 2.5,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
@@ -589,7 +588,7 @@ export const ProjectProposalEdit = () => {
         </Box>
 
         {/* Linear progress bar */}
-        <Box sx={{ width: '100%', mt: 2, height: 4, borderRadius: 2, backgroundColor: COLORS.surfaceHighest, overflow: 'hidden' }}>
+        <Box sx={{ width: '100%', mt: 1.5, height: 3, borderRadius: 2, backgroundColor: COLORS.surfaceHighest, overflow: 'hidden' }}>
           <Box
             sx={{
               height: '100%',
@@ -602,14 +601,14 @@ export const ProjectProposalEdit = () => {
       </Paper>
 
       <form onSubmit={handleSubmit} noValidate style={{ width: '100%' }}>
-        <Stack spacing={3} sx={{ width: '100%' }}>
+        <Stack spacing={2} sx={{ width: '100%' }}>
           {/* ── SECTION 1: CORE DETAILS ── */}
           {(isMobile || activeStep === 0) && (
             <Paper
               elevation={0}
               sx={{
                 width: '100%',
-                p: { xs: 2.5, sm: 3.5 },
+                p: { xs: 2, sm: 2.75 },
                 borderRadius: 3,
                 backgroundColor: COLORS.surface,
                 border: `1px solid ${COLORS.border}`,
@@ -618,7 +617,7 @@ export const ProjectProposalEdit = () => {
             >
               <SectionHeader accent={COLORS.primary} title="Core Details" meta="Section 1 of 3" />
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, alignItems: 'start' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, alignItems: 'start' }}>
                 {/* Proposed Project Name */}
                 <Box sx={{ gridColumn: { xs: '1 / -1', md: '1 / -1' } }}>
                   <FieldLabel required>Proposed Project Name</FieldLabel>
@@ -631,7 +630,7 @@ export const ProjectProposalEdit = () => {
                     onChange={handleChange('proposedProjectName')}
                     sx={INPUT_SX}
                   />
-                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.8, fontSize: '0.74rem' }}>
+                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.4, fontSize: '0.74rem' }}>
                     The working title used across review memos and approval packages.
                   </Typography>
                 </Box>
@@ -664,13 +663,13 @@ export const ProjectProposalEdit = () => {
                       </MenuItem>
                     ))}
                   </TextField>
-                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.8, fontSize: '0.74rem' }}>
+                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.4, fontSize: '0.74rem' }}>
                     Lead sponsor submitting this proposal for appraisal.
                   </Typography>
                 </Box>
                 {/* Proposal Workflow Status (locked) */}
                 <Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.8, gap: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5, gap: 1 }}>
                     <Typography variant="body2" sx={{ fontWeight: 600, color: COLORS.onSurface, fontSize: '0.85rem' }}>
                       Proposal Workflow Status <span style={{ color: COLORS.error }}>*</span>
                     </Typography>
@@ -709,7 +708,7 @@ export const ProjectProposalEdit = () => {
                       </MenuItem>
                     ))}
                   </TextField>
-                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.8, fontSize: '0.74rem' }}>
+                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.4, fontSize: '0.74rem' }}>
                     Auto-assigned to Draft; advanced by the approvals pipeline.
                   </Typography>
                 </Box>
@@ -753,7 +752,7 @@ export const ProjectProposalEdit = () => {
                     }}
                     renderInput={(params) => <TextField {...params} placeholder="Select one or more categories…" />}
                   />
-                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.8, fontSize: '0.74rem' }}>
+                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.4, fontSize: '0.74rem' }}>
                     Asset classes this proposal falls under; on-land categories unlock the land request field.
                   </Typography>
                 </Box>
@@ -766,7 +765,7 @@ export const ProjectProposalEdit = () => {
               elevation={0}
               sx={{
                 width: '100%',
-                p: { xs: 2.5, sm: 3.5 },
+                p: { xs: 2, sm: 2.75 },
                 borderRadius: 3,
                 backgroundColor: COLORS.surface,
                 border: `1px solid ${COLORS.border}`,
@@ -775,7 +774,7 @@ export const ProjectProposalEdit = () => {
             >
               <SectionHeader accent={COLORS.tertiary} title="Financials & Resources" meta="Section 2 of 3" />
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, alignItems: 'start' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, alignItems: 'start' }}>
                 {/* Capital amount + currency */}
                 <Box>
                   <FieldLabel caption="Required for appraisal thresholds">Proposed Capital Amount</FieldLabel>
@@ -815,7 +814,7 @@ export const ProjectProposalEdit = () => {
                       ))}
                     </TextField>
                   </Box>
-                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.8, fontSize: '0.74rem' }}>
+                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.4, fontSize: '0.74rem' }}>
                     Total investment value and its denomination for the feasibility review.
                   </Typography>
                 </Box>
@@ -844,7 +843,7 @@ export const ProjectProposalEdit = () => {
                           ),
                         }}
                       />
-                      <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.8, fontSize: '0.74rem' }}>
+                      <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.4, fontSize: '0.74rem' }}>
                         Total parcel area requested from the public land bank.
                       </Typography>
                     </>
@@ -854,7 +853,7 @@ export const ProjectProposalEdit = () => {
                         display: 'flex',
                         alignItems: 'flex-start',
                         gap: 1.2,
-                        p: 1.5,
+                        p: 1,
                         borderRadius: 2,
                         backgroundColor: COLORS.surfaceLow,
                         border: `1px dashed ${COLORS.border}`,
@@ -881,7 +880,7 @@ export const ProjectProposalEdit = () => {
               elevation={0}
               sx={{
                 width: '100%',
-                p: { xs: 2.5, sm: 3.5 },
+                p: { xs: 2, sm: 2.75 },
                 borderRadius: 3,
                 backgroundColor: COLORS.surface,
                 border: `1px solid ${COLORS.border}`,
@@ -890,20 +889,20 @@ export const ProjectProposalEdit = () => {
             >
               <SectionHeader accent={COLORS.primaryContainer} title="Description & Documents" meta="Section 3 of 3" />
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, alignItems: 'start' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, alignItems: 'start' }}>
                 {/* Description */}
                 <Box>
                   <FieldLabel caption={`${formData.description.length} characters`}>Description / Scope</FieldLabel>
                   <TextField
                     fullWidth
                     multiline
-                    minRows={4}
+                    minRows={3}
                     placeholder="Describe the project scope, service delivery model, and expected public benefit…"
                     value={formData.description}
                     onChange={handleChange('description')}
                     sx={INPUT_SX}
                   />
-                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.8, fontSize: '0.74rem' }}>
+                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.4, fontSize: '0.74rem' }}>
                     Executive summary carried into the feasibility review memorandum.
                   </Typography>
                 </Box>
@@ -914,13 +913,13 @@ export const ProjectProposalEdit = () => {
                   <TextField
                     fullWidth
                     multiline
-                    minRows={4}
+                    minRows={3}
                     placeholder="Reviewer notes, open questions, or coordination details…"
                     value={formData.remarks}
                     onChange={handleChange('remarks')}
                     sx={INPUT_SX}
                   />
-                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.8, fontSize: '0.74rem' }}>
+                  <Typography variant="caption" sx={{ display: 'block', color: COLORS.onSurfaceVariant, mt: 0.4, fontSize: '0.74rem' }}>
                     Visible to the review team only; never part of the public dossier.
                   </Typography>
                 </Box>
@@ -932,8 +931,8 @@ export const ProjectProposalEdit = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  mt: 1,
-                  pt: 2.5,
+                  mt: 0.5,
+                  pt: 2,
                   borderTop: `1px solid ${COLORS.borderLight}`,
                 }}
               >
@@ -959,10 +958,10 @@ export const ProjectProposalEdit = () => {
               {/* Upload dropzone */}
               <Box
                 sx={{
-                  mt: 2,
+                  mt: 1.5,
                   border: `1.5px dashed ${COLORS.border}`,
                   borderRadius: 2.5,
-                  p: 3,
+                  p: 1.5,
                   textAlign: 'center',
                   backgroundColor: COLORS.surfaceLow,
                   transition: 'all 0.2s ease',
@@ -1067,7 +1066,7 @@ export const ProjectProposalEdit = () => {
               bottom: 16,
               zIndex: 40,
               width: '100%',
-              p: 2,
+              p: 1.5,
               borderRadius: 3,
               backgroundColor: 'rgba(255, 255, 255, 0.96)',
               backdropFilter: 'blur(12px)',
@@ -1077,7 +1076,7 @@ export const ProjectProposalEdit = () => {
               flexDirection: { xs: 'column', sm: 'row' },
               justifyContent: 'space-between',
               alignItems: 'center',
-              gap: 2,
+              gap: 1.5,
               boxSizing: 'border-box',
             }}
           >
@@ -1089,7 +1088,7 @@ export const ProjectProposalEdit = () => {
                 sx={{
                   borderRadius: 2,
                   px: 3,
-                  py: 0.7,
+                  py: 0.5,
                   borderColor: COLORS.border,
                   color: COLORS.secondary,
                   fontWeight: 600,
@@ -1141,7 +1140,7 @@ export const ProjectProposalEdit = () => {
                   sx={{
                     borderRadius: 2,
                     px: 3,
-                    py: 0.7,
+                    py: 0.5,
                     borderColor: COLORS.border,
                     color: COLORS.secondary,
                     fontWeight: 600,
@@ -1161,7 +1160,7 @@ export const ProjectProposalEdit = () => {
                   sx={{
                     borderRadius: 2,
                     px: 3,
-                    py: 0.7,
+                    py: 0.5,
                     fontWeight: 700,
                     textTransform: 'none',
                     backgroundColor: COLORS.primaryContainer,
@@ -1182,7 +1181,7 @@ export const ProjectProposalEdit = () => {
                   sx={{
                     borderRadius: 2,
                     px: 3.5,
-                    py: 0.7,
+                    py: 0.5,
                     fontWeight: 700,
                     textTransform: 'none',
                     backgroundColor: COLORS.primaryContainer,

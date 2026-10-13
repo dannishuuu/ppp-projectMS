@@ -34,6 +34,14 @@ module.exports = {
   OrganizationType: require('./organizationType.model'),
   BusinessSector: require('./businessSector.model'),
 
+  // Role-Based Access Control (RBAC)
+  Action: require('./action.model'),
+  Module: require('./module.model'),
+  Permission: require('./permission.model'),
+  Role: require('./role.model'),
+  RolePermission: require('./rolePermission.model'),
+  UserRole: require('./userRole.model'),
+
   // Geography & Assets
   Country: require('./countries.model'),
   Region: require('./region.model'),
