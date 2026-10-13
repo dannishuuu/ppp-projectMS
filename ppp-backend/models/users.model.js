@@ -153,9 +153,11 @@ class UserModel {
     const query = `
       UPDATE users
       SET failed_login_attempts = 0, locked_until = NULL
-      WHERE id = :userId;
+      WHERE id = :userId
+      RETURNING failed_login_attempts, locked_until;
     `;
-    await db.query(query, { replacements: { userId } });
+    const rows = await db.query(query, { replacements: { userId }, type: QueryTypes.SELECT });
+    return rows[0];
   }
 
   static async updateLastLogin(userId, ipAddress, userAgent) {

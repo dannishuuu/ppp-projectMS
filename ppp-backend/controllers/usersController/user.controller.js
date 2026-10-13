@@ -73,6 +73,16 @@ exports.toggleUserStatus = async (req, res, next) => {
     }
 };
 
+exports.unlockUser = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const result = await UserService.unlockUser(id);
+        return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
 exports.deleteUser = async (req, res, next) => {
     try {
         const { id } = req.params;

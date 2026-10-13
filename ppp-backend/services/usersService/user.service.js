@@ -113,6 +113,7 @@ class UserService {
     let query = `
       SELECT u.id, u.email, u.username, u.first_name, u.last_name, u.display_name, u.phone,
              u.is_active, u.created_at, u.updated_at, u.last_login_at,
+             u.failed_login_attempts, u.locked_until,
              ul.country_id, ul.region_id, ul.zone_id, ul.woreda_id,
              c.name AS location_country_name,
              r.name AS location_region_name,
@@ -245,6 +246,22 @@ class UserService {
     return {
       message: `User ${user.is_active ? 'deactivated' : 'activated'} successfully.`,
       is_active: !user.is_active,
+    };
+  }
+
+  static async unlockUser(userId) {
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      throw new Error('User not found.');
+    }
+
+    // Clear the failed-login counter and lift any active lock.
+    const result = await UserModel.resetFailedAttempts(userId);
+
+    return {
+      message: `User "${user.display_name || user.email}" unlocked successfully.`,
+      failed_login_attempts: result?.failed_login_attempts ?? 0,
+      locked_until: result?.locked_until ?? null,
     };
   }
 

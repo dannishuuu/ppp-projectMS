@@ -44,6 +44,11 @@ export const userService = {
     return response.data;
   },
 
+  async unlockUser(userId) {
+    const response = await apiClient.patch(`/users/${userId}/unlock`, {});
+    return response.data;
+  },
+
   async deleteUser(userId) {
     const response = await apiClient.delete(`/users/${userId}`);
     return response.data;

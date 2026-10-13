@@ -32,6 +32,8 @@ import {
   Block as DeactivateIcon,
   CheckCircle as ActivateIcon,
   Visibility as ViewIcon,
+  Lock as LockedIcon,
+  LockOpen as UnlockIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -56,8 +58,10 @@ export const UsersList = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
+  const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [toggleLoading, setToggleLoading] = useState(false);
+  const [unlockLoading, setUnlockLoading] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -154,6 +158,36 @@ export const UsersList = () => {
   const handleToggleDialogClose = () => {
     if (toggleLoading) return;
     setToggleDialogOpen(false);
+    setSelectedUser(null);
+  };
+
+  // A user is "locked" when a lock timestamp exists and is still in the future.
+  const isLocked = (user) => Boolean(user?.locked_until && new Date(user.locked_until) > new Date());
+
+  const handleUnlockDialogOpen = (user) => {
+    setSelectedUser(user);
+    setUnlockDialogOpen(true);
+  };
+
+  const handleUnlockConfirm = async () => {
+    if (!selectedUser) return;
+    setUnlockLoading(true);
+    try {
+      const result = await userService.unlockUser(selectedUser.id);
+      enqueueSnackbar(result.message || 'User unlocked successfully', { variant: 'success' });
+      fetchUsers();
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Failed to unlock user', { variant: 'error' });
+    } finally {
+      setUnlockLoading(false);
+      setUnlockDialogOpen(false);
+      setSelectedUser(null);
+    }
+  };
+
+  const handleUnlockDialogClose = () => {
+    if (unlockLoading) return;
+    setUnlockDialogOpen(false);
     setSelectedUser(null);
   };
 
@@ -295,7 +329,7 @@ export const UsersList = () => {
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Phone Number</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Location</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Created</TableCell>
+                {/* <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Created</TableCell> */}
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }} align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -363,23 +397,41 @@ export const UsersList = () => {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={user.is_active ? 'Active' : 'Inactive'}
-                        size="small"
-                        sx={{
-                          height: 20,
-                          fontSize: '0.7rem',
-                          fontWeight: 600,
-                          backgroundColor: user.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                          color: user.is_active ? '#059669' : '#dc2626',
-                        }}
-                      />
+                      <Box sx={{ display: 'inline-flex', flexDirection: 'column', gap: 0.4, alignItems: 'flex-start' }}>
+                        <Chip
+                          label={user.is_active ? 'Active' : 'Inactive'}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            backgroundColor: user.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            color: user.is_active ? '#059669' : '#dc2626',
+                          }}
+                        />
+                        {isLocked(user) && (
+                          <Chip
+                            icon={<LockedIcon sx={{ fontSize: 12 }} />}
+                            label="Locked"
+                            size="small"
+                            sx={{
+                              height: 20,
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                              color: '#b45309',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              '& .MuiChip-icon': { color: '#b45309', ml: 0.6 },
+                            }}
+                          />
+                        )}
+                      </Box>
                     </TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                       <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.82rem' }}>
                         {formatDate(user.created_at)}
                       </Typography>
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell align="right" sx={{ pr: 1 }}>
                       <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
                         <Tooltip title="View Details" arrow placement="top">
@@ -486,6 +538,31 @@ export const UsersList = () => {
                             </IconButton>
                           </span>
                         </Tooltip>
+
+                        {isLocked(user) && (
+                          <Tooltip title="Unlock User" arrow placement="top">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleUnlockDialogOpen(user)}
+                              sx={{
+                                color: '#b45309',
+                                backgroundColor: '#fffbeb',
+                                border: '1px solid #fde68a',
+                                borderRadius: 1.5,
+                                p: 0.6,
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  backgroundColor: '#fef3c7',
+                                  color: '#92400e',
+                                  transform: 'translateY(-1px)',
+                                  boxShadow: '0 2px 4px rgba(180, 83, 9, 0.15)',
+                                },
+                              }}
+                            >
+                              <UnlockIcon sx={{ fontSize: 15 }} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
 
                         <Tooltip title={isCurrentUser(user.id) ? 'You cannot delete yourself' : 'Delete User'} arrow placement="top">
                           <span>
@@ -628,6 +705,71 @@ export const UsersList = () => {
             }}
           >
             {toggleLoading ? (selectedUser?.is_active ? 'Deactivating...' : 'Activating...') : (selectedUser?.is_active ? 'Deactivate' : 'Activate')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Unlock User Confirmation Dialog */}
+      <Dialog
+        open={unlockDialogOpen}
+        onClose={handleUnlockDialogClose}
+        PaperProps={{ sx: { borderRadius: 3, p: 1, maxWidth: 400, width: '100%' } }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: 2,
+                backgroundColor: '#fffbeb',
+                border: '1px solid #fde68a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <UnlockIcon sx={{ color: '#b45309', fontSize: 24 }} />
+            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a' }}>
+              Unlock User
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pb: 1 }}>
+          <Typography variant="body2" sx={{ color: '#475569', lineHeight: 1.7 }}>
+            {`Are you sure you want to unlock user "${selectedUser?.display_name || selectedUser?.email}"? This will reset their failed login attempts and restore access immediately.`}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={handleUnlockDialogClose}
+            variant="outlined"
+            color="inherit"
+            disabled={unlockLoading}
+            sx={{ borderColor: '#e2e8f0', color: '#475569', fontWeight: 600, borderRadius: 2, flex: 1 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleUnlockConfirm}
+            variant="contained"
+            disabled={unlockLoading}
+            autoFocus
+            startIcon={unlockLoading ? <CircularProgress size={18} color="inherit" /> : <UnlockIcon />}
+            sx={{
+              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+              fontWeight: 700,
+              borderRadius: 2,
+              flex: 1,
+              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.35)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #d97706, #b45309)',
+              },
+            }}
+          >
+            {unlockLoading ? 'Unlocking...' : 'Unlock'}
           </Button>
         </DialogActions>
       </Dialog>
