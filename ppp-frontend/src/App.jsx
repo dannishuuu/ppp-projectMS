@@ -16,6 +16,7 @@ import { CreateUser } from './pages/Users/CreateUser';
 import { UsersList } from './pages/Users/UsersList';
 import { UserDetails } from './pages/Users/UserDetails';
 import { EditUser } from './pages/Users/EditUser';
+import { ModuleRoleManagement } from './pages/RolePermissionManage';
 import { OrganizationTypePage } from './pages/Organizations/OrganizationTypePage';
 import { OrganizationList } from './pages/Organizations/OrganizationList';
 import { OrganizationForm } from './pages/Organizations/OrganizationForm';
@@ -115,6 +116,7 @@ function App() {
                   {/* User managment pages */}
                   <Route path="users/new" element={<CreateUser />} />
                   <Route path="users/list" element={<UsersList />} />
+                  <Route path="users/roles-permissions" element={<ModuleRoleManagement />} />
                   <Route path="users/:id" element={<UserDetails />} />
                   <Route path="users/:id/edit" element={<EditUser />} />
 

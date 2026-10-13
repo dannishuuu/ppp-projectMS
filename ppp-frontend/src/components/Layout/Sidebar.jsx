@@ -45,6 +45,7 @@ import {
   Description as ContractNavIcon,
   PostAdd as NewContractIcon,
   FactCheck as ApprovalNavIcon,
+  Security as RoleIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProjects } from '../../context/ProjectContext';
@@ -93,6 +94,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
 
   const userSubItems = [
     { text: 'Users List', icon: <UsersListIcon />, path: '/users/list' },
+    { text: 'Roles & Permissions', icon: <RoleIcon />, path: '/users/roles-permissions' },
   ];
 
   const orgSubItems = [
