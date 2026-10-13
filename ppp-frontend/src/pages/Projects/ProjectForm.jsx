@@ -44,6 +44,7 @@ import {
   NavigateNext as NextIcon,
   NavigateBefore as PrevIcon,
   Edit as EditIcon,
+  LockOutlined as LockIcon,
 } from '@mui/icons-material';
 
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
@@ -221,6 +222,12 @@ export const ProjectForm = () => {
   const selectedProposal = proposals?.find((p) => String(p.id) === String(watchedProposalId));
   const selectedCurrency = currencies?.find((c) => String(c.id) === String(watchedCurrencyId));
 
+  // Lifecycle Status is locked to the project status named "Signed" (not editable).
+  const signedStatus = (statuses || []).find(
+    (s) => (s.name || '').trim().toLowerCase() === 'signed'
+  );
+  const signedStatusId = signedStatus?.id || '';
+
   // ── Load lookups ─────────────────────────────────────────────────────────────
   const loadLookups = useCallback(async () => {
     try {
@@ -373,6 +380,15 @@ export const ProjectForm = () => {
     loadApprovedProposals();
   }, [loadLookups, loadApprovedProposals]);
 
+  // ── Lock Lifecycle Status ────────────────────────────────────────────────
+  // Create mode: force to the "Signed" status id. Edit mode: leave the project's
+  // existing status untouched (the field is simply shown disabled).
+  useEffect(() => {
+    if (!isEdit && signedStatusId) {
+      setValue('statusId', signedStatusId, { shouldValidate: true });
+    }
+  }, [isEdit, signedStatusId, setValue]);
+
   // ── Load existing project for edit ──────────────────────────────────────────
   useEffect(() => {
     if (!isEdit) return;
@@ -425,7 +441,7 @@ export const ProjectForm = () => {
         contractSigningDate: data.contractSigningDate,
         estimatedBudgetAmount: data.estimatedBudgetAmount || null,
         estimatedBudgetCurrencyId: data.estimatedBudgetCurrencyId || null,
-        statusId: data.statusId,
+        statusId: isEdit ? data.statusId : (signedStatusId || data.statusId),
         categoryIds: data.categoryIds || [],
         organizations: data.organizations || [],
         managerUserIds: data.managerUserIds || [],
@@ -1102,44 +1118,61 @@ export const ProjectForm = () => {
                   />
                 </Grid>
 
-                {/* Lifecycle Status */}
+                {/* Lifecycle Status — locked to "Signed" (not editable) */}
                 <Grid item xs={12} md={5}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: COLORS.onSurface, fontSize: '0.85rem', mb: 0.8 }}>
-                    Lifecycle Status <span style={{ color: COLORS.error }}>*</span>
-                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.8 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: COLORS.onSurface, fontSize: '0.85rem' }}>
+                      Lifecycle Status <span style={{ color: COLORS.error }}>*</span>
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, color: COLORS.onSurfaceVariant, fontSize: '0.72rem', fontWeight: 600 }}>
+                      <LockIcon sx={{ fontSize: 13 }} /> Locked
+                    </Box>
+                  </Box>
                   <Controller
                     name="statusId"
                     control={control}
-                    render={({ field }) => (
-                      <FormControl fullWidth size="small" error={Boolean(errors.statusId)}>
-                        <Select
-                          {...field}
-                          displayEmpty
-                          sx={{
-                            backgroundColor: COLORS.surfaceLow,
-                            borderRadius: 2,
-                            fontSize: '0.88rem',
-                          }}
-                        >
-                          <MenuItem disabled value="">
-                            <em>Select Project Status…</em>
-                          </MenuItem>
-                          {(statuses || []).map((s) => (
-                            <MenuItem key={s.id} value={s.id}>
-                              {s.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                        <FormHelperText>
-                          {errors.statusId?.message || (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: COLORS.onSurfaceVariant }}>
-                              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: COLORS.primary, display: 'inline-block' }} />
-                              Stage gate requiring Ministry of Finance review
-                            </span>
-                          )}
-                        </FormHelperText>
-                      </FormControl>
-                    )}
+                    render={({ field }) => {
+                      const lockedValue = isEdit ? (field.value || '') : (signedStatusId || field.value || '');
+                      const lockedLabel = !isEdit
+                        ? (signedStatus?.name || 'Signed')
+                        : ((statuses || []).find((s) => String(s.id) === String(field.value))?.name || '—');
+                      return (
+                        <FormControl fullWidth size="small" error={Boolean(errors.statusId)}>
+                          <Select
+                            {...field}
+                            value={lockedValue}
+                            disabled
+                            renderValue={() => lockedLabel}
+                            sx={{
+                              backgroundColor: COLORS.surfaceHighest,
+                              borderRadius: 2,
+                              fontSize: '0.88rem',
+                              fontWeight: 700,
+                              color: COLORS.primary,
+                              '&.Mui-disabled': {
+                                color: COLORS.primary,
+                                WebkitTextFillColor: COLORS.primary,
+                                backgroundColor: COLORS.surfaceHighest,
+                              },
+                              '& .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.border },
+                              '&.Mui-disabled .MuiOutlinedInput-notchedOutline': { borderColor: COLORS.border },
+                            }}
+                          >
+                            <MenuItem value={lockedValue}>{lockedLabel}</MenuItem>
+                          </Select>
+                          <FormHelperText>
+                            {errors.statusId?.message || (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: COLORS.onSurfaceVariant }}>
+                                <LockIcon sx={{ fontSize: 12 }} />
+                                {isEdit
+                                  ? 'Status is locked and cannot be changed'
+                                  : 'Fixed to "Signed" and cannot be changed'}
+                              </span>
+                            )}
+                          </FormHelperText>
+                        </FormControl>
+                      );
+                    }}
                   />
                 </Grid>
 

@@ -223,16 +223,7 @@ const StatusPill = ({ name }) => {
 };
 
 /* ── Mini disbursement bar ───────────────────────────────────────────────────── */
-const DisbBar = ({ pct, color }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-    <Box sx={{ width: 80, height: 5, borderRadius: '99px', bgcolor: D.borderSubtle, overflow: 'hidden', flexShrink: 0 }}>
-      <Box sx={{ height: '100%', width: `${Math.min(pct, 100)}%`, bgcolor: color, borderRadius: '99px' }} />
-    </Box>
-    <Typography sx={{ fontSize: '0.6875rem', color: D.textMuted, fontVariantNumeric: 'tabular-nums', fontFamily: 'Inter, sans-serif', fontWeight: 500 }}>
-      {pct}% disbursed
-    </Typography>
-  </Box>
-);
+/* Removed: disbursement progress bar is no longer displayed in the Capital & Execution column. */
 
 /* ══ Main Component ════════════════════════════════════════════════════════════ */
 export const ProjectList = () => {
@@ -390,16 +381,11 @@ export const ProjectList = () => {
         if (!value) return <Typography sx={{ color: D.textLight, fontSize: '0.8125rem' }}>—</Typography>;
         const sym = row.currency?.symbol || row.currency_symbol || '';
         const fmt = Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 });
-        const statusN = (row.status_name || row.status?.name || '').toLowerCase();
-        const barColor = statusN.includes('operational') || statusN.includes('active') ? D.activeDot
-          : statusN.includes('complet') ? '#7c3aed' : D.constructDot;
-        const pct = Math.round(Math.random() * 80 + 10); // placeholder — swap for real field when available
         return (
           <Box sx={{ py: 0.5 }}>
             <Typography sx={{ fontWeight: 700, fontSize: '0.8125rem', color: D.textPrimary, fontVariantNumeric: 'tabular-nums', fontFamily: 'Inter, sans-serif' }}>
               {sym} {fmt}
             </Typography>
-            <DisbBar pct={pct} color={barColor} />
           </Box>
         );
       },

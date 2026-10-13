@@ -49,6 +49,11 @@ export const userService = {
     return response.data;
   },
 
+  async resetPassword(userId, password) {
+    const response = await apiClient.patch(`/users/${userId}/reset-password`, { password });
+    return response.data;
+  },
+
   async deleteUser(userId) {
     const response = await apiClient.delete(`/users/${userId}`);
     return response.data;

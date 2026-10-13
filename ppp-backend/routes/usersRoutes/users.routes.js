@@ -11,6 +11,7 @@ router.get('/:id', authMiddleware, UserController.getUserById);
 router.put('/:id', authMiddleware, UserController.updateUser);
 router.patch('/:id/toggle-status', authMiddleware, UserController.toggleUserStatus);
 router.patch('/:id/unlock', authMiddleware, UserController.unlockUser);
+router.patch('/:id/reset-password', authMiddleware, UserController.resetPassword);
 router.delete('/:id', authMiddleware, UserController.deleteUser);
 
 module.exports = router;

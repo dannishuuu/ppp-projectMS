@@ -83,6 +83,17 @@ exports.unlockUser = async (req, res, next) => {
     }
 };
 
+exports.resetPassword = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { password } = req.body;
+        const result = await UserService.resetPassword(id, password);
+        return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
 exports.deleteUser = async (req, res, next) => {
     try {
         const { id } = req.params;

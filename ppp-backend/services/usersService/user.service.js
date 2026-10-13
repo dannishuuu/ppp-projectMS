@@ -265,6 +265,25 @@ class UserService {
     };
   }
 
+  static async resetPassword(userId, newPassword) {
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      throw new Error('User not found.');
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error('Password must be at least 6 characters.');
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    const query = `UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ? AND is_deleted = FALSE`;
+    await db.query(query, { replacements: [passwordHash, userId], type: QueryTypes.UPDATE });
+
+    return {
+      message: `Password for "${user.display_name || user.email}" has been reset successfully.`,
+    };
+  }
+
   static async deleteUser(userId) {
     const user = await UserModel.findById(userId);
     if (!user) {

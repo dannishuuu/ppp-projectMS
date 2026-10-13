@@ -22,6 +22,7 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
+  Stack,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -34,6 +35,7 @@ import {
   Visibility as ViewIcon,
   Lock as LockedIcon,
   LockOpen as UnlockIcon,
+  LockReset as PasswordResetIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -59,9 +61,13 @@ export const UsersList = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [toggleLoading, setToggleLoading] = useState(false);
   const [unlockLoading, setUnlockLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -189,6 +195,56 @@ export const UsersList = () => {
     if (unlockLoading) return;
     setUnlockDialogOpen(false);
     setSelectedUser(null);
+  };
+
+  // ─── Password reset (admin sets a new password for the user) ───────────────
+  const passwordError = (() => {
+    if (!newPassword && !confirmPassword) return '';
+    if (newPassword.length > 0 && newPassword.length < 6) return 'Password must be at least 6 characters.';
+    if (confirmPassword.length > 0 && newPassword !== confirmPassword) return 'Passwords do not match.';
+    return '';
+  })();
+
+  const handlePasswordDialogOpen = (user) => {
+    setSelectedUser(user);
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordDialogOpen(true);
+  };
+
+  const handlePasswordDialogClose = () => {
+    if (passwordLoading) return;
+    setPasswordDialogOpen(false);
+    setSelectedUser(null);
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  const handlePasswordReset = async () => {
+    if (!selectedUser) return;
+
+    if (!newPassword || newPassword.length < 6) {
+      enqueueSnackbar('Password must be at least 6 characters.', { variant: 'warning' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      enqueueSnackbar('Passwords do not match.', { variant: 'warning' });
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const result = await userService.resetPassword(selectedUser.id, newPassword);
+      enqueueSnackbar(result.message || 'Password reset successfully', { variant: 'success' });
+      setPasswordDialogOpen(false);
+      setSelectedUser(null);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      enqueueSnackbar(error.message || 'Failed to reset password', { variant: 'error' });
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   const getUserInitials = (user) => {
@@ -492,6 +548,40 @@ export const UsersList = () => {
                         </Tooltip>
 
                         <Tooltip
+                          title={isCurrentUser(user.id) ? 'You cannot reset your own password' : 'Reset Password'}
+                          arrow
+                          placement="top"
+                        >
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => handlePasswordDialogOpen(user)}
+                              disabled={isCurrentUser(user.id)}
+                              sx={{
+                                color: isCurrentUser(user.id) ? '#94a3b8' : '#7c3aed',
+                                backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#f5f3ff',
+                                border: `1px solid ${isCurrentUser(user.id) ? '#e2e8f0' : '#ede9fe'}`,
+                                borderRadius: 1.5,
+                                p: 0.6,
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#ede9fe',
+                                  color: isCurrentUser(user.id) ? '#94a3b8' : '#6d28d9',
+                                  transform: isCurrentUser(user.id) ? 'none' : 'translateY(-1px)',
+                                  boxShadow: isCurrentUser(user.id) ? 'none' : '0 2px 4px rgba(124, 58, 237, 0.15)',
+                                },
+                                '&.Mui-disabled': {
+                                  backgroundColor: '#f1f5f9',
+                                  borderColor: '#e2e8f0',
+                                },
+                              }}
+                            >
+                              <PasswordResetIcon sx={{ fontSize: 15 }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+
+                        <Tooltip
                           title={
                             isCurrentUser(user.id)
                               ? 'You cannot change your own status'
@@ -770,6 +860,110 @@ export const UsersList = () => {
             }}
           >
             {unlockLoading ? 'Unlocking...' : 'Unlock'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog
+        open={passwordDialogOpen}
+        onClose={handlePasswordDialogClose}
+        PaperProps={{ sx: { borderRadius: 3, p: 1, maxWidth: 420, width: '100%' } }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: 2,
+                backgroundColor: '#f5f3ff',
+                border: '1px solid #ede9fe',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <PasswordResetIcon sx={{ color: '#7c3aed', fontSize: 24 }} />
+            </Box>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                Reset Password
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#7b8497', fontSize: '0.8rem' }}>
+                {selectedUser?.display_name || selectedUser?.email}
+              </Typography>
+            </Box>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pb: 1 }}>
+          <Typography variant="body2" sx={{ color: '#475569', lineHeight: 1.7, mb: 2 }}>
+            Set a new password for this user. They will use it to sign in on their next login attempt.
+          </Typography>
+          <Stack spacing={2}>
+            <TextField
+              label="New Password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              fullWidth
+              autoComplete="new-password"
+              autoFocus
+              error={Boolean(passwordError) && newPassword.length > 0}
+              helperText={passwordError && newPassword.length > 0 ? passwordError : 'Minimum 6 characters.'}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  fontSize: '0.85rem',
+                },
+              }}
+            />
+            <TextField
+              label="Confirm Password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              fullWidth
+              autoComplete="new-password"
+              error={Boolean(passwordError) && confirmPassword.length > 0}
+              helperText={passwordError && confirmPassword.length > 0 ? passwordError : ' '}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  fontSize: '0.85rem',
+                },
+              }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={handlePasswordDialogClose}
+            variant="outlined"
+            color="inherit"
+            disabled={passwordLoading}
+            sx={{ borderColor: '#e2e8f0', color: '#475569', fontWeight: 600, borderRadius: 2, flex: 1 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handlePasswordReset}
+            variant="contained"
+            disabled={passwordLoading || !newPassword || Boolean(passwordError)}
+            startIcon={passwordLoading ? <CircularProgress size={18} color="inherit" /> : <PasswordResetIcon />}
+            sx={{
+              background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+              fontWeight: 700,
+              borderRadius: 2,
+              flex: 1,
+              boxShadow: '0 4px 12px rgba(124, 58, 237, 0.35)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
+              },
+            }}
+          >
+            {passwordLoading ? 'Resetting...' : 'Reset Password'}
           </Button>
         </DialogActions>
       </Dialog>

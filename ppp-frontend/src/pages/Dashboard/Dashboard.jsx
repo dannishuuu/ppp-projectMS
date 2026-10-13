@@ -32,7 +32,6 @@ import {
   Business as OrgIcon,
   Handshake as HandshakeIcon,
   Refresh as RefreshIcon,
-  Add as AddIcon,
   ArrowForward as ArrowIcon,
   Visibility as ViewIcon,
   AccessTime as TimeIcon,
@@ -668,39 +667,6 @@ export const Dashboard = () => {
             width: { xs: '100%', md: 'auto' },
           }}
         >
-          <Button
-            variant="outlined"
-            startIcon={<ProposalIcon />}
-            onClick={() => navigate('/projects/proposals/new')}
-            sx={{
-              ...FONT,
-              color: '#fff',
-              borderColor: 'rgba(255, 255, 255, 0.45)',
-              fontWeight: 700,
-              textTransform: 'none',
-              borderRadius: '10px',
-              '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255, 255, 255, 0.10)' },
-            }}
-          >
-            New Proposal
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/projects/new')}
-            sx={{
-              ...FONT,
-              bgcolor: '#fff',
-              color: D.primary,
-              fontWeight: 800,
-              textTransform: 'none',
-              borderRadius: '10px',
-              boxShadow: 'none',
-              '&:hover': { bgcolor: '#eef1ff', boxShadow: 'none' },
-            }}
-          >
-            New Project
-          </Button>
           <Tooltip title="Refresh dashboard data">
             <span>
               <IconButton
