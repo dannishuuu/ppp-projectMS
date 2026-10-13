@@ -43,7 +43,6 @@ import {
   Search as SearchIcon,
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   CheckCircle as ActiveIcon,
   Cancel as InactiveIcon,
   Security as RoleIcon,
@@ -63,6 +62,7 @@ import {
   actionService,
   permissionService,
 } from '../../services/moduleRolePermissionService';
+import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 
 /* ── Design Tokens ────────────────────────────────────────────────────────── */
 const T = {
@@ -72,6 +72,9 @@ const T = {
   textPrimary: '#0f172a',
   textSecondary: '#64748b',
 };
+
+// Singular labels used in the activate/deactivate confirmation dialog
+const TOGGLE_KIND_LABEL = { module: 'Module', action: 'Action', role: 'Role' };
 
 export const ModuleRoleManagement = () => {
   const theme = useTheme();
@@ -102,10 +105,6 @@ export const ModuleRoleManagement = () => {
   const [moduleForm, setModuleForm] = useState({ name: '', code: '', description: '', is_active: true });
   const [moduleFormSaving, setModuleFormSaving] = useState(false);
 
-  const [deleteModuleDialogOpen, setDeleteModuleDialogOpen] = useState(false);
-  const [moduleToDelete, setModuleToDelete] = useState(null);
-  const [deletingModule, setDeletingModule] = useState(false);
-
   /* ══════════════════════════════════════════════════════════════════════════
      TAB 1: ACTION VERBS STATE & HANDLERS
   ══════════════════════════════════════════════════════════════════════════ */
@@ -121,10 +120,6 @@ export const ModuleRoleManagement = () => {
   const [selectedAction, setSelectedAction] = useState(null);
   const [actionForm, setActionForm] = useState({ name: '', code: '', description: '', is_active: true });
   const [actionFormSaving, setActionFormSaving] = useState(false);
-
-  const [deleteActionDialogOpen, setDeleteActionDialogOpen] = useState(false);
-  const [actionToDelete, setActionToDelete] = useState(null);
-  const [deletingAction, setDeletingAction] = useState(false);
 
   /* ══════════════════════════════════════════════════════════════════════════
      TAB 2: CUSTOM ROLES & MATRIX STATE & HANDLERS
@@ -146,9 +141,11 @@ export const ModuleRoleManagement = () => {
   const [matrixModules, setMatrixModules] = useState([]);
   const [matrixLoading, setMatrixLoading] = useState(false);
 
-  const [deleteRoleDialogOpen, setDeleteRoleDialogOpen] = useState(false);
-  const [roleToDelete, setRoleToDelete] = useState(null);
-  const [deletingRole, setDeletingRole] = useState(false);
+  /* ──────────────────────────────────────────────────────────────────────────
+     STATUS TOGGLE CONFIRMATION STATE (MODULES / ACTIONS / ROLES)
+  ────────────────────────────────────────────────────────────────────────── */
+  const [toggleConfirm, setToggleConfirm] = useState(null); // { kind: 'module' | 'action' | 'role', entity }
+  const [toggleLoading, setToggleLoading] = useState(false);
 
   /* ══════════════════════════════════════════════════════════════════════════
      TAB 3: PERMISSIONS CATALOG STATE & HANDLERS
@@ -400,32 +397,8 @@ export const ModuleRoleManagement = () => {
     }
   };
 
-  const handleToggleModuleStatus = async (mod) => {
-    try {
-      await moduleService.toggleModuleStatus(mod.id);
-      enqueueSnackbar(`Module "${mod.name}" status updated`, { variant: 'info' });
-      fetchModules();
-      fetchAllModules();
-    } catch (err) {
-      enqueueSnackbar(err.message || 'Failed to toggle status', { variant: 'error' });
-    }
-  };
-
-  const handleDeleteModule = async () => {
-    if (!moduleToDelete) return;
-    setDeletingModule(true);
-    try {
-      await moduleService.deleteModule(moduleToDelete.id);
-      enqueueSnackbar(`Module "${moduleToDelete.name}" deleted successfully`, { variant: 'success' });
-      setDeleteModuleDialogOpen(false);
-      setModuleToDelete(null);
-      fetchModules();
-      fetchAllModules();
-    } catch (err) {
-      enqueueSnackbar(err.message || 'Cannot delete module', { variant: 'error' });
-    } finally {
-      setDeletingModule(false);
-    }
+  const handleToggleModuleStatus = (mod) => {
+    setToggleConfirm({ kind: 'module', entity: mod });
   };
 
   /* ──────────────────────────────────────────────────────────────────────────
@@ -486,32 +459,8 @@ export const ModuleRoleManagement = () => {
     }
   };
 
-  const handleToggleActionStatus = async (act) => {
-    try {
-      await actionService.toggleActionStatus(act.id);
-      enqueueSnackbar(`Action "${act.name}" status updated`, { variant: 'info' });
-      fetchActions();
-      fetchAllActions();
-    } catch (err) {
-      enqueueSnackbar(err.message || 'Failed to toggle status', { variant: 'error' });
-    }
-  };
-
-  const handleDeleteAction = async () => {
-    if (!actionToDelete) return;
-    setDeletingAction(true);
-    try {
-      await actionService.deleteAction(actionToDelete.id);
-      enqueueSnackbar(`Action "${actionToDelete.name}" deleted successfully`, { variant: 'success' });
-      setDeleteActionDialogOpen(false);
-      setActionToDelete(null);
-      fetchActions();
-      fetchAllActions();
-    } catch (err) {
-      enqueueSnackbar(err.message || 'Cannot delete action', { variant: 'error' });
-    } finally {
-      setDeletingAction(false);
-    }
+  const handleToggleActionStatus = (act) => {
+    setToggleConfirm({ kind: 'action', entity: act });
   };
 
   /* ──────────────────────────────────────────────────────────────────────────
@@ -619,30 +568,8 @@ export const ModuleRoleManagement = () => {
     }
   };
 
-  const handleToggleRoleStatus = async (role) => {
-    try {
-      await roleService.toggleRoleStatus(role.id);
-      enqueueSnackbar(`Role "${role.name}" status updated`, { variant: 'info' });
-      fetchRoles();
-    } catch (err) {
-      enqueueSnackbar(err.message || 'Status toggle failed', { variant: 'error' });
-    }
-  };
-
-  const handleDeleteRole = async () => {
-    if (!roleToDelete) return;
-    setDeletingRole(true);
-    try {
-      await roleService.deleteRole(roleToDelete.id);
-      enqueueSnackbar(`Role "${roleToDelete.name}" deleted successfully`, { variant: 'success' });
-      setDeleteRoleDialogOpen(false);
-      setRoleToDelete(null);
-      fetchRoles();
-    } catch (err) {
-      enqueueSnackbar(err.message || 'Cannot delete role', { variant: 'error' });
-    } finally {
-      setDeletingRole(false);
-    }
+  const handleToggleRoleStatus = (role) => {
+    setToggleConfirm({ kind: 'role', entity: role });
   };
 
   /* ──────────────────────────────────────────────────────────────────────────
@@ -750,6 +677,34 @@ export const ModuleRoleManagement = () => {
       enqueueSnackbar(err.message || 'Batch generation failed', { variant: 'error' });
     } finally {
       setBatchGenerating(false);
+    }
+  };
+
+  const handleToggleStatusConfirm = async () => {
+    if (!toggleConfirm) return;
+    const { kind, entity } = toggleConfirm;
+    setToggleLoading(true);
+    try {
+      if (kind === 'module') {
+        await moduleService.toggleModuleStatus(entity.id);
+        enqueueSnackbar(`Module "${entity.name}" status updated`, { variant: 'info' });
+        fetchModules();
+        fetchAllModules();
+      } else if (kind === 'action') {
+        await actionService.toggleActionStatus(entity.id);
+        enqueueSnackbar(`Action "${entity.name}" status updated`, { variant: 'info' });
+        fetchActions();
+        fetchAllActions();
+      } else {
+        await roleService.toggleRoleStatus(entity.id);
+        enqueueSnackbar(`Role "${entity.name}" status updated`, { variant: 'info' });
+        fetchRoles();
+      }
+      setToggleConfirm(null);
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Failed to toggle status', { variant: 'error' });
+    } finally {
+      setToggleLoading(false);
     }
   };
 
@@ -962,18 +917,6 @@ export const ModuleRoleManagement = () => {
                                 {m.is_active ? <InactiveIcon fontSize="small" /> : <ActiveIcon fontSize="small" color="success" />}
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="Delete Module">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => {
-                                  setModuleToDelete(m);
-                                  setDeleteModuleDialogOpen(true);
-                                }}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -1076,18 +1019,6 @@ export const ModuleRoleManagement = () => {
                             <Tooltip title={a.is_active ? 'Deactivate Action' : 'Activate Action'}>
                               <IconButton size="small" onClick={() => handleToggleActionStatus(a)}>
                                 {a.is_active ? <InactiveIcon fontSize="small" /> : <ActiveIcon fontSize="small" color="success" />}
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete Action">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => {
-                                  setActionToDelete(a);
-                                  setDeleteActionDialogOpen(true);
-                                }}
-                              >
-                                <DeleteIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                           </Stack>
@@ -1247,25 +1178,11 @@ export const ModuleRoleManagement = () => {
                               </IconButton>
                             </Tooltip>
                             {!r.is_system && (
-                              <>
-                                <Tooltip title={r.is_active ? 'Deactivate Role' : 'Activate Role'}>
-                                  <IconButton size="small" onClick={() => handleToggleRoleStatus(r)}>
-                                    {r.is_active ? <InactiveIcon fontSize="small" color="action" /> : <ActiveIcon fontSize="small" color="success" />}
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Delete Role">
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => {
-                                      setRoleToDelete(r);
-                                      setDeleteRoleDialogOpen(true);
-                                    }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                              </>
+                              <Tooltip title={r.is_active ? 'Deactivate Role' : 'Activate Role'}>
+                                <IconButton size="small" onClick={() => handleToggleRoleStatus(r)}>
+                                  {r.is_active ? <InactiveIcon fontSize="small" color="action" /> : <ActiveIcon fontSize="small" color="success" />}
+                                </IconButton>
+                              </Tooltip>
                             )}
                           </Stack>
                         </TableCell>
@@ -1946,57 +1863,25 @@ export const ModuleRoleManagement = () => {
         </DialogActions>
       </Dialog>
 
-      {/* ── Delete Confirmation Dialogs ── */}
-      <Dialog open={deleteRoleDialogOpen} onClose={() => setDeleteRoleDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Confirm Role Deletion</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">
-            Are you sure you want to delete role <strong>{roleToDelete?.name}</strong>?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDeleteRoleDialogOpen(false)} disabled={deletingRole}>
-            Cancel
-          </Button>
-          <Button variant="contained" color="error" onClick={handleDeleteRole} disabled={deletingRole}>
-            {deletingRole ? <CircularProgress size={20} color="inherit" /> : 'Delete Role'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={deleteModuleDialogOpen} onClose={() => setDeleteModuleDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Confirm Module Deletion</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">
-            Are you sure you want to delete module <strong>{moduleToDelete?.name}</strong>?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDeleteModuleDialogOpen(false)} disabled={deletingModule}>
-            Cancel
-          </Button>
-          <Button variant="contained" color="error" onClick={handleDeleteModule} disabled={deletingModule}>
-            {deletingModule ? <CircularProgress size={20} color="inherit" /> : 'Delete Module'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={deleteActionDialogOpen} onClose={() => setDeleteActionDialogOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Confirm Action Deletion</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">
-            Are you sure you want to delete action <strong>{actionToDelete?.name}</strong>?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDeleteActionDialogOpen(false)} disabled={deletingAction}>
-            Cancel
-          </Button>
-          <Button variant="contained" color="error" onClick={handleDeleteAction} disabled={deletingAction}>
-            {deletingAction ? <CircularProgress size={20} color="inherit" /> : 'Delete Action'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* ── Status Toggle Confirmation Dialog (Modules / Actions / Roles) ── */}
+      <ConfirmationModal
+        open={Boolean(toggleConfirm)}
+        title={
+          toggleConfirm
+            ? `${toggleConfirm.entity?.is_active ? 'Deactivate' : 'Activate'} ${TOGGLE_KIND_LABEL[toggleConfirm.kind]}`
+            : 'Confirm Action'
+        }
+        message={
+          toggleConfirm
+            ? `Are you sure you want to ${toggleConfirm.entity?.is_active ? 'deactivate' : 'activate'} ${TOGGLE_KIND_LABEL[toggleConfirm.kind].toLowerCase()} "${toggleConfirm.entity?.name}"?`
+            : ''
+        }
+        confirmText={toggleConfirm?.entity?.is_active ? 'Deactivate' : 'Activate'}
+        confirmColor={toggleConfirm?.entity?.is_active ? 'warning' : 'primary'}
+        loading={toggleLoading}
+        onConfirm={handleToggleStatusConfirm}
+        onClose={() => setToggleConfirm(null)}
+      />
     </Box>
   );
 };
