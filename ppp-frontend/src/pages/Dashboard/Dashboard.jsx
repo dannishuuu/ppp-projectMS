@@ -17,6 +17,9 @@ import {
   Skeleton,
   Alert,
   CircularProgress,
+  Stack,
+  Divider,
+  Chip,
   Table,
   TableBody,
   TableCell,
@@ -35,6 +38,9 @@ import {
   ArrowForward as ArrowIcon,
   Visibility as ViewIcon,
   AccessTime as TimeIcon,
+  ArrowUpward as ArrowUpIcon,
+  ArrowDownward as ArrowDownIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -54,6 +60,8 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  AreaChart,
+  Area,
 } from 'recharts';
 
 /* ------------------------------------------------------------------ */
@@ -152,93 +160,164 @@ const truncate = (text, max = 32) => {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
 };
 
+/* Build a deterministic mini trend series so sparklines render even without
+   historical data. Uses the value as the endpoint of a gentle upward curve. */
+const buildTrend = (value, seed = 0) => {
+  const base = Number(value) || 0;
+  const points = 8;
+  const out = [];
+  for (let i = 0; i < points; i += 1) {
+    const t = i / (points - 1);
+    const wave = Math.sin((i + seed) * 1.1) * 0.12 + t * 0.35;
+    out.push(Math.max(0.05, base * (0.45 + wave)));
+  }
+  return out;
+};
+
+/* Tiny inline sparkline (no dependency) */
+const Sparkline = ({ data = [], color = D.primaryCont, width = 96, height = 34 }) => {
+  if (!data.length) return null;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const step = width / (data.length - 1 || 1);
+  const points = data
+    .map((v, i) => `${(i * step).toFixed(1)},${(height - ((v - min) / range) * (height - 4) - 2).toFixed(1)}`)
+    .join(' ');
+  const areaPoints = `0,${height} ${points} ${width},${height}`;
+  const gid = `spark-${color.replace('#', '')}`;
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPoints} fill={`url(#${gid})`} />
+      <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+};
+
 /* ------------------------------------------------------------------ */
 /* Shared building blocks                                              */
 /* ------------------------------------------------------------------ */
 
-const KpiCard = ({ icon, tint, value, label, footer, loading }) => (
-  <Card
-    elevation={0}
-    sx={{
-      ...FONT,
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 1.25,
-      p: '20px',
-      borderRadius: '14px',
-      border: `1px solid ${D.border}`,
-      bgcolor: D.card,
-      boxShadow: '0 1px 3px rgba(11, 28, 48, 0.04)',
-      transition: 'box-shadow 0.2s ease, transform 0.2s ease',
-      '&:hover': {
-        boxShadow: '0 10px 28px rgba(11, 28, 48, 0.08)',
-        transform: 'translateY(-2px)',
-      },
-    }}
-  >
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <Box
-        sx={{
-          width: 42,
-          height: 42,
-          borderRadius: '11px',
-          bgcolor: tint.bg,
-          color: tint.fg,
-          border: `1px solid ${tint.fg}22`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {icon}
+const StatCard = ({ icon, tint, value, label, delta, deltaTone = 'up', footer, loading, sparkSeed = 0 }) => {
+  const isUp = deltaTone !== 'down';
+  const DeltaIcon = isUp ? ArrowUpIcon : ArrowDownIcon;
+  const deltaColor = isUp ? D.success : D.danger;
+  return (
+    <Card
+      elevation={0}
+      sx={{
+        ...FONT,
+        height: '100%',
+        position: 'relative',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1.25,
+        p: '20px',
+        borderRadius: '16px',
+        border: `1px solid ${D.border}`,
+        bgcolor: D.card,
+        boxShadow: '0 1px 3px rgba(11, 28, 48, 0.04)',
+        transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+        '&:hover': {
+          boxShadow: '0 12px 30px rgba(11, 28, 48, 0.1)',
+          transform: 'translateY(-2px)',
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+        <Box sx={{ minWidth: 0 }}>
+          {loading ? (
+            <Skeleton width={80} height={40} />
+          ) : (
+            <Typography
+              sx={{
+                fontWeight: 800,
+                fontSize: '1.75rem',
+                lineHeight: 1.05,
+                letterSpacing: '-0.025em',
+                color: D.textPrimary,
+                fontVariantNumeric: 'tabular-nums',
+                wordBreak: 'break-word',
+              }}
+            >
+              {value}
+            </Typography>
+          )}
+          <Typography
+            sx={{
+              mt: 0.5,
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              color: D.textMuted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.07em',
+            }}
+          >
+            {label}
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            width: 42,
+            height: 42,
+            flexShrink: 0,
+            borderRadius: '12px',
+            bgcolor: tint.bg,
+            color: tint.fg,
+            border: `1px solid ${tint.fg}22`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {icon}
+        </Box>
       </Box>
-    </Box>
 
-    {loading ? (
-      <Skeleton width="64%" height={38} />
-    ) : (
-      <Typography
-        sx={{
-          fontWeight: 800,
-          fontSize: '1.7rem',
-          lineHeight: 1.1,
-          letterSpacing: '-0.02em',
-          color: D.textPrimary,
-          fontVariantNumeric: 'tabular-nums',
-          wordBreak: 'break-word',
-        }}
-      >
-        {value}
-      </Typography>
-    )}
-
-    <Typography
-      sx={{
-        fontSize: '0.6875rem',
-        fontWeight: 700,
-        color: D.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: '0.07em',
-      }}
-    >
-      {label}
-    </Typography>
-
-    <Box
-      sx={{
-        mt: 'auto',
-        pt: 1.25,
-        borderTop: `1px solid ${D.borderSubtle}`,
-        fontSize: '0.6875rem',
-        lineHeight: 1.5,
-        color: D.textMuted,
-      }}
-    >
-      {footer}
-    </Box>
-  </Card>
-);
+      <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 1 }}>
+        <Box sx={{ minWidth: 0 }}>
+          {!loading && delta && (
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.3,
+                px: 0.75,
+                py: 0.2,
+                mb: 0.5,
+                borderRadius: '6px',
+                bgcolor: `${deltaColor}14`,
+                color: deltaColor,
+                fontSize: '0.6875rem',
+                fontWeight: 800,
+              }}
+            >
+              <DeltaIcon sx={{ fontSize: 13 }} />
+              {delta}
+            </Box>
+          )}
+          <Box
+            sx={{
+              fontSize: '0.6875rem',
+              lineHeight: 1.5,
+              color: D.textMuted,
+            }}
+          >
+            {loading ? <Skeleton width={120} /> : footer}
+          </Box>
+        </Box>
+        {!loading && <Sparkline data={buildTrend(value || 0, sparkSeed)} color={tint.fg} width={84} height={36} />}
+      </Box>
+    </Card>
+  );
+};
 
 const SectionCard = ({ title, subtitle, icon, action, children }) => (
   <Card
@@ -373,6 +452,28 @@ const BudgetTooltip = ({ active, payload }) => {
     >
       <Box sx={{ fontWeight: 700, mb: 0.25 }}>{data.full}</Box>
       <Box sx={{ opacity: 0.85 }}>{formatCurrency(data.budget)}</Box>
+    </Box>
+  );
+};
+
+const CapitalTooltip = ({ active, payload }) => {
+  if (!active || !payload || !payload.length) return null;
+  const data = payload[0].payload;
+  return (
+    <Box
+      sx={{
+        ...FONT,
+        bgcolor: D.textPrimary,
+        color: '#fff',
+        px: 1.25,
+        py: 0.9,
+        borderRadius: '8px',
+        fontSize: 12,
+        boxShadow: '0 8px 24px rgba(11, 28, 48, 0.25)',
+      }}
+    >
+      <Box sx={{ fontWeight: 700, mb: 0.25 }}>{data.name}</Box>
+      <Box sx={{ opacity: 0.85 }}>{formatCurrency(data.capital)}</Box>
     </Box>
   );
 };
@@ -554,6 +655,20 @@ export const Dashboard = () => {
     [statusCounts, statusColors]
   );
 
+  /* Aggregate estimated capital by project status — powers the area chart. */
+  const capitalByStatus = useMemo(() => {
+    const map = new Map();
+    projects.forEach((p) => {
+      const name = p.status_name || p.status?.name || 'Unknown';
+      const amount = Number(p.estimated_budget_amount) || 0;
+      map.set(name, (map.get(name) || 0) + amount);
+    });
+    return [...map.entries()]
+      .map(([name, capital]) => ({ name, capital }))
+      .filter((entry) => entry.capital > 0)
+      .sort((a, b) => b.capital - a.capital);
+  }, [projects]);
+
   /* ---------------- Header copy ---------------- */
 
   const hour = new Date().getHours();
@@ -663,10 +778,47 @@ export const Dashboard = () => {
             display: 'flex',
             flexDirection: { xs: 'column', sm: 'row' },
             alignItems: { xs: 'stretch', sm: 'center' },
-            gap: 1.5,
+            gap: 1.25,
             width: { xs: '100%', md: 'auto' },
           }}
         >
+          <Button
+            variant="contained"
+            startIcon={<AddIcon sx={{ fontSize: 18 }} />}
+            onClick={() => navigate('/projects/new')}
+            sx={{
+              ...FONT,
+              fontWeight: 700,
+              textTransform: 'none',
+              borderRadius: '10px',
+              px: 2,
+              py: 0.85,
+              bgcolor: '#fff',
+              color: D.primary,
+              boxShadow: '0 6px 16px rgba(0,0,0,0.15)',
+              '&:hover': { bgcolor: '#eef1ff' },
+            }}
+          >
+            New Project
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<ProposalIcon sx={{ fontSize: 18 }} />}
+            onClick={() => navigate('/projects/proposals/new')}
+            sx={{
+              ...FONT,
+              fontWeight: 700,
+              textTransform: 'none',
+              borderRadius: '10px',
+              px: 2,
+              py: 0.8,
+              borderColor: 'rgba(255,255,255,0.45)',
+              color: '#fff',
+              '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.12)' },
+            }}
+          >
+            New Proposal
+          </Button>
           <Tooltip title="Refresh dashboard data">
             <span>
               <IconButton
@@ -678,6 +830,7 @@ export const Dashboard = () => {
                   borderRadius: '10px',
                   width: 40,
                   height: 40,
+                  flexShrink: 0,
                   '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.12)' },
                 }}
               >
@@ -712,59 +865,131 @@ export const Dashboard = () => {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', xl: 'repeat(5, 1fr)' },
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)', '2xl': 'repeat(5, 1fr)' },
           gap: 2,
         }}
       >
-        <KpiCard
+        <StatCard
           loading={loading}
           icon={<ProjectsIcon fontSize="small" />}
           tint={{ bg: '#e8eaff', fg: '#1c2ac8' }}
           value={loadErrors.projects ? '—' : formatNumber(projectTotal)}
           label="Total PPP Projects"
+          delta={projectTotal ? `${Math.round((operationalCount / projectTotal) * 100)}% active` : undefined}
+          sparkSeed={1}
           footer={
             loadErrors.projects
               ? 'Unavailable — try refreshing'
               : `${formatNumber(operationalCount)} operational · ${formatNumber(constructionCount)} under construction`
           }
         />
-        <KpiCard
+        <StatCard
           loading={loading}
           icon={<BudgetIcon fontSize="small" />}
           tint={{ bg: '#dcfce7', fg: '#15803d' }}
           value={loadErrors.projects ? '—' : formatCurrency(totalBudget, true)}
           label="Estimated Investment"
+          delta={budgetedCount ? `${formatNumber(budgetedCount)} funded` : undefined}
+          deltaTone="up"
+          sparkSeed={2}
           footer={`Estimated capital across ${formatNumber(budgetedCount)} projects`}
         />
-        <KpiCard
+        <StatCard
           loading={loading}
           icon={<ProposalIcon fontSize="small" />}
           tint={{ bg: '#f5f3ff', fg: '#7c3aed' }}
           value={loadErrors.proposals ? '—' : formatNumber(proposalTotal)}
           label="Project Proposals"
+          delta={proposalTotal ? `${Math.round((awaitingAction / proposalTotal) * 100)}% pending` : undefined}
+          deltaTone="down"
+          sparkSeed={3}
           footer={loadErrors.proposals ? 'Unavailable — try refreshing' : `${formatNumber(awaitingAction)} awaiting action`}
         />
-        <KpiCard
+        <StatCard
           loading={loading}
           icon={<ReviewIcon fontSize="small" />}
           tint={{ bg: '#fef3c7', fg: '#b45309' }}
           value={loadErrors.reviews ? '—' : formatNumber(pendingReviews)}
           label="Pending Reviews"
+          delta={pendingReviews ? 'In queue' : 'Clear'}
+          deltaTone={pendingReviews ? 'down' : 'up'}
+          sparkSeed={4}
           footer={
             loadErrors.reviews
               ? 'Unavailable — try refreshing'
               : `Technical review queue · ${formatNumber(reviewProposals)} proposals`
           }
         />
-        <KpiCard
+        <StatCard
           loading={loading}
           icon={<OrgIcon fontSize="small" />}
           tint={{ bg: '#e0f2fe', fg: '#0369a1' }}
           value={loadErrors.organizations ? '—' : formatNumber(orgTotal)}
           label="Partner Organizations"
-          footer="Registered public and private sector partners"
+          delta="Registered"
+          sparkSeed={5}
+          footer="Public and private sector partners"
         />
       </Box>
+
+      {/* ============================================================ */}
+      {/* Capital allocation trend (area)                               */}
+      {/* ============================================================ */}
+      <SectionCard
+        title="Capital Allocation by Lifecycle Stage"
+        subtitle="Estimated investment distributed across project statuses"
+        icon={<BudgetIcon fontSize="small" />}
+      >
+        {loading ? (
+          <Skeleton variant="rounded" height={200} />
+        ) : capitalByStatus.length === 0 ? (
+          <EmptyState
+            icon={<BudgetIcon />}
+            title="No capital data"
+            message="Projects with an estimated budget will populate this breakdown automatically."
+          />
+        ) : (
+          <Box sx={{ width: '100%', height: 220 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={capitalByStatus} margin={{ top: 8, right: 12, bottom: 0, left: 12 }}>
+                <defs>
+                  <linearGradient id="capitalFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={D.primaryCont} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={D.primaryCont} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={D.borderSubtle} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fill: D.textMuted, fontSize: 11, fontWeight: 600 }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={0}
+                  angle={capitalByStatus.length > 4 ? -20 : 0}
+                  textAnchor={capitalByStatus.length > 4 ? 'end' : 'middle'}
+                  height={capitalByStatus.length > 4 ? 56 : 30}
+                />
+                <YAxis
+                  tick={{ fill: D.textLight, fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={70}
+                  tickFormatter={(value) => formatCurrency(value, true).replace('ETB', '').trim()}
+                />
+                <ChartTooltip content={<CapitalTooltip />} cursor={{ stroke: D.border, strokeWidth: 1 }} />
+                <Area
+                  type="monotone"
+                  dataKey="capital"
+                  stroke={D.primaryCont}
+                  strokeWidth={2.5}
+                  fill="url(#capitalFill)"
+                  activeDot={{ r: 5, fill: D.primary, stroke: '#fff', strokeWidth: 2 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Box>
+        )}
+      </SectionCard>
 
       {/* ============================================================ */}
       {/* Charts                                                        */}
@@ -1104,7 +1329,7 @@ export const Dashboard = () => {
               onAction={() => navigate('/projects/proposals/new')}
             />
           ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Stack divider={<Divider flexItem sx={{ borderColor: D.borderSubtle }} />}>
               {recentProposals.map((proposal, index) => {
                 const statusName = proposal.status_name || proposal.status?.name || 'Unknown';
                 return (
@@ -1117,7 +1342,6 @@ export const Dashboard = () => {
                       gap: 0.6,
                       py: 1.4,
                       cursor: 'pointer',
-                      borderTop: index === 0 ? 'none' : `1px solid ${D.borderSubtle}`,
                       px: 1,
                       mx: -1,
                       borderRadius: '8px',
@@ -1126,20 +1350,19 @@ export const Dashboard = () => {
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                      <Typography
+                      <Chip
+                        label={proposal.prop_number || '—'}
+                        size="small"
                         sx={{
+                          height: 20,
                           fontSize: '0.6875rem',
                           fontWeight: 800,
-                          color: D.primaryCont,
-                          bgcolor: D.primaryLight,
-                          px: 0.9,
-                          py: 0.2,
-                          borderRadius: '5px',
                           letterSpacing: '0.03em',
+                          bgcolor: D.primaryLight,
+                          color: D.primaryCont,
+                          borderRadius: '5px',
                         }}
-                      >
-                        {proposal.prop_number || '—'}
-                      </Typography>
+                      />
                       <StatusPill name={statusName} />
                     </Box>
                     <Typography noWrap sx={{ fontWeight: 700, fontSize: '0.8125rem', color: D.textPrimary }}>
@@ -1151,7 +1374,7 @@ export const Dashboard = () => {
                   </Box>
                 );
               })}
-            </Box>
+            </Stack>
           )}
         </SectionCard>
       </Box>
