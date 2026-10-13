@@ -90,6 +90,7 @@ export const ModuleRoleManagement = () => {
      TAB 0: SYSTEM MODULES STATE & HANDLERS
   ══════════════════════════════════════════════════════════════════════════ */
   const [modulesList, setModulesList] = useState([]);
+  const [allModules, setAllModules] = useState([]);
   const [modulePage, setModulePage] = useState(0);
   const [moduleRowsPerPage, setModuleRowsPerPage] = useState(10);
   const [moduleTotal, setModuleTotal] = useState(0);
@@ -109,6 +110,7 @@ export const ModuleRoleManagement = () => {
      TAB 1: ACTION VERBS STATE & HANDLERS
   ══════════════════════════════════════════════════════════════════════════ */
   const [actionsList, setActionsList] = useState([]);
+  const [allActions, setAllActions] = useState([]);
   const [actionPage, setActionPage] = useState(0);
   const [actionRowsPerPage, setActionRowsPerPage] = useState(10);
   const [actionTotal, setActionTotal] = useState(0);
@@ -203,6 +205,24 @@ export const ModuleRoleManagement = () => {
     }
   };
 
+  const fetchAllModules = async () => {
+    try {
+      const res = await moduleService.getModules({ page: 1, limit: 1000, status: 'all' });
+      setAllModules(res.modules || []);
+    } catch (err) {
+      console.error('Failed to load all modules:', err);
+    }
+  };
+
+  const fetchAllActions = async () => {
+    try {
+      const res = await actionService.getActions({ page: 1, limit: 1000, status: 'all' });
+      setAllActions(res.actions || []);
+    } catch (err) {
+      console.error('Failed to load all actions:', err);
+    }
+  };
+
   const fetchRoles = async () => {
     setLoading(true);
     try {
@@ -254,6 +274,11 @@ export const ModuleRoleManagement = () => {
   /* ──────────────────────────────────────────────────────────────────────────
      EFFECTS (SYNCED WITH NEW TAB ORDER)
   ────────────────────────────────────────────────────────────────────────── */
+  useEffect(() => {
+    fetchAllModules();
+    fetchAllActions();
+  }, []);
+
   useEffect(() => {
     if (activeTab === 0) fetchModules();
     if (activeTab === 1) fetchActions();
@@ -367,6 +392,7 @@ export const ModuleRoleManagement = () => {
       }
       setModuleDialogOpen(false);
       fetchModules();
+      fetchAllModules();
     } catch (err) {
       enqueueSnackbar(err.message || 'Failed to save module', { variant: 'error' });
     } finally {
@@ -379,6 +405,7 @@ export const ModuleRoleManagement = () => {
       await moduleService.toggleModuleStatus(mod.id);
       enqueueSnackbar(`Module "${mod.name}" status updated`, { variant: 'info' });
       fetchModules();
+      fetchAllModules();
     } catch (err) {
       enqueueSnackbar(err.message || 'Failed to toggle status', { variant: 'error' });
     }
@@ -393,6 +420,7 @@ export const ModuleRoleManagement = () => {
       setDeleteModuleDialogOpen(false);
       setModuleToDelete(null);
       fetchModules();
+      fetchAllModules();
     } catch (err) {
       enqueueSnackbar(err.message || 'Cannot delete module', { variant: 'error' });
     } finally {
@@ -450,6 +478,7 @@ export const ModuleRoleManagement = () => {
       }
       setActionDialogOpen(false);
       fetchActions();
+      fetchAllActions();
     } catch (err) {
       enqueueSnackbar(err.message || 'Failed to save action', { variant: 'error' });
     } finally {
@@ -462,6 +491,7 @@ export const ModuleRoleManagement = () => {
       await actionService.toggleActionStatus(act.id);
       enqueueSnackbar(`Action "${act.name}" status updated`, { variant: 'info' });
       fetchActions();
+      fetchAllActions();
     } catch (err) {
       enqueueSnackbar(err.message || 'Failed to toggle status', { variant: 'error' });
     }
@@ -476,6 +506,7 @@ export const ModuleRoleManagement = () => {
       setDeleteActionDialogOpen(false);
       setActionToDelete(null);
       fetchActions();
+      fetchAllActions();
     } catch (err) {
       enqueueSnackbar(err.message || 'Cannot delete action', { variant: 'error' });
     } finally {
@@ -641,16 +672,21 @@ export const ModuleRoleManagement = () => {
   };
 
   const handleOpenBatchGenerator = async () => {
-    let mods = modulesList;
+    let mods = allModules;
     if (mods.length === 0) {
       try {
-        const res = await moduleService.getModules({ page: 1, limit: 100 });
+        const res = await moduleService.getModules({ page: 1, limit: 1000, status: 'all' });
         mods = res.modules || [];
-        setModulesList(mods);
+        setAllModules(mods);
       } catch (e) {}
     }
-    if (actionsList.length === 0) {
-      fetchActions();
+    let acts = allActions;
+    if (acts.length === 0) {
+      try {
+        const res = await actionService.getActions({ page: 1, limit: 1000, status: 'all' });
+        acts = res.actions || [];
+        setAllActions(acts);
+      } catch (e) {}
     }
     const targetModuleId = permModuleFilter || mods[0]?.id || '';
     setBatchModuleId(targetModuleId);
@@ -678,7 +714,8 @@ export const ModuleRoleManagement = () => {
   };
 
   const handleSelectAllBatchActions = () => {
-    setBatchSelectedActionIds(new Set(actionsList.map((a) => a.id)));
+    const list = allActions.length > 0 ? allActions : actionsList;
+    setBatchSelectedActionIds(new Set(list.map((a) => a.id)));
   };
 
   const handleDeselectAllBatchActions = () => {
@@ -1292,7 +1329,8 @@ export const ModuleRoleManagement = () => {
                       if (!selected) {
                         return <span style={{ color: T.textSecondary }}>All Modules</span>;
                       }
-                      const found = modulesList.find((m) => m.id === selected);
+                      const list = allModules.length > 0 ? allModules : modulesList;
+                      const found = list.find((m) => m.id === selected);
                       return found ? `${found.name} (${found.code})` : 'All Modules';
                     },
                     MenuProps: {
@@ -1314,7 +1352,7 @@ export const ModuleRoleManagement = () => {
                   }}
                 >
                   <MenuItem value="">All Modules</MenuItem>
-                  {modulesList.map((m) => (
+                  {(allModules.length > 0 ? allModules : modulesList).map((m) => (
                     <MenuItem key={m.id} value={m.id}>
                       {m.name} ({m.code})
                     </MenuItem>
@@ -1731,7 +1769,7 @@ export const ModuleRoleManagement = () => {
             onChange={(e) => handleBatchModuleChange(e.target.value)}
             sx={{ mb: 2.5 }}
           >
-            {modulesList.map((m) => (
+            {(allModules.length > 0 ? allModules : modulesList).map((m) => (
               <MenuItem key={m.id} value={m.id}>
                 {m.name} ({m.code})
               </MenuItem>
@@ -1749,7 +1787,7 @@ export const ModuleRoleManagement = () => {
             }}
           >
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              Action Verbs ({batchSelectedActionIds.size} of {actionsList.length} selected):
+              Action Verbs ({batchSelectedActionIds.size} of {(allActions.length > 0 ? allActions : actionsList).length} selected):
             </Typography>
             <Stack direction="row" spacing={1}>
               <Button
@@ -1788,70 +1826,72 @@ export const ModuleRoleManagement = () => {
                 Loading module permissions...
               </Typography>
             </Box>
-          ) : actionsList.length === 0 ? (
+          ) : (allActions.length > 0 ? allActions : actionsList).length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4, color: T.textSecondary }}>
               No action verbs defined. Add action verbs first.
             </Box>
           ) : (
-            <Grid container spacing={1.5}>
-              {actionsList.map((a) => {
-                const isSelected = batchSelectedActionIds.has(a.id);
-                const isAlreadyAssociated = alreadyAssociatedActionIds.has(a.id);
+            <Box sx={{ maxHeight: 380, overflowY: 'auto', pr: 0.5 }}>
+              <Grid container spacing={1.5}>
+                {(allActions.length > 0 ? allActions : actionsList).map((a) => {
+                  const isSelected = batchSelectedActionIds.has(a.id);
+                  const isAlreadyAssociated = alreadyAssociatedActionIds.has(a.id);
 
-                return (
-                  <Grid item xs={12} sm={6} key={a.id}>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        p: 1,
-                        px: 1.2,
-                        borderRadius: 2,
-                        border: `1px solid ${isSelected ? T.primary + '50' : T.border}`,
-                        backgroundColor: isSelected ? T.primary + '0a' : '#ffffff',
-                        transition: 'all 0.15s ease-in-out',
-                        '&:hover': {
-                          borderColor: T.primary,
-                        },
-                      }}
-                    >
-                      <FormControlLabel
-                        sx={{ m: 0, width: '100%' }}
-                        control={
-                          <Checkbox
-                            checked={isSelected}
-                            onChange={() => handleToggleBatchAction(a.id)}
-                            size="small"
-                            sx={{ color: isSelected ? T.primary : undefined }}
-                          />
-                        }
-                        label={
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', pr: 0.5 }}>
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: T.textPrimary }}>
-                                {a.name}
-                              </Typography>
-                              <Typography variant="caption" sx={{ color: T.textSecondary, fontFamily: 'monospace' }}>
-                                {a.code}
-                              </Typography>
+                  return (
+                    <Grid item xs={12} sm={6} key={a.id}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          p: 1,
+                          px: 1.2,
+                          borderRadius: 2,
+                          border: `1px solid ${isSelected ? T.primary + '50' : T.border}`,
+                          backgroundColor: isSelected ? T.primary + '0a' : '#ffffff',
+                          transition: 'all 0.15s ease-in-out',
+                          '&:hover': {
+                            borderColor: T.primary,
+                          },
+                        }}
+                      >
+                        <FormControlLabel
+                          sx={{ m: 0, width: '100%' }}
+                          control={
+                            <Checkbox
+                              checked={isSelected}
+                              onChange={() => handleToggleBatchAction(a.id)}
+                              size="small"
+                              sx={{ color: isSelected ? T.primary : undefined }}
+                            />
+                          }
+                          label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', pr: 0.5 }}>
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: T.textPrimary }}>
+                                  {a.name}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: T.textSecondary, fontFamily: 'monospace' }}>
+                                  {a.code}
+                                </Typography>
+                              </Box>
+                              {isAlreadyAssociated && (
+                                <Chip
+                                  label="Associated"
+                                  size="small"
+                                  color="success"
+                                  variant="outlined"
+                                  sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }}
+                                />
+                              )}
                             </Box>
-                            {isAlreadyAssociated && (
-                              <Chip
-                                label="Associated"
-                                size="small"
-                                color="success"
-                                variant="outlined"
-                                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }}
-                              />
-                            )}
-                          </Box>
-                        }
-                      />
-                    </Box>
-                  </Grid>
-                );
-              })}
-            </Grid>
+                          }
+                        />
+                      </Box>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            </Box>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2, px: 3, borderTop: `1px solid ${T.border}` }}>
