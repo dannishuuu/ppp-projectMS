@@ -155,7 +155,7 @@ export const ModuleRoleManagement = () => {
   ══════════════════════════════════════════════════════════════════════════ */
   const [permissionsList, setPermissionsList] = useState([]);
   const [permPage, setPermPage] = useState(0);
-  const [permRowsPerPage, setPermRowsPerPage] = useState(15);
+  const [permRowsPerPage, setPermRowsPerPage] = useState(10);
   const [permTotal, setPermTotal] = useState(0);
   const [permSearch, setPermSearch] = useState('');
   const [permModuleFilter, setPermModuleFilter] = useState('');
@@ -378,15 +378,15 @@ export const ModuleRoleManagement = () => {
     try {
       if (moduleDialogMode === 'create') {
         await moduleService.createModule({
-          name: moduleForm.name,
-          code: moduleForm.code,
-          description: moduleForm.description,
+          name: moduleForm.name.trim(),
+          code: moduleForm.code.trim().toLowerCase().replace(/\s+/g, '_'),
+          description: moduleForm.description?.trim(),
         });
         enqueueSnackbar('Module created successfully!', { variant: 'success' });
       } else {
         await moduleService.updateModule(selectedModule.id, {
-          name: moduleForm.name,
-          description: moduleForm.description,
+          name: moduleForm.name.trim(),
+          description: moduleForm.description?.trim(),
         });
         enqueueSnackbar('Module updated successfully!', { variant: 'success' });
       }
@@ -464,15 +464,15 @@ export const ModuleRoleManagement = () => {
     try {
       if (actionDialogMode === 'create') {
         await actionService.createAction({
-          name: actionForm.name,
-          code: actionForm.code,
-          description: actionForm.description,
+          name: actionForm.name.trim(),
+          code: actionForm.code.trim().toLowerCase().replace(/\s+/g, '_'),
+          description: actionForm.description?.trim(),
         });
         enqueueSnackbar('Action created successfully!', { variant: 'success' });
       } else {
         await actionService.updateAction(selectedAction.id, {
-          name: actionForm.name,
-          description: actionForm.description,
+          name: actionForm.name.trim(),
+          description: actionForm.description?.trim(),
         });
         enqueueSnackbar('Action updated successfully!', { variant: 'success' });
       }
@@ -678,7 +678,7 @@ export const ModuleRoleManagement = () => {
         const res = await moduleService.getModules({ page: 1, limit: 1000, status: 'all' });
         mods = res.modules || [];
         setAllModules(mods);
-      } catch (e) {}
+      } catch (e) { }
     }
     let acts = allActions;
     if (acts.length === 0) {
@@ -686,7 +686,7 @@ export const ModuleRoleManagement = () => {
         const res = await actionService.getActions({ page: 1, limit: 1000, status: 'all' });
         acts = res.actions || [];
         setAllActions(acts);
-      } catch (e) {}
+      } catch (e) { }
     }
     const targetModuleId = permModuleFilter || mods[0]?.id || '';
     setBatchModuleId(targetModuleId);
@@ -1464,7 +1464,20 @@ export const ModuleRoleManagement = () => {
               label="Module Name"
               placeholder="e.g. Projects, Proposals, Contracts"
               value={moduleForm.name}
-              onChange={(e) => setModuleForm({ ...moduleForm, name: e.target.value })}
+              onChange={(e) => {
+                const newName = e.target.value;
+                setModuleForm((prev) => {
+                  const currentAuto = prev.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+                  const isAuto = prev.code === '' || prev.code === currentAuto;
+                  return {
+                    ...prev,
+                    name: newName,
+                    code: isAuto && moduleDialogMode === 'create'
+                      ? newName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+                      : prev.code,
+                  };
+                });
+              }}
               required
             />
             <TextField
@@ -1473,9 +1486,10 @@ export const ModuleRoleManagement = () => {
               label="Module Code / Slug"
               placeholder="e.g. project, proposal, contract"
               value={moduleForm.code}
-              onChange={(e) => setModuleForm({ ...moduleForm, code: e.target.value })}
+              onChange={(e) => setModuleForm({ ...moduleForm, code: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+              inputProps={{ style: { textTransform: 'lowercase' } }}
               disabled={moduleDialogMode === 'edit'}
-              helperText={moduleDialogMode === 'edit' ? 'Code cannot be changed once created' : 'Lowercase identifier used in permission prefixes'}
+              helperText={moduleDialogMode === 'edit' ? 'Code cannot be changed once created' : 'Always lowercase identifier used in permission prefixes'}
               required
             />
             <TextField
@@ -1526,7 +1540,20 @@ export const ModuleRoleManagement = () => {
               label="Action Name"
               placeholder="e.g. Create, List / View, Update / Edit, Approve, Export"
               value={actionForm.name}
-              onChange={(e) => setActionForm({ ...actionForm, name: e.target.value })}
+              onChange={(e) => {
+                const newName = e.target.value;
+                setActionForm((prev) => {
+                  const currentAuto = prev.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+                  const isAuto = prev.code === '' || prev.code === currentAuto;
+                  return {
+                    ...prev,
+                    name: newName,
+                    code: isAuto && actionDialogMode === 'create'
+                      ? newName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+                      : prev.code,
+                  };
+                });
+              }}
               required
             />
             <TextField
@@ -1535,9 +1562,19 @@ export const ModuleRoleManagement = () => {
               label="Action Code (Verb Slug)"
               placeholder="e.g. create, list, update, delete, approve, export"
               value={actionForm.code}
-              onChange={(e) => setActionForm({ ...actionForm, code: e.target.value })}
+              onChange={(e) =>
+                setActionForm((prev) => ({
+                  ...prev,
+                  code: e.target.value.toLowerCase().replace(/\s+/g, '_'),
+                }))
+              }
+              inputProps={{ style: { textTransform: 'lowercase' } }}
               disabled={actionDialogMode === 'edit'}
-              helperText={actionDialogMode === 'edit' ? 'Code cannot be changed once created' : 'Lowercase identifier (e.g. create, update, delete)'}
+              helperText={
+                actionDialogMode === 'edit'
+                  ? 'Code cannot be changed once created'
+                  : 'Always lowercase / small letters (e.g. create, update, delete)'
+              }
               required
             />
             <TextField
