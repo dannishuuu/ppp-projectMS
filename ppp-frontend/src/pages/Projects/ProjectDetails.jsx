@@ -39,7 +39,6 @@ import {
   ReceiptLong as LedgerIcon,
   GridView as OverviewIcon,
   NavigateNext as NavigateNextIcon,
-  VerifiedUser as SecurityIcon,
   Assessment as AssessmentIcon,
   Print as PrintIcon,
   Gavel as GavelIcon,
@@ -164,8 +163,8 @@ export const ProjectDetails = () => {
     enqueueSnackbar(`Downloading official copy of "${docName}"...`, { variant: 'info' });
   };
 
-  /* ── Derived Data & Fallbacks ────────────────────────────────────────────── */
-  const statusName = project?.status_name || project?.status?.name || project?.status || 'Active / Operational';
+  /* ── Derived Data (DB values only — no fabricated fallbacks) ─────────────── */
+  const statusName = project?.status_name || project?.status?.name || project?.status || '';
   const statusInfo = resolveStatus(statusName);
   const categories = Array.isArray(project?.categories) ? project.categories : [];
   const organizations = Array.isArray(project?.organizations) ? project.organizations : [];
@@ -177,196 +176,44 @@ export const ProjectDetails = () => {
     const t = (o.organization_type_name || o.organization_type_code || o.type_name || o.role || '').toLowerCase();
     return t.includes('developer') || t.includes('lead') || t.includes('contractor') || t.includes('private') || t.includes('concessionaire');
   });
-  const devName = devOrg?.organization_name || devOrg?.name || project?.developer || 'RailTrans Sovereign Consortium J.V.';
+  const devName = devOrg?.organization_name || devOrg?.name || project?.developer || '—';
 
   const authorityOrg = organizations.find((o) => {
     const t = (o.organization_type_name || o.organization_type_code || o.type_name || o.role || '').toLowerCase();
     return t.includes('authority') || t.includes('government') || t.includes('public') || t.includes('grant') || t.includes('ministry');
   });
-  const authorityName = authorityOrg?.organization_name || authorityOrg?.name || project?.authority || 'Ministry of Infrastructure & Transport';
+  const authorityName = authorityOrg?.organization_name || authorityOrg?.name || project?.authority || '—';
 
-  const budgetAmount = project?.estimated_budget_amount != null ? Number(project.estimated_budget_amount) : 4850000000;
-  const contractDate = project?.contract_signing_date || '2021-10-12';
-  const siteAreaVal = project?.site_area_value != null ? project.site_area_value : '320';
-  const siteAreaUnit = project?.site_area_unit || 'km Corridor';
+  const budgetAmount = project?.estimated_budget_amount != null ? Number(project.estimated_budget_amount) : null;
+  const contractDate = project?.contract_signing_date || null;
+  const siteAreaVal = project?.site_area_value != null ? project.site_area_value : null;
+  const siteAreaUnit = project?.site_area_unit || '';
 
-  // Realistic Milestones (uses project.milestones if available, else builds standard PPP lifecycle)
-  const milestonesList = useMemo(() => {
-    if (Array.isArray(project?.milestones) && project.milestones.length > 0) {
-      return project.milestones;
-    }
-    const signingYear = contractDate ? new Date(contractDate).getFullYear() : 2021;
-    return [
-      {
-        id: 'm1',
-        name: 'M-01: Geotechnical Survey & Environmental Impact Assessment',
-        targetDate: `${signingYear}-04-15`,
-        actualDate: `${signingYear}-04-10`,
-        status: 'Completed',
-        tolerance: 'On Schedule',
-        deliverable: 'Approved by State Department of Environment & Independent Inspector (Bureau Veritas).',
-      },
-      {
-        id: 'm2',
-        name: 'M-02: Sovereign Concession Agreement Signing & Financial Close',
-        targetDate: `${signingYear}-10-12`,
-        actualDate: `${signingYear}-10-12`,
-        status: 'Completed',
-        tolerance: 'Zero Variance',
-        deliverable: 'Multi-party sovereign escrow deed executed with African Development Bank.',
-      },
-      {
-        id: 'm3',
-        name: 'M-03: Primary Civil Infrastructure Works & Guideway Substructure',
-        targetDate: `${signingYear + 2}-08-30`,
-        actualDate: null,
-        status: 'In Progress',
-        progress: 68,
-        tolerance: '+8 Days Forecast',
-        deliverable: '184km dual-track subgrade poured and viaduct erection across 14 river crossings.',
-      },
-      {
-        id: 'm4',
-        name: 'M-04: Automated Signaling Integration & High-Speed Electrification',
-        targetDate: `${signingYear + 4}-02-28`,
-        actualDate: null,
-        status: 'Pending',
-        tolerance: 'Pending Milestone M-03',
-        deliverable: 'Level-2 ETCS automated signaling, overhead catenary wire, 25kV traction substations.',
-      },
-      {
-        id: 'm5',
-        name: 'M-05: Commercial Operations Date (COD) & Sovereign Handback Verification',
-        targetDate: `${signingYear + 5}-06-01`,
-        actualDate: null,
-        status: 'Pending',
-        tolerance: 'Baseline 2026',
-        deliverable: 'Full speed 320 km/h trial operations and safety certification handoff to National Rail Agency.',
-      },
-    ];
-  }, [project, contractDate]);
+  // Milestones come straight from the project record (no fabricated fallbacks)
+  const milestonesList = useMemo(
+    () => (Array.isArray(project?.milestones) ? project.milestones : []),
+    [project]
+  );
 
   const completedMilestones = milestonesList.filter((m) => m.status === 'Completed').length;
   const inProgressMilestones = milestonesList.filter((m) => m.status === 'In Progress').length;
   const milestoneProgressPct = milestonesList.length > 0
     ? Math.round(((completedMilestones + (inProgressMilestones > 0 ? 0.5 : 0)) / milestonesList.length) * 100)
-    : 72;
+    : 0;
 
-  // Realistic Financial Disbursements
-  const financialsList = useMemo(() => {
-    if (Array.isArray(project?.financials) && project.financials.length > 0) {
-      return project.financials;
-    }
-    const signingYear = contractDate ? new Date(contractDate).getFullYear() : 2021;
-    return [
-      {
-        id: 'TR-8921-A',
-        date: `${signingYear + 3}-02-14`,
-        type: 'Senior Debt Tranche',
-        category: 'Construction Drawdown',
-        description: 'Guideway viaduct concrete pouring & rail foundation advance',
-        escrow: 'ESCROW-MOR-RAIL-01',
-        amount: Math.round(budgetAmount * 0.086),
-        status: 'Audited & Cleared',
-      },
-      {
-        id: 'TR-8904-B',
-        date: `${signingYear + 2}-11-04`,
-        type: 'Sovereign Equity Grant',
-        category: 'State Concession Grant',
-        description: 'Corridor land acquisition compensations tranche II',
-        escrow: 'ESCROW-TREASURY-CAP',
-        amount: Math.round(budgetAmount * 0.045),
-        status: 'Audited & Cleared',
-      },
-      {
-        id: 'TR-8842-A',
-        date: `${signingYear + 2}-06-22`,
-        type: 'Consortium Senior Debt',
-        category: 'EPC Advance',
-        description: 'TBM Tunnel excavation mobilization payment milestone 2B',
-        escrow: 'ESCROW-MOR-RAIL-01',
-        amount: Math.round(budgetAmount * 0.128),
-        status: 'Audited & Cleared',
-      },
-      {
-        id: 'TR-8799-C',
-        date: `${signingYear + 1}-12-18`,
-        type: 'Technical Assurance Fee',
-        category: 'Independent Engineer',
-        description: 'Quarterly compliance and safety audit settlement',
-        escrow: 'ESCROW-OPS-AUDIT',
-        amount: 8400000,
-        status: 'Audited & Cleared',
-      },
-      {
-        id: 'TR-8610-D',
-        date: `${signingYear + 1}-03-10`,
-        type: 'Concession Signing Deposit',
-        category: 'Performance Escrow',
-        description: 'Sovereign performance security bond deposit at financial close',
-        escrow: 'ESCROW-TREASURY-CAP',
-        amount: Math.round(budgetAmount * 0.05),
-        status: 'In Sovereign Escrow',
-      },
-    ];
-  }, [project, contractDate, budgetAmount]);
+  // Financial disbursements come straight from the project record (no fabricated fallbacks)
+  const financialsList = useMemo(
+    () => (Array.isArray(project?.financials) ? project.financials : []),
+    [project]
+  );
 
   const totalFinancialsSum = financialsList.reduce((acc, f) => acc + (Number(f.amount) || 0), 0);
 
-  // Realistic Official Documents
-  const documentsList = useMemo(() => {
-    if (Array.isArray(project?.documents) && project.documents.length > 0) {
-      return project.documents;
-    }
-    return [
-      {
-        id: 'doc-1',
-        name: 'Concession_Agreement_Signed.pdf',
-        size: '14.8 MB',
-        date: 'Oct 12, 2021',
-        classification: 'Executed Legal Treaty',
-        badge: 'Sovereign Seal',
-        type: 'PDF',
-      },
-      {
-        id: 'doc-2',
-        name: 'Independent_Engineer_Audit_Q4.pdf',
-        size: '8.4 MB',
-        date: 'Jan 15, 2026',
-        classification: 'Technical Assurance',
-        badge: 'Bureau Veritas Verified',
-        type: 'PDF',
-      },
-      {
-        id: 'doc-3',
-        name: 'Environmental_Social_Management_Plan.pdf',
-        size: '22.1 MB',
-        date: 'Aug 20, 2022',
-        classification: 'Statutory Compliance',
-        badge: 'ISO 14001 Audited',
-        type: 'PDF',
-      },
-      {
-        id: 'doc-4',
-        name: 'Financial_Model_Baseline_V3.8.xlsx',
-        size: '5.2 MB',
-        date: 'Nov 04, 2023',
-        classification: 'Financial Engineering',
-        badge: 'Escrow Benchmarked',
-        type: 'XLSX',
-      },
-      {
-        id: 'doc-5',
-        name: 'Emergency_Evacuation_Signaling_Protocol.pdf',
-        size: '9.6 MB',
-        date: 'Dec 02, 2025',
-        classification: 'Operational Safety',
-        badge: 'ETCS Level-2 Certified',
-        type: 'PDF',
-      },
-    ];
-  }, [project]);
+  // Official documents come straight from the project record (no fabricated fallbacks)
+  const documentsList = useMemo(
+    () => (Array.isArray(project?.documents) ? project.documents : []),
+    [project]
+  );
 
   if (loading || !project) {
     return (
@@ -622,26 +469,7 @@ export const ProjectDetails = () => {
                       }}
                     />
                   ))
-                ) : (
-                  <Chip
-                    label="Public Infrastructure"
-                    size="small"
-                    sx={{ fontWeight: 700, fontSize: '0.72rem', backgroundColor: '#f1f5f9', color: '#475569', borderRadius: 1.5 }}
-                  />
-                )}
-
-                <Chip
-                  icon={<SecurityIcon style={{ fontSize: 13, color: '#7c3aed' }} />}
-                  label="BOT Concession Framework"
-                  size="small"
-                  sx={{
-                    fontWeight: 700,
-                    fontSize: '0.72rem',
-                    backgroundColor: '#f5f3ff',
-                    color: '#7c3aed',
-                    borderRadius: 1.5,
-                  }}
-                />
+                ) : null}
               </Stack>
 
               <Typography
@@ -667,8 +495,7 @@ export const ProjectDetails = () => {
                   maxWidth: '92%',
                 }}
               >
-                {project.description ||
-                  'National sovereign concession project operating under statutory multi-stakeholder governance framework with audited capital disbursements and verified EPC milestones.'}
+                {project.description || '—'}
               </Typography>
             </Grid>
 
@@ -732,7 +559,7 @@ export const ProjectDetails = () => {
                       Concession Scope
                     </Typography>
                     <Typography variant="caption" sx={{ fontWeight: 800, color: D.primaryCont }}>
-                      {siteAreaVal ? `${fmt.number(siteAreaVal)} ${siteAreaUnit}` : 'National Corridor'}
+                      {siteAreaVal ? `${fmt.number(siteAreaVal)} ${siteAreaUnit}` : '—'}
                     </Typography>
                   </Box>
                 </Stack>
@@ -763,13 +590,12 @@ export const ProjectDetails = () => {
                     <Typography variant="caption" sx={{ color: D.textMuted, fontWeight: 700, fontSize: '0.72rem' }}>
                       Capex & Budget
                     </Typography>
-                    <Chip label="Fully Financed" size="small" sx={{ height: 18, fontSize: '0.62rem', fontWeight: 800, backgroundColor: '#dcfce7', color: '#15803d' }} />
                   </Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 900, color: '#059669', lineHeight: 1.3 }} noWrap>
-                    {fmt.currency(budgetAmount, true, currencyCode)}
+                    {budgetAmount != null ? fmt.currency(budgetAmount, true, currencyCode) : '—'}
                   </Typography>
                   <Typography variant="caption" sx={{ color: D.textLight, fontSize: '0.68rem', display: 'block' }}>
-                    {currencyCode} Sovereign Capital Base
+                    Budget currency: {currencyCode}
                   </Typography>
                 </Box>
               </Box>
@@ -796,14 +622,15 @@ export const ProjectDetails = () => {
                     <Typography variant="caption" sx={{ color: D.textMuted, fontWeight: 700, fontSize: '0.72rem' }}>
                       Contracting Authority
                     </Typography>
-                    <Chip label="Sovereign Grantor" size="small" sx={{ height: 18, fontSize: '0.62rem', fontWeight: 800, backgroundColor: '#e0e7ff', color: '#3730a3' }} />
                   </Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 800, color: D.textPrimary, lineHeight: 1.3 }} noWrap title={authorityName}>
                     {authorityName}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: D.textLight, fontSize: '0.68rem', display: 'block' }}>
-                    Public Statutory Grantor
-                  </Typography>
+                  {authorityOrg?.organization_type_name && (
+                    <Typography variant="caption" sx={{ color: D.textLight, fontSize: '0.68rem', display: 'block' }} noWrap>
+                      {authorityOrg.organization_type_name}
+                    </Typography>
+                  )}
                 </Box>
               </Box>
             </Grid>
@@ -829,14 +656,15 @@ export const ProjectDetails = () => {
                     <Typography variant="caption" sx={{ color: D.textMuted, fontWeight: 700, fontSize: '0.72rem' }}>
                       Lead Concessionaire
                     </Typography>
-                    <Chip label="Private Partner" size="small" sx={{ height: 18, fontSize: '0.62rem', fontWeight: 800, backgroundColor: '#ede9fe', color: '#6d28d9' }} />
                   </Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 800, color: D.textPrimary, lineHeight: 1.3 }} noWrap title={devName}>
                     {devName}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: D.textLight, fontSize: '0.68rem', display: 'block' }}>
-                    SPV Operating Consortium
-                  </Typography>
+                  {devOrg?.organization_type_name && (
+                    <Typography variant="caption" sx={{ color: D.textLight, fontSize: '0.68rem', display: 'block' }} noWrap>
+                      {devOrg.organization_type_name}
+                    </Typography>
+                  )}
                 </Box>
               </Box>
             </Grid>
@@ -862,13 +690,12 @@ export const ProjectDetails = () => {
                     <Typography variant="caption" sx={{ color: D.textMuted, fontWeight: 700, fontSize: '0.72rem' }}>
                       Jurisdiction
                     </Typography>
-                    <Chip label="Territory" size="small" sx={{ height: 18, fontSize: '0.62rem', fontWeight: 800, backgroundColor: '#fef3c7', color: '#b45309' }} />
                   </Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: D.textPrimary, lineHeight: 1.3 }} noWrap title={project.address || 'National Territory'}>
-                    {project.address || 'National Territory'}
+                  <Typography variant="subtitle2" sx={{ fontWeight: 800, color: D.textPrimary, lineHeight: 1.3 }} noWrap title={project.address || '—'}>
+                    {project.address || '—'}
                   </Typography>
                   <Typography variant="caption" sx={{ color: D.textLight, fontSize: '0.68rem', display: 'block' }}>
-                    {siteAreaVal ? `${fmt.number(siteAreaVal)} ${siteAreaUnit}` : 'Multi-regional'}
+                    {siteAreaVal ? `${fmt.number(siteAreaVal)} ${siteAreaUnit}` : '—'}
                   </Typography>
                 </Box>
               </Box>
@@ -1011,18 +838,7 @@ export const ProjectDetails = () => {
                           Statutory Basis / Origin
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 800, color: D.textPrimary }}>
-                          {project.proposal_number ? `Proposal #${project.proposal_number}` : 'PPP Concession Act #86-12'}
-                        </Typography>
-                      </Box>
-                    </Grid>
-
-                    <Grid item xs={12} sm={6} md={4}>
-                      <Box sx={{ p: 1.75, borderRadius: 2, backgroundColor: D.surfaceSubtle, border: `1px solid ${D.borderSubtle}` }}>
-                        <Typography variant="caption" sx={{ color: D.textMuted, fontWeight: 700, display: 'block', mb: 0.25 }}>
-                          Concession Framework
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 800, color: D.primaryCont }}>
-                          BOT / DBFOM Concession
+                          {project.proposal_number ? `Proposal #${project.proposal_number}` : '—'}
                         </Typography>
                       </Box>
                     </Grid>
@@ -1055,7 +871,7 @@ export const ProjectDetails = () => {
                           Audited By / Directorate
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 800, color: D.textPrimary }}>
-                          {project.created_by_name || 'Ministry PPP Secretariat'}
+                          {project.created_by_name || '—'}
                         </Typography>
                       </Box>
                     </Grid>
@@ -1067,8 +883,7 @@ export const ProjectDetails = () => {
                           Scope of Concession Works
                         </Typography>
                         <Typography variant="body2" sx={{ color: '#334155', lineHeight: 1.65 }}>
-                          {project.description ||
-                            'High-capacity sovereign transport infrastructure corridor featuring automated Level-2 ETCS signaling, multi-modal freight clearance hubs, and 30-year operational maintenance under sovereign availability payments.'}
+                          {project.description || '—'}
                         </Typography>
                       </Box>
                     </Grid>
@@ -1092,7 +907,7 @@ export const ProjectDetails = () => {
                                       {m.name}
                                     </Typography>
                                     <Typography variant="caption" sx={{ color: D.textMuted, fontSize: '0.72rem', display: 'block' }} noWrap>
-                                      {m.email || m.phone || 'Assigned Officer'}
+                                      {m.email || m.phone || '—'}
                                     </Typography>
                                   </Box>
                                 </Box>
@@ -1130,19 +945,32 @@ export const ProjectDetails = () => {
                           Milestone Implementation Phasing
                         </Typography>
                         <Typography variant="caption" sx={{ color: D.textMuted }}>
-                          Verified against EPC Independent Engineering Inspector (Bureau Veritas & Egis Rail)
+                          Milestones and phasing recorded for this project
                         </Typography>
                       </Box>
                     </Box>
 
-                    <Chip
-                      label="Target Tolerance: ±14 Days"
-                      size="small"
-                      sx={{ fontWeight: 700, backgroundColor: D.surfaceSubtle, color: D.textMuted, border: `1px solid ${D.borderSubtle}` }}
-                    />
+                    {milestonesList.length > 0 && (
+                      <Chip
+                        label={`${completedMilestones}/${milestonesList.length} Completed`}
+                        size="small"
+                        sx={{ fontWeight: 700, backgroundColor: D.surfaceSubtle, color: D.textMuted, border: `1px solid ${D.borderSubtle}` }}
+                      />
+                    )}
                   </Box>
 
                   {/* Connected Roadmap Timeline */}
+                  {milestonesList.length === 0 ? (
+                    <Box sx={{ py: 6, textAlign: 'center' }}>
+                      <TimelineIcon sx={{ fontSize: 40, color: '#cbd5e1', mb: 1 }} />
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#475569' }}>
+                        No milestones recorded
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                        Milestone data will appear here once added to this project.
+                      </Typography>
+                    </Box>
+                  ) : (
                   <Box sx={{ position: 'relative', mt: 3, pl: 2 }}>
                     {/* Vertical guideline */}
                     <Box
@@ -1236,6 +1064,7 @@ export const ProjectDetails = () => {
                       })}
                     </Stack>
                   </Box>
+                  )}
                 </Paper>
               </Fade>
             )}
@@ -1263,7 +1092,7 @@ export const ProjectDetails = () => {
                           Recent Audited Capital Disbursements
                         </Typography>
                         <Typography variant="caption" sx={{ color: D.textMuted }}>
-                          Disbursements verified through sovereign escrow multi-signature accounts
+                          Capital disbursements recorded for this project
                         </Typography>
                       </Box>
                     </Box>
@@ -1301,7 +1130,20 @@ export const ProjectDetails = () => {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {financialsList.map((f, i) => (
+                        {financialsList.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} align="center" sx={{ py: 6, border: 0 }}>
+                              <LedgerIcon sx={{ fontSize: 40, color: '#cbd5e1', mb: 1 }} />
+                              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#475569', display: 'block' }}>
+                                No disbursements recorded
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                                Financial transactions will appear here once added to this project.
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                        financialsList.map((f, i) => (
                           <TableRow key={f.id || i} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                             <TableCell sx={{ fontWeight: 800, color: D.primaryCont, fontFamily: 'ui-monospace, monospace', fontSize: '0.8rem' }}>
                               {f.id}
@@ -1318,7 +1160,7 @@ export const ProjectDetails = () => {
                               </Typography>
                             </TableCell>
                             <TableCell sx={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.74rem', color: D.textMuted }}>
-                              {f.escrow || 'ESCROW-PRIMARY'}
+                              {f.escrow || '—'}
                             </TableCell>
                             <TableCell align="right" sx={{ fontWeight: 900, color: D.textPrimary, fontSize: '0.84rem' }}>
                               {fmt.currency(f.amount, false, currencyCode)}
@@ -1337,7 +1179,7 @@ export const ProjectDetails = () => {
                               />
                             </TableCell>
                           </TableRow>
-                        ))}
+                        )))}
                       </TableBody>
                     </Table>
                   </TableContainer>
@@ -1373,18 +1215,6 @@ export const ProjectDetails = () => {
                   </Box>
 
                   <Stack spacing={1.5}>
-                    <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: D.surfaceSubtle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="caption" sx={{ color: D.textMuted, fontWeight: 700 }}>Concession Term</Typography>
-                      <Typography variant="caption" sx={{ fontWeight: 800, color: D.textPrimary }}>30-Year BOT Sovereign Lease</Typography>
-                    </Box>
-                    <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: D.surfaceSubtle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="caption" sx={{ color: D.textMuted, fontWeight: 700 }}>Revenue Model</Typography>
-                      <Typography variant="caption" sx={{ fontWeight: 800, color: D.textPrimary }}>Availability Payments + User Tariff</Typography>
-                    </Box>
-                    <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: D.surfaceSubtle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="caption" sx={{ color: D.textMuted, fontWeight: 700 }}>Asset Handback</Typography>
-                      <Typography variant="caption" sx={{ fontWeight: 800, color: D.textPrimary }}>Residual Value at Zero Cost</Typography>
-                    </Box>
                     <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: D.surfaceSubtle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography variant="caption" sx={{ color: D.textMuted, fontWeight: 700 }}>Enforcement Status</Typography>
                       <Chip label={project.is_active ? 'Active & Validated' : 'Suspended'} size="small" sx={{ height: 18, fontSize: '0.64rem', fontWeight: 800, backgroundColor: D.activeBg, color: D.activeFg }} />
@@ -1422,7 +1252,7 @@ export const ProjectDetails = () => {
                   <Stack spacing={1.5}>
                     {organizations.length > 0 ? (
                       organizations.map((org, idx) => {
-                        const typeName = org.organization_type_name || org.organization_type_code || 'Consortium Entity';
+                        const typeName = org.organization_type_name || org.organization_type_code || '—';
                         return (
                           <Box
                             key={org.id || idx}
@@ -1444,11 +1274,13 @@ export const ProjectDetails = () => {
                                 {typeName}
                               </Typography>
                               <Typography variant="body2" sx={{ fontWeight: 800, color: D.textPrimary, fontSize: '0.84rem' }} noWrap>
-                                {org.organization_name || org.name}
+                                {org.organization_name || org.name || '—'}
                               </Typography>
-                              <Typography variant="caption" sx={{ color: D.textMuted, fontSize: '0.72rem' }}>
-                                Official Representative & Signatory
-                              </Typography>
+                              {(org.contact_person || org.representative || org.email) && (
+                                <Typography variant="caption" sx={{ color: D.textMuted, fontSize: '0.72rem' }}>
+                                  {org.contact_person || org.representative || org.email}
+                                </Typography>
+                              )}
                             </Box>
                           </Box>
                         );
@@ -1489,7 +1321,18 @@ export const ProjectDetails = () => {
                   </Box>
 
                   <Stack spacing={1.5}>
-                    {documentsList.map((doc, idx) => (
+                    {documentsList.length === 0 ? (
+                      <Box sx={{ py: 3, textAlign: 'center', color: D.textLight }}>
+                        <FolderOpenIcon sx={{ fontSize: 36, color: '#cbd5e1', mb: 1 }} />
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#475569', display: 'block' }}>
+                          No documents uploaded
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#94a3b8' }}>
+                          Legal and technical documents will appear here once attached.
+                        </Typography>
+                      </Box>
+                    ) : (
+                    documentsList.map((doc, idx) => (
                       <Box
                         key={doc.id || idx}
                         sx={{
@@ -1530,7 +1373,7 @@ export const ProjectDetails = () => {
                           </IconButton>
                         </Tooltip>
                       </Box>
-                    ))}
+                    )))}
                   </Stack>
                 </Paper>
               </Fade>
