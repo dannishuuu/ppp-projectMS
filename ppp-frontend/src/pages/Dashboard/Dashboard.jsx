@@ -1,797 +1,1216 @@
-import React, { useState, useEffect, useMemo } from 'react';
+/**
+ * Public & Private Partnership (PPP) Dashboard
+ *
+ * Executive overview of the national PPP portfolio: projects, investment,
+ * proposals, pending technical reviews, and partner organizations.
+ * All figures are aggregated live from the PPP backend services.
+ */
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
   Card,
-  CardContent,
+  Button,
+  IconButton,
+  Tooltip,
+  Skeleton,
+  Alert,
+  CircularProgress,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Chip,
-  Button,
-  IconButton,
-  Tooltip,
-  LinearProgress,
-  Paper,
-  CircularProgress,
-  Stack,
-  Avatar,
-  TextField,
-  InputAdornment,
 } from '@mui/material';
 import {
-  Apartment as BuildingIcon,
-  MeetingRoom as UnitIcon,
-  Key as RentedIcon,
-  CheckCircle as AvailableIcon,
-  Business as TypeIcon,
-  Layers as FloorsIcon,
-  Visibility as ViewIcon,
-  Edit as EditIcon,
-  ArrowForward as ArrowForwardIcon,
-  Search as SearchIcon,
+  AccountTree as ProjectsIcon,
+  Payments as BudgetIcon,
+  Description as ProposalIcon,
+  RateReview as ReviewIcon,
+  Business as OrgIcon,
+  Handshake as HandshakeIcon,
   Refresh as RefreshIcon,
-  LocationOn as LocationIcon,
-  Storefront as ShopIcon,
+  Add as AddIcon,
+  ArrowForward as ArrowIcon,
+  Visibility as ViewIcon,
+  AccessTime as TimeIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { buildingsService } from '../../services/buildingServices/buildingsService';
+import { useAuth } from '../../context/AuthContext';
+import { pppProjectService } from '../../services/projectServices/pppProjectService';
+import { projectProposalService } from '../../services/projectServices/projectProposalService';
+import { projectReviewersService } from '../../services/projectServices/projectReviewersService';
+import { organizationService } from '../../services/organizationService/organizationService';
+import { formatCurrency, formatDate, formatNumber } from '../../utils/formatters';
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip as ChartTooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from 'recharts';
 
-// ── Helper ──────────────────────────────────────────────────────────────────
-const extractArray = (res, key) => {
+/* ------------------------------------------------------------------ */
+/* Design tokens — InfraNexus PPP design language                      */
+/* ------------------------------------------------------------------ */
+
+const D = {
+  primary: '#000ea1',
+  primaryCont: '#1c2ac8',
+  primaryLight: '#e8eaff',
+  accent: '#00a2ff',
+  textPrimary: '#0b1c30',
+  textMuted: '#64748b',
+  textLight: '#94a3b8',
+  bg: '#f4f6fb',
+  card: '#ffffff',
+  border: '#e2e8f0',
+  borderSubtle: '#f1f5f9',
+  success: '#16a34a',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  errorBg: '#fef2f2',
+  errorText: '#dc2626',
+};
+
+const FONT = { fontFamily: "'Plus Jakarta Sans', Inter, system-ui, -apple-system, sans-serif" };
+
+/* Map a status name (projects, proposals, reviews) to colors. */
+const resolveStatus = (name) => {
+  const s = String(name || '').toLowerCase();
+  if (s.includes('operational') || s.includes('active')) {
+    return { dot: '#22c55e', bg: '#dcfce7', fg: '#15803d' };
+  }
+  if (s.includes('construct') || s.includes('epc') || s.includes('progress')) {
+    return { dot: '#f59e0b', bg: '#fef3c7', fg: '#b45309' };
+  }
+  if (s.includes('complet') || s.includes('handed')) {
+    return { dot: '#7c3aed', bg: '#f5f3ff', fg: '#6d28d9' };
+  }
+  if (s.includes('financ') || s.includes('close') || s.includes('sign')) {
+    return { dot: '#0ea5e9', bg: '#e0f2fe', fg: '#0369a1' };
+  }
+  if (s.includes('cancel') || s.includes('terminat') || s.includes('suspend')) {
+    return { dot: '#ef4444', bg: '#fee2e2', fg: '#b91c1c' };
+  }
+  if (s.includes('pend') || s.includes('review') || s.includes('draft') || s.includes('submit')) {
+    return { dot: '#6366f1', bg: '#eef2ff', fg: '#4338ca' };
+  }
+  return { dot: '#94a3b8', bg: '#f1f5f9', fg: '#64748b' };
+};
+
+/* Fallback palette for statuses that don't match a known keyword. */
+const STATUS_PALETTE = ['#22c55e', '#f59e0b', '#7c3aed', '#0ea5e9', '#ef4444', '#94a3b8', '#1c2ac8', '#f472b6'];
+
+/* Indigo ramp for the budget bar chart. */
+const BUDGET_COLORS = ['#000ea1', '#1c2ac8', '#3b49df', '#6366f1', '#818cf8'];
+
+/* ------------------------------------------------------------------ */
+/* Data helpers — backend response envelopes vary across services      */
+/* ------------------------------------------------------------------ */
+
+const extractList = (res, keys = []) => {
   if (!res) return [];
-  const d = res?.data ?? res;
-  if (Array.isArray(d)) return d;
-  if (d?.[key] && Array.isArray(d[key])) return d[key];
-  if (d?.rows && Array.isArray(d.rows)) return d.rows;
+  const containers = [res, res.data];
+  for (const container of containers) {
+    if (!container) continue;
+    if (Array.isArray(container)) return container;
+    for (const key of keys) {
+      if (Array.isArray(container[key])) return container[key];
+    }
+    if (Array.isArray(container.rows)) return container.rows;
+  }
   return [];
 };
 
-// ── KPI Card ────────────────────────────────────────────────────────────────
-const KpiCard = ({ label, value, sub, icon, gradient, iconBg, loading }) => (
+const extractTotal = (res, fallback = 0) => {
+  const candidates = [
+    res?.pagination?.total,
+    res?.total,
+    res?.count,
+    res?.data?.pagination?.total,
+    res?.data?.total,
+    res?.data?.count,
+  ];
+  for (const candidate of candidates) {
+    if (candidate !== undefined && candidate !== null && candidate !== '') {
+      const parsed = Number(candidate);
+      if (!Number.isNaN(parsed)) return parsed;
+    }
+  }
+  return fallback;
+};
+
+const truncate = (text, max = 32) => {
+  const value = String(text || '');
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+};
+
+/* ------------------------------------------------------------------ */
+/* Shared building blocks                                              */
+/* ------------------------------------------------------------------ */
+
+const KpiCard = ({ icon, tint, value, label, footer, loading }) => (
   <Card
     elevation={0}
     sx={{
-      borderRadius: 3,
-      border: '1px solid rgba(255,255,255,0.15)',
-      background: gradient,
-      color: '#fff',
-      position: 'relative',
-      overflow: 'hidden',
-      width: '100%',
+      ...FONT,
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
-      justifyContent: 'center',
-      transition: 'transform 0.2s, box-shadow 0.2s',
-      '&:hover': { transform: 'translateY(-3px)', boxShadow: '0 12px 32px -8px rgba(0,0,0,0.25)' },
+      gap: 1.25,
+      p: '20px',
+      borderRadius: '14px',
+      border: `1px solid ${D.border}`,
+      bgcolor: D.card,
+      boxShadow: '0 1px 3px rgba(11, 28, 48, 0.04)',
+      transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+      '&:hover': {
+        boxShadow: '0 10px 28px rgba(11, 28, 48, 0.08)',
+        transform: 'translateY(-2px)',
+      },
+    }}
+  >
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Box
+        sx={{
+          width: 42,
+          height: 42,
+          borderRadius: '11px',
+          bgcolor: tint.bg,
+          color: tint.fg,
+          border: `1px solid ${tint.fg}22`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {icon}
+      </Box>
+    </Box>
+
+    {loading ? (
+      <Skeleton width="64%" height={38} />
+    ) : (
+      <Typography
+        sx={{
+          fontWeight: 800,
+          fontSize: '1.7rem',
+          lineHeight: 1.1,
+          letterSpacing: '-0.02em',
+          color: D.textPrimary,
+          fontVariantNumeric: 'tabular-nums',
+          wordBreak: 'break-word',
+        }}
+      >
+        {value}
+      </Typography>
+    )}
+
+    <Typography
+      sx={{
+        fontSize: '0.6875rem',
+        fontWeight: 700,
+        color: D.textMuted,
+        textTransform: 'uppercase',
+        letterSpacing: '0.07em',
+      }}
+    >
+      {label}
+    </Typography>
+
+    <Box
+      sx={{
+        mt: 'auto',
+        pt: 1.25,
+        borderTop: `1px solid ${D.borderSubtle}`,
+        fontSize: '0.6875rem',
+        lineHeight: 1.5,
+        color: D.textMuted,
+      }}
+    >
+      {footer}
+    </Box>
+  </Card>
+);
+
+const SectionCard = ({ title, subtitle, icon, action, children }) => (
+  <Card
+    elevation={0}
+    sx={{
+      ...FONT,
+      height: '100%',
+      borderRadius: '14px',
+      border: `1px solid ${D.border}`,
+      bgcolor: D.card,
+      boxShadow: '0 1px 3px rgba(11, 28, 48, 0.04)',
     }}
   >
     <Box
       sx={{
-        position: 'absolute',
-        top: -30,
-        right: -30,
-        width: 110,
-        height: 110,
-        borderRadius: '50%',
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        pointerEvents: 'none',
+        p: '18px 22px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 1.5,
       }}
-    />
-    <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography
-            variant="caption"
-            noWrap
-            sx={{
-              color: 'rgba(255,255,255,0.85)',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              fontSize: '0.7rem',
-              display: 'block',
-            }}
-          >
-            {label}
-          </Typography>
-          {loading ? (
-            <CircularProgress size={20} sx={{ color: '#fff', mt: 1 }} />
-          ) : (
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 800,
-                color: '#fff',
-                lineHeight: 1.1,
-                mt: 0.5,
-                fontSize: { xs: '1.8rem', sm: '2.1rem' },
-              }}
-            >
-              {value ?? 0}
-            </Typography>
-          )}
-          {sub && (
-            <Typography
-              variant="caption"
-              noWrap
-              sx={{
-                color: 'rgba(255,255,255,0.75)',
-                fontWeight: 500,
-                fontSize: '0.72rem',
-                mt: 0.5,
-                display: 'block',
-              }}
-            >
-              {sub}
-            </Typography>
-          )}
-        </Box>
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.4, minWidth: 0 }}>
         <Box
           sx={{
-            p: 1.25,
-            borderRadius: 2,
-            backgroundColor: iconBg || 'rgba(255,255,255,0.18)',
+            width: 38,
+            height: 38,
+            flexShrink: 0,
+            borderRadius: '10px',
+            bgcolor: D.primaryLight,
+            color: D.primary,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            flexShrink: 0,
           }}
         >
           {icon}
         </Box>
-      </Stack>
-    </CardContent>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ fontWeight: 800, fontSize: '0.95rem', color: D.textPrimary }}>{title}</Typography>
+          <Typography sx={{ fontSize: '0.75rem', color: D.textMuted }}>{subtitle}</Typography>
+        </Box>
+      </Box>
+      {action}
+    </Box>
+    <Box sx={{ px: '22px', pb: '22px' }}>{children}</Box>
   </Card>
 );
 
-// ── Type Breakdown Card ──────────────────────────────────────────────────────
-const TypeBreakdownCard = ({ typeMap, total, loading }) => {
-  const COLORS = [
-    '#6366f1',
-    '#0ea5e9',
-    '#10b981',
-    '#f59e0b',
-    '#ec4899',
-    '#8b5cf6',
-    '#14b8a6',
-    '#f97316',
-  ];
-  const entries = Object.entries(typeMap);
-
+const StatusPill = ({ name }) => {
+  const status = resolveStatus(name);
   return (
-    <Card
-      elevation={0}
+    <Box
       sx={{
-        borderRadius: 3,
-        border: '1px solid #e2e8f0',
-        width: '100%',
-        height: '100%',
-        background: 'linear-gradient(135deg, #fafbff 0%, #f0f4ff 100%)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 0.75,
+        px: 1.1,
+        py: 0.35,
+        borderRadius: '6px',
+        bgcolor: status.bg,
+        color: status.fg,
+        border: `1px solid ${status.dot}33`,
+        fontSize: '0.6875rem',
+        fontWeight: 700,
+        whiteSpace: 'nowrap',
       }}
     >
-      <CardContent sx={{ p: 2.5 }}>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-          <Box sx={{ p: 0.8, borderRadius: 1.5, backgroundColor: '#eef2ff' }}>
-            <TypeIcon sx={{ fontSize: 20, color: '#6366f1' }} />
-          </Box>
-          <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>
-              Buildings by Building Type
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.72rem' }}>
-              Distribution across registered property classifications
-            </Typography>
-          </Box>
-        </Stack>
-
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress size={28} sx={{ color: '#6366f1' }} />
-          </Box>
-        ) : entries.length === 0 ? (
-          <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', textAlign: 'center', py: 4 }}>
-            No buildings registered yet
-          </Typography>
-        ) : (
-          <Stack spacing={1.75}>
-            {entries.map(([type, count], idx) => {
-              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-              const color = COLORS[idx % COLORS.length];
-              return (
-                <Box key={type}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 600, color: '#334155', fontSize: '0.78rem' }}>
-                      {type || 'Unspecified'}
-                    </Typography>
-                    <Stack direction="row" spacing={0.75} alignItems="center">
-                      <Typography variant="caption" sx={{ fontWeight: 700, color, fontSize: '0.8rem' }}>
-                        {count} {count === 1 ? 'Building' : 'Buildings'}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.7rem' }}>
-                        ({pct}%)
-                      </Typography>
-                    </Stack>
-                  </Stack>
-                  <LinearProgress
-                    variant="determinate"
-                    value={pct}
-                    sx={{
-                      height: 7,
-                      borderRadius: 3.5,
-                      backgroundColor: '#e2e8f0',
-                      '& .MuiLinearProgress-bar': { backgroundColor: color, borderRadius: 3.5 },
-                    }}
-                  />
-                </Box>
-              );
-            })}
-          </Stack>
-        )}
-      </CardContent>
-    </Card>
+      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: status.dot }} />
+      {name || 'Unknown'}
+    </Box>
   );
 };
 
-// ── Rental Overview Card ──────────────────────────────────────────────────────
-const RentalOverviewCard = ({ totalUnits, rented, available, notForRent, loading }) => {
-  const rentedPct = totalUnits > 0 ? Math.round((rented / totalUnits) * 100) : 0;
-  const availPct = totalUnits > 0 ? Math.round((available / totalUnits) * 100) : 0;
-  const notForRentPct = totalUnits > 0 ? Math.max(0, 100 - rentedPct - availPct) : 0;
-
-  const segments = [
-    { label: 'Rented Shops / Spaces', value: rented, pct: rentedPct, color: '#8b5cf6', bg: '#f5f3ff', desc: 'Occupied by active tenants' },
-    { label: 'Available (Unrented)', value: available, pct: availPct, color: '#10b981', bg: '#f0fdf4', desc: 'Open and available for rent' },
-    { label: 'Not For Rent (Reserved/Service)', value: notForRent, pct: notForRentPct, color: '#64748b', bg: '#f8fafc', desc: 'Off-market / internal utility' },
-  ];
-
-  return (
-    <Card
-      elevation={0}
+const EmptyState = ({ icon, title, message, actionLabel, onAction }) => (
+  <Box
+    sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      py: 5,
+      gap: 1.5,
+      textAlign: 'center',
+    }}
+  >
+    <Box
       sx={{
-        borderRadius: 3,
-        border: '1px solid #e2e8f0',
-        width: '100%',
-        height: '100%',
-        background: 'linear-gradient(135deg, #fafbff 0%, #f0f4ff 100%)',
+        width: 56,
+        height: 56,
+        borderRadius: '50%',
+        bgcolor: D.primaryLight,
+        color: D.primary,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      <CardContent sx={{ p: 2.5 }}>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-          <Box sx={{ p: 0.8, borderRadius: 1.5, backgroundColor: '#f0fdf4' }}>
-            <RentedIcon sx={{ fontSize: 20, color: '#10b981' }} />
-          </Box>
-          <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>
-              Shops & Spaces Rental Status
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.72rem' }}>
-              {totalUnits} total spaces tracked across all buildings
-            </Typography>
-          </Box>
-        </Stack>
+      {icon}
+    </Box>
+    <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: D.textPrimary }}>{title}</Typography>
+    <Typography sx={{ fontSize: '0.78rem', color: D.textMuted, maxWidth: 320 }}>{message}</Typography>
+    {actionLabel && (
+      <Button
+        variant="contained"
+        size="small"
+        onClick={onAction}
+        sx={{ ...FONT, fontWeight: 700, borderRadius: '8px', textTransform: 'none', bgcolor: D.primaryCont }}
+      >
+        {actionLabel}
+      </Button>
+    )}
+  </Box>
+);
 
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress size={28} sx={{ color: '#10b981' }} />
-          </Box>
-        ) : (
-          <Stack spacing={1.5}>
-            {segments.map((s) => (
-              <Box key={s.label} sx={{ p: 1.75, borderRadius: 2, backgroundColor: s.bg, border: `1px solid ${s.color}22` }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
-                  <Box>
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: '#334155', fontSize: '0.78rem' }}>
-                      {s.label}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.7rem', display: 'block' }}>
-                      {s.desc}
-                    </Typography>
-                  </Box>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="caption" sx={{ fontWeight: 800, color: s.color, fontSize: '1.05rem' }}>
-                      {s.value}
-                    </Typography>
-                    <Chip
-                      label={`${s.pct}%`}
-                      size="small"
-                      sx={{
-                        height: 20,
-                        fontSize: '0.68rem',
-                        fontWeight: 700,
-                        backgroundColor: `${s.color}22`,
-                        color: s.color,
-                        '& .MuiChip-label': { px: 0.85 },
-                      }}
-                    />
-                  </Stack>
-                </Stack>
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.min(s.pct, 100)}
-                  sx={{
-                    height: 6,
-                    borderRadius: 3,
-                    backgroundColor: `${s.color}22`,
-                    '& .MuiLinearProgress-bar': { backgroundColor: s.color, borderRadius: 3 },
-                  }}
-                />
-              </Box>
-            ))}
-          </Stack>
-        )}
-      </CardContent>
-    </Card>
+const BudgetTooltip = ({ active, payload }) => {
+  if (!active || !payload || !payload.length) return null;
+  const data = payload[0].payload;
+  return (
+    <Box
+      sx={{
+        ...FONT,
+        bgcolor: D.textPrimary,
+        color: '#fff',
+        px: 1.25,
+        py: 0.9,
+        borderRadius: '8px',
+        fontSize: 12,
+        maxWidth: 280,
+        boxShadow: '0 8px 24px rgba(11, 28, 48, 0.25)',
+      }}
+    >
+      <Box sx={{ fontWeight: 700, mb: 0.25 }}>{data.full}</Box>
+      <Box sx={{ opacity: 0.85 }}>{formatCurrency(data.budget)}</Box>
+    </Box>
   );
 };
 
-// ── Main Dashboard Component ─────────────────────────────────────────────────
+/* ------------------------------------------------------------------ */
+/* Dashboard                                                           */
+/* ------------------------------------------------------------------ */
+
 export const Dashboard = () => {
   const navigate = useNavigate();
-  const [buildings, setBuildings] = useState([]);
+  const { user } = useAuth();
+
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadErrors, setLoadErrors] = useState({});
 
-  const fetchBuildings = async () => {
-    setLoading(true);
-    try {
-      const res = await buildingsService.getBuildings({ limit: 500, status: 'all' });
-      setBuildings(extractArray(res, 'buildings'));
-    } catch (e) {
-      console.error('Dashboard fetch error:', e);
-    } finally {
-      setLoading(false);
+  const [projects, setProjects] = useState([]);
+  const [projectTotal, setProjectTotal] = useState(0);
+
+  const [proposals, setProposals] = useState([]);
+  const [proposalTotal, setProposalTotal] = useState(0);
+
+  const [pendingReviews, setPendingReviews] = useState(0);
+  const [reviewProposals, setReviewProposals] = useState(0);
+
+  const [orgTotal, setOrgTotal] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  const loadAll = useCallback(async (manual = false) => {
+    if (manual) setRefreshing(true);
+    else setLoading(true);
+
+    const [projectsRes, proposalsRes, reviewsRes, orgsRes] = await Promise.allSettled([
+      pppProjectService.getProjects({ page: 1, limit: 500 }),
+      projectProposalService.getProposals({ page: 1, limit: 50 }),
+      projectReviewersService.getReviewers({ page: 1, limit: 200, status: 'Pending' }),
+      organizationService.getOrganizations({ page: 1, limit: 100 }),
+    ]);
+
+    const errors = {};
+
+    /* Projects — the core portfolio dataset */
+    if (projectsRes.status === 'fulfilled') {
+      const list = extractList(projectsRes.value, ['projects']);
+      setProjects(list);
+      setProjectTotal(extractTotal(projectsRes.value, list.length));
+    } else {
+      errors.projects = true;
+      setProjects([]);
+      setProjectTotal(0);
     }
-  };
 
-  useEffect(() => {
-    fetchBuildings();
+    /* Project proposals */
+    if (proposalsRes.status === 'fulfilled') {
+      const list = extractList(proposalsRes.value, ['proposals', 'rows']);
+      setProposals(list);
+      setProposalTotal(extractTotal(proposalsRes.value, list.length));
+    } else {
+      errors.proposals = true;
+      setProposals([]);
+      setProposalTotal(0);
+    }
+
+    /* Pending technical reviews */
+    if (reviewsRes.status === 'fulfilled') {
+      const list = extractList(reviewsRes.value, ['reviewers']);
+      setPendingReviews(extractTotal(reviewsRes.value, list.length));
+      setReviewProposals(new Set(list.map((r) => r.proposal_id ?? r.proposalId ?? r.proposal?.id).filter((v) => v != null)).size);
+    } else {
+      errors.reviews = true;
+      setPendingReviews(0);
+      setReviewProposals(0);
+    }
+
+    /* Partner organizations */
+    if (orgsRes.status === 'fulfilled') {
+      const list = extractList(orgsRes.value, ['organizations', 'rows']);
+      setOrgTotal(extractTotal(orgsRes.value, list.length));
+    } else {
+      errors.organizations = true;
+      setOrgTotal(0);
+    }
+
+    setLoadErrors(errors);
+    setLastUpdated(new Date());
+    setLoading(false);
+    setRefreshing(false);
   }, []);
 
-  // ── Aggregated Statistics ──────────────────────────────────────────────────
-  const stats = useMemo(() => {
-    const totalBuildings = buildings.length;
-    const activeBuildings = buildings.filter((b) => b.is_active).length;
-    const totalFloors = buildings.reduce((acc, b) => acc + (b.floors_count || 0), 0);
-    const totalUnits = buildings.reduce((acc, b) => acc + (b.units_count || 0), 0);
-    const totalRented = buildings.reduce((acc, b) => acc + (b.rented_units_count || 0), 0);
-    const totalAvailable = buildings.reduce((acc, b) => acc + (b.available_units_count || 0), 0);
-    const notForRent = Math.max(0, totalUnits - totalRented - totalAvailable);
+  useEffect(() => {
+    loadAll(false);
+  }, [loadAll]);
 
-    // Distribution by building type
-    const typeMap = {};
-    buildings.forEach((b) => {
-      const t = b.building_type_name || 'Unspecified';
-      typeMap[t] = (typeMap[t] || 0) + 1;
+  /* ---------------- Derived figures ---------------- */
+
+  const totalBudget = useMemo(
+    () => projects.reduce((sum, p) => sum + (Number(p.estimated_budget_amount) || 0), 0),
+    [projects]
+  );
+
+  const budgetedCount = useMemo(
+    () => projects.filter((p) => (Number(p.estimated_budget_amount) || 0) > 0).length,
+    [projects]
+  );
+
+  const statusCounts = useMemo(() => {
+    const counts = new Map();
+    projects.forEach((p) => {
+      const name = p.status_name || p.status?.name || 'Unknown';
+      counts.set(name, (counts.get(name) || 0) + 1);
     });
+    return [...counts.entries()]
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [projects]);
 
-    return {
-      totalBuildings,
-      activeBuildings,
-      totalFloors,
-      totalUnits,
-      totalRented,
-      totalAvailable,
-      notForRent,
-      typeMap,
-    };
-  }, [buildings]);
+  const operationalCount = useMemo(
+    () => projects.filter((p) => /operational|active/i.test(p.status_name || p.status?.name || '')).length,
+    [projects]
+  );
 
-  // ── Filtered Buildings ─────────────────────────────────────────────────────
-  const filteredBuildings = useMemo(() => {
-    if (!search.trim()) return buildings;
-    const q = search.toLowerCase();
-    return buildings.filter(
-      (b) =>
-        b.name?.toLowerCase().includes(q) ||
-        b.building_type_name?.toLowerCase().includes(q) ||
-        b.region_name?.toLowerCase().includes(q) ||
-        b.woreda_name?.toLowerCase().includes(q)
-    );
-  }, [buildings, search]);
+  const constructionCount = useMemo(
+    () => projects.filter((p) => /construct|epc|progress/i.test(p.status_name || p.status?.name || '')).length,
+    [projects]
+  );
 
-  // ── KPI Cards Setup ────────────────────────────────────────────────────────
-  const kpiCards = [
-    {
-      label: 'Total Buildings',
-      value: stats.totalBuildings,
-      sub: `${stats.activeBuildings} active • ${stats.totalBuildings - stats.activeBuildings} inactive`,
-      icon: <BuildingIcon sx={{ fontSize: 24, color: '#fff' }} />,
-      gradient: 'linear-gradient(135deg, #1e1b4b 0%, #3730a3 50%, #4f46e5 100%)',
-    },
-    {
-      label: 'Total Floors',
-      value: stats.totalFloors,
-      sub: 'Across all registered buildings',
-      icon: <FloorsIcon sx={{ fontSize: 24, color: '#fff' }} />,
-      gradient: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 50%, #0ea5e9 100%)',
-    },
-    {
-      label: 'Total Shops & Units',
-      value: stats.totalUnits,
-      sub: 'Commercial, retail & offices',
-      icon: <ShopIcon sx={{ fontSize: 24, color: '#fff' }} />,
-      gradient: 'linear-gradient(135deg, #064e3b 0%, #047857 50%, #10b981 100%)',
-    },
-    {
-      label: 'Rented Shops',
-      value: stats.totalRented,
-      sub: stats.totalUnits > 0 ? `${Math.round((stats.totalRented / stats.totalUnits) * 100)}% occupancy rate` : '0% occupied',
-      icon: <RentedIcon sx={{ fontSize: 24, color: '#fff' }} />,
-      gradient: 'linear-gradient(135deg, #4c1d95 0%, #6d28d9 50%, #8b5cf6 100%)',
-    },
-    {
-      label: 'Available (Unrented)',
-      value: stats.totalAvailable,
-      sub: 'Ready for lease / tenant',
-      icon: <AvailableIcon sx={{ fontSize: 24, color: '#fff' }} />,
-      gradient: 'linear-gradient(135deg, #78350f 0%, #b45309 50%, #f59e0b 100%)',
-    },
-  ];
+  const topBudgetProjects = useMemo(
+    () =>
+      projects
+        .map((p) => ({
+          full: p.name || 'Untitled project',
+          name: truncate(p.name || 'Untitled project', 26),
+          budget: Number(p.estimated_budget_amount) || 0,
+        }))
+        .filter((p) => p.budget > 0)
+        .sort((a, b) => b.budget - a.budget)
+        .slice(0, 5),
+    [projects]
+  );
+
+  const awaitingAction = useMemo(
+    () =>
+      proposals.filter((p) => /pend|review|draft|submit|under/i.test(p.status_name || p.status?.name || '')).length,
+    [proposals]
+  );
+
+  const recentProjects = useMemo(
+    () =>
+      [...projects]
+        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+        .slice(0, 6),
+    [projects]
+  );
+
+  const recentProposals = useMemo(
+    () =>
+      [...proposals]
+        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+        .slice(0, 6),
+    [proposals]
+  );
+
+  const statusColors = useMemo(() => {
+    const palette = {};
+    statusCounts.forEach((entry, index) => {
+      const status = resolveStatus(entry.name);
+      const isDefault = status.dot === '#94a3b8';
+      palette[entry.name] = isDefault ? STATUS_PALETTE[index % STATUS_PALETTE.length] : status.dot;
+    });
+    return palette;
+  }, [statusCounts]);
+
+  const chartStatusData = useMemo(
+    () =>
+      statusCounts.map((entry) => ({
+        ...entry,
+        color: statusColors[entry.name] || STATUS_PALETTE[0],
+      })),
+    [statusCounts, statusColors]
+  );
+
+  /* ---------------- Header copy ---------------- */
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const firstName = user?.first_name || user?.display_name?.split?.(' ')?.[0] || user?.username || 'there';
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  const updatedTime = lastUpdated
+    ? lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    : '—';
+
+  const hasErrors = Object.keys(loadErrors).length > 0;
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, width: '100%', maxWidth: '100%', boxSizing: 'border-box', pb: 4 }}>
+    <Box sx={{ ...FONT, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* ============================================================ */}
+      {/* Hero header                                                   */}
+      {/* ============================================================ */}
+      <Box
+        sx={{
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: '16px',
+          p: { xs: 2.5, md: 3.5 },
+          background: 'linear-gradient(115deg, #000ea1 0%, #1c2ac8 60%, #3b49df 100%)',
+          color: '#fff',
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: { xs: 'flex-start', md: 'center' },
+          justifyContent: 'space-between',
+          gap: 2.5,
+          boxShadow: '0 12px 32px -14px rgba(0, 14, 161, 0.5)',
+        }}
+      >
+        {/* decorative circles */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -60,
+            right: -40,
+            width: 220,
+            height: 220,
+            borderRadius: '50%',
+            bgcolor: 'rgba(255, 255, 255, 0.07)',
+            pointerEvents: 'none',
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: -90,
+            right: 160,
+            width: 180,
+            height: 180,
+            borderRadius: '50%',
+            bgcolor: 'rgba(255, 255, 255, 0.05)',
+            pointerEvents: 'none',
+          }}
+        />
 
-      {/* ── Top Header ── */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5, width: '100%' }}>
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: '#0f172a', fontSize: '1.4rem', letterSpacing: '-0.02em' }}>
-            Building Portfolio Dashboard
-          </Typography>
-          <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 500, fontSize: '0.78rem' }}>
-            Comprehensive analytics of buildings, building types, shop capacity, and occupancy status
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Tooltip title="Refresh Dashboard">
-            <IconButton
-              size="small"
-              onClick={fetchBuildings}
-              disabled={loading}
-              sx={{
-                border: '1px solid #e2e8f0',
-                borderRadius: 2,
-                p: 0.75,
-                color: '#64748b',
-                backgroundColor: '#ffffff',
-                '&:hover': { backgroundColor: '#f1f5f9' },
-              }}
-            >
-              <RefreshIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-          <Button
-            variant="contained"
-            startIcon={<BuildingIcon sx={{ fontSize: 16 }} />}
-            onClick={() => navigate('/buildings')}
+        <Box sx={{ position: 'relative', minWidth: 0 }}>
+          <Box
             sx={{
-              borderRadius: 2,
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              textTransform: 'none',
-              backgroundColor: '#4f46e5',
-              '&:hover': { backgroundColor: '#4338ca' },
-              boxShadow: '0 2px 8px rgba(79,70,229,0.3)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.75,
+              px: 1.25,
+              py: 0.4,
+              mb: 1.5,
+              borderRadius: '6px',
+              border: '1px solid rgba(255, 255, 255, 0.28)',
+              bgcolor: 'rgba(255, 255, 255, 0.12)',
+              fontSize: '0.65rem',
+              fontWeight: 800,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
             }}
           >
-            Buildings Directory
+            <HandshakeIcon sx={{ fontSize: 14 }} />
+            National PPP Overview
+          </Box>
+
+          <Typography
+            component="h1"
+            sx={{
+              fontWeight: 800,
+              fontSize: { xs: '1.45rem', md: '1.9rem' },
+              lineHeight: 1.2,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Public &amp; Private Partnership Dashboard
+          </Typography>
+
+          <Typography sx={{ mt: 1, fontSize: { xs: '0.82rem', md: '0.9rem' }, opacity: 0.9 }}>
+            {greeting}, {firstName}. Portfolio snapshot for {today}.
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            gap: 1.5,
+            width: { xs: '100%', md: 'auto' },
+          }}
+        >
+          <Button
+            variant="outlined"
+            startIcon={<ProposalIcon />}
+            onClick={() => navigate('/projects/proposals/new')}
+            sx={{
+              ...FONT,
+              color: '#fff',
+              borderColor: 'rgba(255, 255, 255, 0.45)',
+              fontWeight: 700,
+              textTransform: 'none',
+              borderRadius: '10px',
+              '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255, 255, 255, 0.10)' },
+            }}
+          >
+            New Proposal
           </Button>
-        </Stack>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/projects/new')}
+            sx={{
+              ...FONT,
+              bgcolor: '#fff',
+              color: D.primary,
+              fontWeight: 800,
+              textTransform: 'none',
+              borderRadius: '10px',
+              boxShadow: 'none',
+              '&:hover': { bgcolor: '#eef1ff', boxShadow: 'none' },
+            }}
+          >
+            New Project
+          </Button>
+          <Tooltip title="Refresh dashboard data">
+            <span>
+              <IconButton
+                onClick={() => loadAll(true)}
+                disabled={refreshing}
+                sx={{
+                  color: '#fff',
+                  border: '1px solid rgba(255, 255, 255, 0.35)',
+                  borderRadius: '10px',
+                  width: 40,
+                  height: 40,
+                  '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.12)' },
+                }}
+              >
+                {refreshing ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : <RefreshIcon />}
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Box>
       </Box>
 
-      {/* ── Summary KPI Cards (100% Full Width CSS Grid) ── */}
+      {/* ============================================================ */}
+      {/* Error banner                                                  */}
+      {/* ============================================================ */}
+      {hasErrors && !loading && (
+        <Alert
+          severity="error"
+          variant="outlined"
+          sx={{ ...FONT, borderRadius: '12px', bgcolor: D.errorBg, color: D.errorText, borderColor: '#fecaca' }}
+          action={
+            <Button color="inherit" size="small" onClick={() => loadAll(true)} sx={{ fontWeight: 700 }}>
+              Retry
+            </Button>
+          }
+        >
+          Some dashboard data could not be loaded. Figures shown may be incomplete.
+        </Alert>
+      )}
+
+      {/* ============================================================ */}
+      {/* KPI row                                                       */}
+      {/* ============================================================ */}
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            sm: 'repeat(2, 1fr)',
-            md: 'repeat(3, 1fr)',
-            lg: 'repeat(5, 1fr)',
-          },
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', xl: 'repeat(5, 1fr)' },
           gap: 2,
-          width: '100%',
         }}
       >
-        {kpiCards.map((card) => (
-          <KpiCard key={card.label} {...card} loading={loading} />
-        ))}
-      </Box>
-
-      {/* ── Breakdown & Charts Row (100% Full Width CSS Grid) ── */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            md: 'repeat(2, 1fr)',
-          },
-          gap: 2,
-          width: '100%',
-        }}
-      >
-        {/* Buildings per Building Type */}
-        <TypeBreakdownCard typeMap={stats.typeMap} total={stats.totalBuildings} loading={loading} />
-
-        {/* Shops & Rental Overview */}
-        <RentalOverviewCard
-          totalUnits={stats.totalUnits}
-          rented={stats.totalRented}
-          available={stats.totalAvailable}
-          notForRent={stats.notForRent}
+        <KpiCard
           loading={loading}
+          icon={<ProjectsIcon fontSize="small" />}
+          tint={{ bg: '#e8eaff', fg: '#1c2ac8' }}
+          value={loadErrors.projects ? '—' : formatNumber(projectTotal)}
+          label="Total PPP Projects"
+          footer={
+            loadErrors.projects
+              ? 'Unavailable — try refreshing'
+              : `${formatNumber(operationalCount)} operational · ${formatNumber(constructionCount)} under construction`
+          }
+        />
+        <KpiCard
+          loading={loading}
+          icon={<BudgetIcon fontSize="small" />}
+          tint={{ bg: '#dcfce7', fg: '#15803d' }}
+          value={loadErrors.projects ? '—' : formatCurrency(totalBudget, true)}
+          label="Estimated Investment"
+          footer={`Estimated capital across ${formatNumber(budgetedCount)} projects`}
+        />
+        <KpiCard
+          loading={loading}
+          icon={<ProposalIcon fontSize="small" />}
+          tint={{ bg: '#f5f3ff', fg: '#7c3aed' }}
+          value={loadErrors.proposals ? '—' : formatNumber(proposalTotal)}
+          label="Project Proposals"
+          footer={loadErrors.proposals ? 'Unavailable — try refreshing' : `${formatNumber(awaitingAction)} awaiting action`}
+        />
+        <KpiCard
+          loading={loading}
+          icon={<ReviewIcon fontSize="small" />}
+          tint={{ bg: '#fef3c7', fg: '#b45309' }}
+          value={loadErrors.reviews ? '—' : formatNumber(pendingReviews)}
+          label="Pending Reviews"
+          footer={
+            loadErrors.reviews
+              ? 'Unavailable — try refreshing'
+              : `Technical review queue · ${formatNumber(reviewProposals)} proposals`
+          }
+        />
+        <KpiCard
+          loading={loading}
+          icon={<OrgIcon fontSize="small" />}
+          tint={{ bg: '#e0f2fe', fg: '#0369a1' }}
+          value={loadErrors.organizations ? '—' : formatNumber(orgTotal)}
+          label="Partner Organizations"
+          footer="Registered public and private sector partners"
         />
       </Box>
 
-      {/* ── Buildings Registry Table (100% Full Width) ── */}
-      <Card
-        elevation={0}
+      {/* ============================================================ */}
+      {/* Charts                                                        */}
+      {/* ============================================================ */}
+      <Box
         sx={{
-          borderRadius: 3,
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 2px 12px -2px rgba(0,0,0,0.04)',
-          width: '100%',
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '5fr 7fr' },
+          gap: 2,
+          alignItems: 'stretch',
         }}
       >
-        <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
-          {/* Table Header Controls */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1.5 }}>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '1rem' }}>
-                Building Directory Overview
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#64748b' }}>
-                Showing {filteredBuildings.length} of {buildings.length} registered buildings
-              </Typography>
+        {/* Projects by status — donut */}
+        <SectionCard
+          title="Projects by Status"
+          subtitle="Current portfolio composition"
+          icon={<ProjectsIcon fontSize="small" />}
+          action={
+            <Button
+              size="small"
+              endIcon={<ArrowIcon sx={{ fontSize: 15 }} />}
+              onClick={() => navigate('/projects')}
+              sx={{ ...FONT, fontWeight: 700, color: D.primaryCont, textTransform: 'none' }}
+            >
+              View all
+            </Button>
+          }
+        >
+          {loading ? (
+            <Skeleton variant="rounded" height={250} />
+          ) : chartStatusData.length === 0 ? (
+            <EmptyState
+              icon={<ProjectsIcon />}
+              title="No projects yet"
+              message="Once PPP projects are registered, their status breakdown will appear here."
+              actionLabel="Create project"
+              onAction={() => navigate('/projects/new')}
+            />
+          ) : (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: 'center',
+                gap: 2,
+              }}
+            >
+              <Box sx={{ position: 'relative', width: { xs: '100%', sm: 220 }, height: 230, flexShrink: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartStatusData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={56}
+                      outerRadius={88}
+                      paddingAngle={2}
+                      stroke="#fff"
+                      strokeWidth={2}
+                    >
+                      {chartStatusData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip
+                      formatter={(value, name) => [`${formatNumber(value)} project(s)`, name]}
+                      contentStyle={{
+                        ...FONT,
+                        borderRadius: 8,
+                        border: `1px solid ${D.border}`,
+                        fontSize: 12,
+                        boxShadow: '0 8px 24px rgba(11, 28, 48, 0.08)',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 800, fontSize: '1.5rem', color: D.textPrimary, lineHeight: 1 }}>
+                    {formatNumber(projectTotal)}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.625rem', fontWeight: 700, color: D.textLight, letterSpacing: '0.1em' }}>
+                    PROJECTS
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ flex: 1, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: 1.1 }}>
+                {chartStatusData.map((entry) => (
+                  <Box key={entry.name} sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                    <Box sx={{ width: 10, height: 10, borderRadius: '3px', bgcolor: entry.color, flexShrink: 0 }} />
+                    <Typography
+                      noWrap
+                      sx={{ flex: 1, minWidth: 0, fontSize: '0.8125rem', fontWeight: 600, color: D.textPrimary }}
+                    >
+                      {entry.name}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: '0.8125rem',
+                        fontWeight: 800,
+                        color: D.textPrimary,
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {entry.value}
+                    </Typography>
+                    <Typography
+                      sx={{ fontSize: '0.75rem', color: D.textLight, width: 40, textAlign: 'right', flexShrink: 0 }}
+                    >
+                      {projectTotal > 0 ? Math.round((entry.value / projectTotal) * 100) : 0}%
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
             </Box>
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <TextField
-                size="small"
-                placeholder="Search building, type, location..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon sx={{ color: '#94a3b8', fontSize: 18 }} />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  width: { xs: '100%', sm: 260 },
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    fontSize: '0.825rem',
-                    backgroundColor: '#f8fafc',
-                    '& fieldset': { borderColor: '#e2e8f0' },
-                  },
-                }}
-              />
-              <Button
-                endIcon={<ArrowForwardIcon fontSize="small" />}
-                onClick={() => navigate('/buildings')}
-                sx={{ fontWeight: 700, color: '#6366f1', fontSize: '0.8rem', textTransform: 'none', whiteSpace: 'nowrap' }}
-              >
-                Manage All
-              </Button>
-            </Stack>
-          </Box>
+          )}
+        </SectionCard>
 
-          <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #f1f5f9', borderRadius: 2, width: '100%', overflowX: 'auto' }}>
-            <Table size="small">
-              <TableHead sx={{ backgroundColor: '#f8fafc' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.72rem', textTransform: 'uppercase' }}>Building</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.72rem', textTransform: 'uppercase' }}>Type</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.72rem', textTransform: 'uppercase' }}>Location</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.72rem', textTransform: 'uppercase' }}>Floors</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.72rem', textTransform: 'uppercase' }}>Total Shops</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.72rem', textTransform: 'uppercase' }}>Rented</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.72rem', textTransform: 'uppercase' }}>Available</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.72rem', textTransform: 'uppercase', minWidth: 120 }}>Occupancy</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.72rem', textTransform: 'uppercase' }}>Status</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.72rem', textTransform: 'uppercase' }}>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={10} align="center" sx={{ py: 5 }}>
-                      <CircularProgress size={28} sx={{ color: '#4f46e5' }} />
-                    </TableCell>
-                  </TableRow>
-                ) : filteredBuildings.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={10} align="center" sx={{ py: 5 }}>
-                      <BuildingIcon sx={{ fontSize: 36, color: '#cbd5e1', mb: 1 }} />
-                      <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 500 }}>
-                        {search ? `No buildings matching "${search}"` : 'No buildings registered yet'}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredBuildings.map((b) => {
-                    const units = b.units_count || 0;
-                    const rented = b.rented_units_count || 0;
-                    const avail = b.available_units_count || 0;
-                    const occupancyPct = units > 0 ? Math.round((rented / units) * 100) : 0;
-                    const occColor = occupancyPct >= 80 ? '#10b981' : occupancyPct >= 50 ? '#6366f1' : occupancyPct >= 25 ? '#f59e0b' : '#94a3b8';
+        {/* Top projects by capital — horizontal bars */}
+        <SectionCard
+          title="Top Projects by Capital Allocation"
+          subtitle="Five largest estimated investments in the portfolio"
+          icon={<BudgetIcon fontSize="small" />}
+        >
+          {loading ? (
+            <Skeleton variant="rounded" height={250} />
+          ) : topBudgetProjects.length === 0 ? (
+            <EmptyState
+              icon={<BudgetIcon />}
+              title="No budget data"
+              message="Projects with an estimated budget will be ranked here automatically."
+            />
+          ) : (
+            <Box sx={{ width: '100%', height: 260 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={topBudgetProjects}
+                  layout="vertical"
+                  margin={{ top: 4, right: 20, bottom: 4, left: 0 }}
+                >
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke={D.borderSubtle} />
+                  <XAxis
+                    type="number"
+                    tick={{ fill: D.textLight, fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(value) => formatCurrency(value, true).replace('ETB', '').trim()}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={148}
+                    tick={{ fill: D.textMuted, fontSize: 11, fontWeight: 600 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <ChartTooltip
+                    content={<BudgetTooltip />}
+                    cursor={{ fill: 'rgba(0, 14, 161, 0.04)' }}
+                  />
+                  <Bar dataKey="budget" radius={[0, 6, 6, 0]} barSize={18}>
+                    {topBudgetProjects.map((entry, index) => (
+                      <Cell key={entry.full} fill={BUDGET_COLORS[index % BUDGET_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          )}
+        </SectionCard>
+      </Box>
 
+      {/* ============================================================ */}
+      {/* Projects table + proposals list                               */}
+      {/* ============================================================ */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '3fr 2fr' },
+          gap: 2,
+          alignItems: 'stretch',
+        }}
+      >
+        {/* Recent PPP projects */}
+        <SectionCard
+          title="Recent PPP Projects"
+          subtitle="Latest entries in the partnership portfolio"
+          icon={<ProjectsIcon fontSize="small" />}
+          action={
+            <Button
+              size="small"
+              endIcon={<ArrowIcon sx={{ fontSize: 15 }} />}
+              onClick={() => navigate('/projects')}
+              sx={{ ...FONT, fontWeight: 700, color: D.primaryCont, textTransform: 'none' }}
+            >
+              View all
+            </Button>
+          }
+        >
+          {loading ? (
+            <Skeleton variant="rounded" height={280} />
+          ) : recentProjects.length === 0 ? (
+            <EmptyState
+              icon={<ProjectsIcon />}
+              title="No PPP projects registered"
+              message="Start the pipeline by registering a new partnership project."
+              actionLabel="New project"
+              onAction={() => navigate('/projects/new')}
+            />
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    {['Project', 'Status', 'Capital', 'Signed', ''].map((label, index) => (
+                      <TableCell
+                        key={index}
+                        sx={{
+                          borderBottom: `1px solid ${D.border}`,
+                          fontSize: '0.6875rem',
+                          fontWeight: 800,
+                          color: D.textMuted,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                          pl: index === 0 ? 0 : 1.5,
+                          pr: index === 4 ? 0 : 1.5,
+                        }}
+                      >
+                        {label}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {recentProjects.map((project) => {
+                    const statusName = project.status_name || project.status?.name || 'Unknown';
+                    const budget = Number(project.estimated_budget_amount) || 0;
                     return (
                       <TableRow
-                        key={b.id}
-                        sx={{
-                          '&:last-child td': { border: 0 },
-                          '&:hover': { backgroundColor: '#f8fafc' },
-                          cursor: 'pointer',
-                        }}
-                        onClick={() => navigate(`/buildings/${b.id}`)}
+                        key={project.id ?? project.name}
+                        hover
+                        onClick={() => navigate(`/projects/${project.id}`)}
+                        sx={{ cursor: 'pointer', '&:last-child td': { borderBottom: 0 } }}
                       >
-                        <TableCell>
-                          <Stack direction="row" spacing={1.25} alignItems="center">
-                            <Avatar
-                              sx={{
-                                width: 30,
-                                height: 30,
-                                backgroundColor: '#eef2ff',
-                                color: '#4f46e5',
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
+                        <TableCell sx={{ borderBottom: `1px solid ${D.borderSubtle}`, pl: 0, maxWidth: 240 }}>
+                          <Typography noWrap sx={{ fontWeight: 700, fontSize: '0.8125rem', color: D.textPrimary }}>
+                            {project.name || 'Untitled project'}
+                          </Typography>
+                          <Typography noWrap sx={{ fontSize: '0.7rem', color: D.textLight }}>
+                            {project.address || 'Location not specified'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ borderBottom: `1px solid ${D.borderSubtle}`, px: 1.5 }}>
+                          <StatusPill name={statusName} />
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            borderBottom: `1px solid ${D.borderSubtle}`,
+                            px: 1.5,
+                            fontWeight: 700,
+                            fontSize: '0.8125rem',
+                            color: D.textPrimary,
+                            whiteSpace: 'nowrap',
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                        >
+                          {budget > 0 ? formatCurrency(budget, true) : '—'}
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            borderBottom: `1px solid ${D.borderSubtle}`,
+                            px: 1.5,
+                            fontSize: '0.75rem',
+                            color: D.textMuted,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {formatDate(project.contract_signing_date)}
+                        </TableCell>
+                        <TableCell sx={{ borderBottom: `1px solid ${D.borderSubtle}`, pr: 0, textAlign: 'right' }}>
+                          <Tooltip title="View project">
+                            <IconButton
+                              size="small"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                navigate(`/projects/${project.id}`);
                               }}
+                              sx={{ color: D.textLight, '&:hover': { color: D.primaryCont } }}
                             >
-                              {(b.name || '?')[0].toUpperCase()}
-                            </Avatar>
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.8rem', lineHeight: 1.2 }}>
-                                {b.name}
-                              </Typography>
-                              {b.year_built && (
-                                <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.68rem' }}>
-                                  Built {b.year_built}
-                                </Typography>
-                              )}
-                            </Box>
-                          </Stack>
-                        </TableCell>
-
-                        <TableCell>
-                          <Chip
-                            label={b.building_type_name || '—'}
-                            size="small"
-                            sx={{
-                              backgroundColor: '#eef2ff',
-                              color: '#4f46e5',
-                              fontWeight: 700,
-                              fontSize: '0.67rem',
-                              height: 20,
-                              borderRadius: '4px',
-                            }}
-                          />
-                        </TableCell>
-
-                        <TableCell>
-                          <Stack direction="row" spacing={0.4} alignItems="center">
-                            <LocationIcon sx={{ fontSize: 12, color: '#94a3b8', flexShrink: 0 }} />
-                            <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.75rem' }}>
-                              {[b.woreda_name, b.zone_name, b.region_name].filter(Boolean).join(', ') || '—'}
-                            </Typography>
-                          </Stack>
-                        </TableCell>
-
-                        <TableCell align="center">
-                          <Typography variant="body2" sx={{ fontWeight: 700, color: '#334155', fontSize: '0.8rem' }}>
-                            {b.floors_count || 0}
-                          </Typography>
-                        </TableCell>
-
-                        <TableCell align="center">
-                          <Typography variant="body2" sx={{ fontWeight: 700, color: '#334155', fontSize: '0.8rem' }}>
-                            {units}
-                          </Typography>
-                        </TableCell>
-
-                        <TableCell align="center">
-                          <Chip
-                            label={rented}
-                            size="small"
-                            sx={{
-                              backgroundColor: '#f5f3ff',
-                              color: '#7c3aed',
-                              fontWeight: 700,
-                              fontSize: '0.72rem',
-                              height: 20,
-                              borderRadius: '4px',
-                              minWidth: 32,
-                            }}
-                          />
-                        </TableCell>
-
-                        <TableCell align="center">
-                          <Chip
-                            label={avail}
-                            size="small"
-                            sx={{
-                              backgroundColor: '#f0fdf4',
-                              color: '#16a34a',
-                              fontWeight: 700,
-                              fontSize: '0.72rem',
-                              height: 20,
-                              borderRadius: '4px',
-                              minWidth: 32,
-                            }}
-                          />
-                        </TableCell>
-
-                        <TableCell>
-                          <Box>
-                            <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.3 }}>
-                              <Typography variant="caption" sx={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
-                                {occupancyPct}%
-                              </Typography>
-                            </Stack>
-                            <LinearProgress
-                              variant="determinate"
-                              value={occupancyPct}
-                              sx={{
-                                height: 5,
-                                borderRadius: 3,
-                                backgroundColor: '#e2e8f0',
-                                '& .MuiLinearProgress-bar': { backgroundColor: occColor, borderRadius: 3 },
-                              }}
-                            />
-                          </Box>
-                        </TableCell>
-
-                        <TableCell align="center">
-                          <Chip
-                            label={b.is_active ? 'Active' : 'Inactive'}
-                            size="small"
-                            sx={{
-                              backgroundColor: b.is_active ? '#dcfce7' : '#fee2e2',
-                              color: b.is_active ? '#15803d' : '#b91c1c',
-                              fontWeight: 700,
-                              fontSize: '0.67rem',
-                              height: 20,
-                              borderRadius: '4px',
-                            }}
-                          />
-                        </TableCell>
-
-                        <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                          <Stack direction="row" spacing={0.25} justifyContent="flex-end">
-                            <Tooltip title="View Building Details">
-                              <IconButton
-                                size="small"
-                                onClick={() => navigate(`/buildings/${b.id}`)}
-                                sx={{ color: '#64748b', p: 0.5, '&:hover': { color: '#4f46e5', backgroundColor: '#eef2ff' } }}
-                              >
-                                <ViewIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Edit Building">
-                              <IconButton
-                                size="small"
-                                onClick={() => navigate(`/buildings/${b.id}/edit`)}
-                                sx={{ color: '#64748b', p: 0.5, '&:hover': { color: '#0ea5e9', backgroundColor: '#e0f2fe' } }}
-                              >
-                                <EditIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
+                              <ViewIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         </TableCell>
                       </TableRow>
                     );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </SectionCard>
+
+        {/* Recent proposals */}
+        <SectionCard
+          title="Recent Proposals"
+          subtitle="Latest submissions from partner organizations"
+          icon={<ProposalIcon fontSize="small" />}
+          action={
+            <Button
+              size="small"
+              endIcon={<ArrowIcon sx={{ fontSize: 15 }} />}
+              onClick={() => navigate('/projects/proposals')}
+              sx={{ ...FONT, fontWeight: 700, color: D.primaryCont, textTransform: 'none' }}
+            >
+              View all
+            </Button>
+          }
+        >
+          {loading ? (
+            <Skeleton variant="rounded" height={280} />
+          ) : recentProposals.length === 0 ? (
+            <EmptyState
+              icon={<ProposalIcon />}
+              title="No proposals yet"
+              message="Partner organizations have not submitted any project proposals."
+              actionLabel="New proposal"
+              onAction={() => navigate('/projects/proposals/new')}
+            />
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              {recentProposals.map((proposal, index) => {
+                const statusName = proposal.status_name || proposal.status?.name || 'Unknown';
+                return (
+                  <Box
+                    key={proposal.id ?? index}
+                    onClick={() => navigate(`/projects/proposals/${proposal.id}`)}
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 0.6,
+                      py: 1.4,
+                      cursor: 'pointer',
+                      borderTop: index === 0 ? 'none' : `1px solid ${D.borderSubtle}`,
+                      px: 1,
+                      mx: -1,
+                      borderRadius: '8px',
+                      transition: 'background-color 0.15s ease',
+                      '&:hover': { bgcolor: '#f8f9ff' },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                      <Typography
+                        sx={{
+                          fontSize: '0.6875rem',
+                          fontWeight: 800,
+                          color: D.primaryCont,
+                          bgcolor: D.primaryLight,
+                          px: 0.9,
+                          py: 0.2,
+                          borderRadius: '5px',
+                          letterSpacing: '0.03em',
+                        }}
+                      >
+                        {proposal.prop_number || '—'}
+                      </Typography>
+                      <StatusPill name={statusName} />
+                    </Box>
+                    <Typography noWrap sx={{ fontWeight: 700, fontSize: '0.8125rem', color: D.textPrimary }}>
+                      {proposal.proposed_project_name || 'Untitled proposal'}
+                    </Typography>
+                    <Typography noWrap sx={{ fontSize: '0.7rem', color: D.textMuted }}>
+                      {proposal.organization_name || 'Organization not specified'} · {formatDate(proposal.created_at)}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
+        </SectionCard>
+      </Box>
+
+      {/* ============================================================ */}
+      {/* Footer meta                                                   */}
+      {/* ============================================================ */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 1,
+          pb: 1,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: D.textLight }}>
+          <TimeIcon sx={{ fontSize: 14 }} />
+          <Typography sx={{ fontSize: '0.72rem' }}>Dashboard data refreshed at {updatedTime}</Typography>
+        </Box>
+        <Typography sx={{ fontSize: '0.72rem', color: D.textLight }}>
+          Public &amp; Private Partnership Portal
+        </Typography>
+      </Box>
     </Box>
   );
 };
