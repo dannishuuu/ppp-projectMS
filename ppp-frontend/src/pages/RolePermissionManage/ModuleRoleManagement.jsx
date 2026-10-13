@@ -161,6 +161,8 @@ export const ModuleRoleManagement = () => {
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [batchModuleId, setBatchModuleId] = useState('');
   const [batchSelectedActionIds, setBatchSelectedActionIds] = useState(new Set());
+  const [alreadyAssociatedActionIds, setAlreadyAssociatedActionIds] = useState(new Set());
+  const [batchLoadingActions, setBatchLoadingActions] = useState(false);
   const [batchGenerating, setBatchGenerating] = useState(false);
 
   /* ──────────────────────────────────────────────────────────────────────────
@@ -615,12 +617,55 @@ export const ModuleRoleManagement = () => {
   /* ──────────────────────────────────────────────────────────────────────────
      BATCH GENERATOR HANDLERS (TAB 3)
   ────────────────────────────────────────────────────────────────────────── */
+  const loadAssociatedActionsForModule = async (moduleId) => {
+    if (!moduleId) {
+      setBatchSelectedActionIds(new Set());
+      setAlreadyAssociatedActionIds(new Set());
+      return;
+    }
+    setBatchLoadingActions(true);
+    try {
+      const res = await permissionService.getPermissions({
+        moduleId,
+        limit: 1000,
+      });
+      const perms = res.permissions || [];
+      const associated = new Set(perms.map((p) => p.action_id).filter(Boolean));
+      setAlreadyAssociatedActionIds(associated);
+      setBatchSelectedActionIds(new Set(associated));
+    } catch (err) {
+      console.error('Failed to load associated actions for module:', err);
+    } finally {
+      setBatchLoadingActions(false);
+    }
+  };
+
   const handleOpenBatchGenerator = async () => {
-    if (modulesList.length === 0) await fetchModules();
-    setBatchModuleId(modulesList[0]?.id || '');
-    setBatchSelectedActionIds(new Set());
+    let mods = modulesList;
+    if (mods.length === 0) {
+      try {
+        const res = await moduleService.getModules({ page: 1, limit: 100 });
+        mods = res.modules || [];
+        setModulesList(mods);
+      } catch (e) {}
+    }
+    if (actionsList.length === 0) {
+      fetchActions();
+    }
+    const targetModuleId = permModuleFilter || mods[0]?.id || '';
+    setBatchModuleId(targetModuleId);
     setBatchDialogOpen(true);
-    if (actionsList.length === 0) await fetchActions();
+    if (targetModuleId) {
+      loadAssociatedActionsForModule(targetModuleId);
+    } else {
+      setBatchSelectedActionIds(new Set());
+      setAlreadyAssociatedActionIds(new Set());
+    }
+  };
+
+  const handleBatchModuleChange = (newModuleId) => {
+    setBatchModuleId(newModuleId);
+    loadAssociatedActionsForModule(newModuleId);
   };
 
   const handleToggleBatchAction = (actionId) => {
@@ -630,6 +675,18 @@ export const ModuleRoleManagement = () => {
       else next.add(actionId);
       return next;
     });
+  };
+
+  const handleSelectAllBatchActions = () => {
+    setBatchSelectedActionIds(new Set(actionsList.map((a) => a.id)));
+  };
+
+  const handleDeselectAllBatchActions = () => {
+    setBatchSelectedActionIds(new Set());
+  };
+
+  const handleResetToAssociatedBatchActions = () => {
+    setBatchSelectedActionIds(new Set(alreadyAssociatedActionIds));
   };
 
   const handleExecuteBatchGenerate = async () => {
@@ -651,6 +708,7 @@ export const ModuleRoleManagement = () => {
       enqueueSnackbar('Permissions generated successfully!', { variant: 'success' });
       setBatchDialogOpen(false);
       fetchPermissions();
+      loadAssociatedActionsForModule(batchModuleId);
     } catch (err) {
       enqueueSnackbar(err.message || 'Batch generation failed', { variant: 'error' });
     } finally {
@@ -1218,9 +1276,8 @@ export const ModuleRoleManagement = () => {
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#ffffff' } }}
                 />
               </Grid>
-              <Grid item xs={12} sm={6} md={4}>
+              <Grid item xs={12} sm="auto">
                 <TextField
-                  fullWidth
                   select
                   size="small"
                   value={permModuleFilter}
@@ -1229,7 +1286,32 @@ export const ModuleRoleManagement = () => {
                     setPermPage(0);
                   }}
                   displayEmpty
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#ffffff' } }}
+                  SelectProps={{
+                    displayEmpty: true,
+                    renderValue: (selected) => {
+                      if (!selected) {
+                        return <span style={{ color: T.textSecondary }}>All Modules</span>;
+                      }
+                      const found = modulesList.find((m) => m.id === selected);
+                      return found ? `${found.name} (${found.code})` : 'All Modules';
+                    },
+                    MenuProps: {
+                      PaperProps: {
+                        sx: { maxHeight: 320 },
+                      },
+                    },
+                  }}
+                  sx={{
+                    width: { xs: '100%', sm: 260 },
+                    minWidth: { sm: 260 },
+                    maxWidth: { sm: 260 },
+                    '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#ffffff' },
+                    '& .MuiSelect-select': {
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    },
+                  }}
                 >
                   <MenuItem value="">All Modules</MenuItem>
                   {modulesList.map((m) => (
@@ -1636,8 +1718,8 @@ export const ModuleRoleManagement = () => {
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           <Typography variant="body2" sx={{ color: T.textSecondary, mb: 2, mt: 1 }}>
-            Select a target module and pick the action verbs to automatically create standard permissions (e.g.{' '}
-            <code>module.create</code>, <code>module.update</code>).
+            Select a target module to view its associated action verbs. Already existing permissions are pre-selected.
+            Select or customize which action verbs to generate (e.g. <code>module.action</code>).
           </Typography>
 
           <TextField
@@ -1646,8 +1728,8 @@ export const ModuleRoleManagement = () => {
             size="small"
             label="Target Module"
             value={batchModuleId}
-            onChange={(e) => setBatchModuleId(e.target.value)}
-            sx={{ mb: 2 }}
+            onChange={(e) => handleBatchModuleChange(e.target.value)}
+            sx={{ mb: 2.5 }}
           >
             {modulesList.map((m) => (
               <MenuItem key={m.id} value={m.id}>
@@ -1656,35 +1738,121 @@ export const ModuleRoleManagement = () => {
             ))}
           </TextField>
 
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-            Select Action Verbs to Generate:
-          </Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 1.5,
+              flexWrap: 'wrap',
+              gap: 1,
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+              Action Verbs ({batchSelectedActionIds.size} of {actionsList.length} selected):
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              <Button
+                size="small"
+                variant="text"
+                onClick={handleSelectAllBatchActions}
+                sx={{ textTransform: 'none', fontSize: '0.78rem', fontWeight: 600 }}
+              >
+                Select All
+              </Button>
+              <Button
+                size="small"
+                variant="text"
+                onClick={handleResetToAssociatedBatchActions}
+                disabled={alreadyAssociatedActionIds.size === 0}
+                sx={{ textTransform: 'none', fontSize: '0.78rem', fontWeight: 600 }}
+              >
+                Reset Existing
+              </Button>
+              <Button
+                size="small"
+                variant="text"
+                color="inherit"
+                onClick={handleDeselectAllBatchActions}
+                sx={{ textTransform: 'none', fontSize: '0.78rem', fontWeight: 600 }}
+              >
+                Clear All
+              </Button>
+            </Stack>
+          </Box>
 
-          <Grid container spacing={1}>
-            {actionsList.map((a) => (
-              <Grid item xs={6} key={a.id}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={batchSelectedActionIds.has(a.id)}
-                      onChange={() => handleToggleBatchAction(a.id)}
-                      size="small"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {a.name}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: T.textSecondary, fontFamily: 'monospace' }}>
-                        {a.code}
-                      </Typography>
+          {batchLoadingActions ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 5, gap: 1.5 }}>
+              <CircularProgress size={24} />
+              <Typography variant="body2" sx={{ color: T.textSecondary }}>
+                Loading module permissions...
+              </Typography>
+            </Box>
+          ) : actionsList.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4, color: T.textSecondary }}>
+              No action verbs defined. Add action verbs first.
+            </Box>
+          ) : (
+            <Grid container spacing={1.5}>
+              {actionsList.map((a) => {
+                const isSelected = batchSelectedActionIds.has(a.id);
+                const isAlreadyAssociated = alreadyAssociatedActionIds.has(a.id);
+
+                return (
+                  <Grid item xs={12} sm={6} key={a.id}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        p: 1,
+                        px: 1.2,
+                        borderRadius: 2,
+                        border: `1px solid ${isSelected ? T.primary + '50' : T.border}`,
+                        backgroundColor: isSelected ? T.primary + '0a' : '#ffffff',
+                        transition: 'all 0.15s ease-in-out',
+                        '&:hover': {
+                          borderColor: T.primary,
+                        },
+                      }}
+                    >
+                      <FormControlLabel
+                        sx={{ m: 0, width: '100%' }}
+                        control={
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleToggleBatchAction(a.id)}
+                            size="small"
+                            sx={{ color: isSelected ? T.primary : undefined }}
+                          />
+                        }
+                        label={
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', pr: 0.5 }}>
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: T.textPrimary }}>
+                                {a.name}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: T.textSecondary, fontFamily: 'monospace' }}>
+                                {a.code}
+                              </Typography>
+                            </Box>
+                            {isAlreadyAssociated && (
+                              <Chip
+                                label="Associated"
+                                size="small"
+                                color="success"
+                                variant="outlined"
+                                sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700 }}
+                              />
+                            )}
+                          </Box>
+                        }
+                      />
                     </Box>
-                  }
-                />
-              </Grid>
-            ))}
-          </Grid>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          )}
         </DialogContent>
         <DialogActions sx={{ p: 2, px: 3, borderTop: `1px solid ${T.border}` }}>
           <Button onClick={() => setBatchDialogOpen(false)} disabled={batchGenerating}>
