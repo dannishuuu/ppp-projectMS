@@ -45,6 +45,11 @@ const businessSectorRoutes = require('./routes/foundationService/businessSector.
 const companiesRoutes = require('./routes/companyRoutes/companies.routes');
 const orgUnitTypesRoutes = require('./routes/companyRoutes/orgUnitTypes.routes');
 const companyOrgUnitsRoutes = require('./routes/companyRoutes/companyOrganizationUnits.routes');
+const actionRoutes = require('./routes/moduleRolePermissionRoutes/action.routes');
+const moduleRoutes = require('./routes/moduleRolePermissionRoutes/module.routes');
+const permissionRoutes = require('./routes/moduleRolePermissionRoutes/permission.routes');
+const roleRoutes = require('./routes/moduleRolePermissionRoutes/role.routes');
+const userRoleRoutes = require('./routes/moduleRolePermissionRoutes/userRole.routes');
 
 
 // Middleware
@@ -171,6 +176,13 @@ app.use('/api/v1/org-unit-types', orgUnitTypesRoutes);
 
 // Company organization units (hierarchy)
 app.use('/api/v1/company-org-units', companyOrgUnitsRoutes);
+
+// RBAC: Actions, Modules, Permissions, Roles, User Roles
+app.use('/api/v1/actions', actionRoutes);
+app.use('/api/v1/modules', moduleRoutes);
+app.use('/api/v1/permissions', permissionRoutes);
+app.use('/api/v1/roles', roleRoutes);
+app.use('/api/v1/user-roles', userRoleRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
