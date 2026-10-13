@@ -789,7 +789,7 @@ export const ModuleRoleManagement = () => {
           <Tab icon={<ModuleIcon fontSize="small" />} iconPosition="start" label="System Modules" />
           <Tab icon={<ActionIcon fontSize="small" />} iconPosition="start" label="Action Verbs" />
           <Tab icon={<RoleIcon fontSize="small" />} iconPosition="start" label="Custom Roles & Matrix" />
-          <Tab icon={<PermissionIcon fontSize="small" />} iconPosition="start" label="Permissions Catalog" />
+          <Tab icon={<PermissionIcon fontSize="small" />} iconPosition="start" label="Permission Catalog" />
         </Tabs>
 
         {/* ══════════════════════════════════════════════════════════════════════
