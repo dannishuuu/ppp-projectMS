@@ -1,5 +1,5 @@
 // pages/RolePermissionManage/ModuleRoleManagement.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -36,8 +36,6 @@ import {
   AccordionSummary,
   AccordionDetails,
   Stack,
-  Card,
-  CardContent,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
@@ -50,13 +48,11 @@ import {
   Cancel as InactiveIcon,
   Security as RoleIcon,
   Layers as ModuleIcon,
+  FlashOn as ActionIcon,
   VpnKey as PermissionIcon,
   ExpandMore as ExpandMoreIcon,
-  Check as CheckIcon,
-  Refresh as RefreshIcon,
   AutoFixHigh as AutoGenIcon,
   VerifiedUser as SystemIcon,
-  Lock as LockIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -64,17 +60,14 @@ import { useSnackbar } from 'notistack';
 import {
   roleService,
   moduleService,
-  permissionService,
   actionService,
+  permissionService,
 } from '../../services/moduleRolePermissionService';
 
 /* ── Design Tokens ────────────────────────────────────────────────────────── */
 const T = {
   primary: '#1e40af',
   primaryCont: '#1d4ed8',
-  bgDark: '#0f172a',
-  surface: '#ffffff',
-  surfaceAlt: '#f8fafc',
   border: '#e2e8f0',
   textPrimary: '#0f172a',
   textSecondary: '#64748b',
@@ -85,10 +78,8 @@ export const ModuleRoleManagement = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { enqueueSnackbar } = useSnackbar();
 
-  // Active Tab: 0 = Roles, 1 = Modules, 2 = Permissions
+  // Active Tab: 0 = Roles, 1 = Modules, 2 = Actions, 3 = Permissions
   const [activeTab, setActiveTab] = useState(0);
-
-  // Common loading / refreshing
   const [loading, setLoading] = useState(false);
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -101,20 +92,17 @@ export const ModuleRoleManagement = () => {
   const [roleSearch, setRoleSearch] = useState('');
   const [roleStatus, setRoleStatus] = useState('all');
 
-  // Role Create / Edit Dialog
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
-  const [roleDialogMode, setRoleDialogMode] = useState('create'); // 'create' | 'edit'
+  const [roleDialogMode, setRoleDialogMode] = useState('create');
   const [selectedRole, setSelectedRole] = useState(null);
   const [roleForm, setRoleForm] = useState({ name: '', code: '', description: '', is_active: true });
   const [selectedPermissionIds, setSelectedPermissionIds] = useState(new Set());
   const [roleFormSaving, setRoleFormSaving] = useState(false);
 
-  // Permission Matrix structure for Role Dialog
   const [matrixModules, setMatrixModules] = useState([]);
   const [matrixLoading, setMatrixLoading] = useState(false);
 
-  // Delete Role confirmation dialog
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteRoleDialogOpen, setDeleteRoleDialogOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState(null);
   const [deletingRole, setDeletingRole] = useState(false);
 
@@ -126,14 +114,38 @@ export const ModuleRoleManagement = () => {
   const [moduleRowsPerPage, setModuleRowsPerPage] = useState(10);
   const [moduleTotal, setModuleTotal] = useState(0);
   const [moduleSearch, setModuleSearch] = useState('');
+
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
   const [moduleDialogMode, setModuleDialogMode] = useState('create');
   const [selectedModule, setSelectedModule] = useState(null);
   const [moduleForm, setModuleForm] = useState({ name: '', code: '', description: '', is_active: true });
   const [moduleFormSaving, setModuleFormSaving] = useState(false);
 
+  const [deleteModuleDialogOpen, setDeleteModuleDialogOpen] = useState(false);
+  const [moduleToDelete, setModuleToDelete] = useState(null);
+  const [deletingModule, setDeletingModule] = useState(false);
+
   /* ══════════════════════════════════════════════════════════════════════════
-     TAB 2: PERMISSIONS STATE & HANDLERS
+     TAB 2: ACTIONS STATE & HANDLERS
+  ══════════════════════════════════════════════════════════════════════════ */
+  const [actionsList, setActionsList] = useState([]);
+  const [actionPage, setActionPage] = useState(0);
+  const [actionRowsPerPage, setActionRowsPerPage] = useState(10);
+  const [actionTotal, setActionTotal] = useState(0);
+  const [actionSearch, setActionSearch] = useState('');
+
+  const [actionDialogOpen, setActionDialogOpen] = useState(false);
+  const [actionDialogMode, setActionDialogMode] = useState('create');
+  const [selectedAction, setSelectedAction] = useState(null);
+  const [actionForm, setActionForm] = useState({ name: '', code: '', description: '', is_active: true });
+  const [actionFormSaving, setActionFormSaving] = useState(false);
+
+  const [deleteActionDialogOpen, setDeleteActionDialogOpen] = useState(false);
+  const [actionToDelete, setActionToDelete] = useState(null);
+  const [deletingAction, setDeletingAction] = useState(false);
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     TAB 3: PERMISSIONS STATE & HANDLERS
   ══════════════════════════════════════════════════════════════════════════ */
   const [permissionsList, setPermissionsList] = useState([]);
   const [permPage, setPermPage] = useState(0);
@@ -142,10 +154,8 @@ export const ModuleRoleManagement = () => {
   const [permSearch, setPermSearch] = useState('');
   const [permModuleFilter, setPermModuleFilter] = useState('');
 
-  // Batch Generator Dialog
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [batchModuleId, setBatchModuleId] = useState('');
-  const [availableActions, setAvailableActions] = useState([]);
   const [batchSelectedActionIds, setBatchSelectedActionIds] = useState(new Set());
   const [batchGenerating, setBatchGenerating] = useState(false);
 
@@ -153,7 +163,6 @@ export const ModuleRoleManagement = () => {
      FETCHERS
   ────────────────────────────────────────────────────────────────────────── */
 
-  // 1. Fetch Roles
   const fetchRoles = async () => {
     setLoading(true);
     try {
@@ -172,7 +181,6 @@ export const ModuleRoleManagement = () => {
     }
   };
 
-  // 2. Fetch Modules
   const fetchModules = async () => {
     setLoading(true);
     try {
@@ -190,7 +198,23 @@ export const ModuleRoleManagement = () => {
     }
   };
 
-  // 3. Fetch Permissions List
+  const fetchActions = async () => {
+    setLoading(true);
+    try {
+      const res = await actionService.getActions({
+        page: actionPage + 1,
+        limit: actionRowsPerPage,
+        search: actionSearch,
+      });
+      setActionsList(res.actions || []);
+      setActionTotal(res.pagination?.total || 0);
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Failed to load actions', { variant: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchPermissions = async () => {
     setLoading(true);
     try {
@@ -209,7 +233,6 @@ export const ModuleRoleManagement = () => {
     }
   };
 
-  // 4. Fetch Permission Matrix (for Role dialog)
   const fetchMatrix = async () => {
     setMatrixLoading(true);
     try {
@@ -222,23 +245,17 @@ export const ModuleRoleManagement = () => {
     }
   };
 
-  // 5. Fetch available actions for batch generator
-  const fetchActions = async () => {
-    try {
-      const res = await actionService.getActions({ limit: 100 });
-      setAvailableActions(res.actions || []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   /* ──────────────────────────────────────────────────────────────────────────
-     EFFECT HOOKS
+     EFFECTS
   ────────────────────────────────────────────────────────────────────────── */
   useEffect(() => {
     if (activeTab === 0) fetchRoles();
     if (activeTab === 1) fetchModules();
-    if (activeTab === 2) fetchPermissions();
+    if (activeTab === 2) fetchActions();
+    if (activeTab === 3) {
+      fetchPermissions();
+      if (modulesList.length === 0) fetchModules();
+    }
   }, [
     activeTab,
     rolePage,
@@ -246,12 +263,14 @@ export const ModuleRoleManagement = () => {
     roleStatus,
     modulePage,
     moduleRowsPerPage,
+    actionPage,
+    actionRowsPerPage,
     permPage,
     permRowsPerPage,
     permModuleFilter,
   ]);
 
-  // Debounced search for Roles
+  // Debounced search handlers
   useEffect(() => {
     const timer = setTimeout(() => {
       if (activeTab === 0) {
@@ -262,7 +281,6 @@ export const ModuleRoleManagement = () => {
     return () => clearTimeout(timer);
   }, [roleSearch]);
 
-  // Debounced search for Modules
   useEffect(() => {
     const timer = setTimeout(() => {
       if (activeTab === 1) {
@@ -273,10 +291,19 @@ export const ModuleRoleManagement = () => {
     return () => clearTimeout(timer);
   }, [moduleSearch]);
 
-  // Debounced search for Permissions
   useEffect(() => {
     const timer = setTimeout(() => {
       if (activeTab === 2) {
+        setActionPage(0);
+        fetchActions();
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [actionSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (activeTab === 3) {
         setPermPage(0);
         fetchPermissions();
       }
@@ -287,7 +314,6 @@ export const ModuleRoleManagement = () => {
   /* ──────────────────────────────────────────────────────────────────────────
      ROLE HANDLERS
   ────────────────────────────────────────────────────────────────────────── */
-
   const handleOpenCreateRole = async () => {
     setRoleDialogMode('create');
     setSelectedRole(null);
@@ -306,11 +332,9 @@ export const ModuleRoleManagement = () => {
       description: role.description || '',
       is_active: role.is_active,
     });
-
     setRoleDialogOpen(true);
     await fetchMatrix();
 
-    // Fetch existing role permissions
     try {
       const fullRole = await roleService.getRoleById(role.id);
       const permIds = new Set(
@@ -367,7 +391,6 @@ export const ModuleRoleManagement = () => {
     setRoleFormSaving(true);
     try {
       const permIdsArray = Array.from(selectedPermissionIds);
-
       if (roleDialogMode === 'create') {
         await roleService.createRole({
           name: roleForm.name,
@@ -384,7 +407,6 @@ export const ModuleRoleManagement = () => {
         });
         enqueueSnackbar('Role updated successfully!', { variant: 'success' });
       }
-
       setRoleDialogOpen(false);
       fetchRoles();
     } catch (err) {
@@ -410,7 +432,7 @@ export const ModuleRoleManagement = () => {
     try {
       await roleService.deleteRole(roleToDelete.id);
       enqueueSnackbar(`Role "${roleToDelete.name}" deleted successfully`, { variant: 'success' });
-      setDeleteDialogOpen(false);
+      setDeleteRoleDialogOpen(false);
       setRoleToDelete(null);
       fetchRoles();
     } catch (err) {
@@ -423,7 +445,6 @@ export const ModuleRoleManagement = () => {
   /* ──────────────────────────────────────────────────────────────────────────
      MODULE HANDLERS
   ────────────────────────────────────────────────────────────────────────── */
-
   const handleOpenCreateModule = () => {
     setModuleDialogMode('create');
     setSelectedModule(null);
@@ -488,15 +509,114 @@ export const ModuleRoleManagement = () => {
     }
   };
 
-  /* ──────────────────────────────────────────────────────────────────────────
-     BATCH GENERATOR HANDLERS
-  ────────────────────────────────────────────────────────────────────────── */
+  const handleDeleteModule = async () => {
+    if (!moduleToDelete) return;
+    setDeletingModule(true);
+    try {
+      await moduleService.deleteModule(moduleToDelete.id);
+      enqueueSnackbar(`Module "${moduleToDelete.name}" deleted successfully`, { variant: 'success' });
+      setDeleteModuleDialogOpen(false);
+      setModuleToDelete(null);
+      fetchModules();
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Cannot delete module', { variant: 'error' });
+    } finally {
+      setDeletingModule(false);
+    }
+  };
 
+  /* ──────────────────────────────────────────────────────────────────────────
+     ACTION HANDLERS (TAB 2)
+  ────────────────────────────────────────────────────────────────────────── */
+  const handleOpenCreateAction = () => {
+    setActionDialogMode('create');
+    setSelectedAction(null);
+    setActionForm({ name: '', code: '', description: '', is_active: true });
+    setActionDialogOpen(true);
+  };
+
+  const handleOpenEditAction = (act) => {
+    setActionDialogMode('edit');
+    setSelectedAction(act);
+    setActionForm({
+      name: act.name || '',
+      code: act.code || '',
+      description: act.description || '',
+      is_active: act.is_active,
+    });
+    setActionDialogOpen(true);
+  };
+
+  const handleSaveAction = async () => {
+    if (!actionForm.name.trim()) {
+      enqueueSnackbar('Action name is required', { variant: 'warning' });
+      return;
+    }
+    if (actionDialogMode === 'create' && !actionForm.code.trim()) {
+      enqueueSnackbar('Action code is required', { variant: 'warning' });
+      return;
+    }
+
+    setActionFormSaving(true);
+    try {
+      if (actionDialogMode === 'create') {
+        await actionService.createAction({
+          name: actionForm.name,
+          code: actionForm.code,
+          description: actionForm.description,
+        });
+        enqueueSnackbar('Action created successfully!', { variant: 'success' });
+      } else {
+        await actionService.updateAction(selectedAction.id, {
+          name: actionForm.name,
+          description: actionForm.description,
+        });
+        enqueueSnackbar('Action updated successfully!', { variant: 'success' });
+      }
+      setActionDialogOpen(false);
+      fetchActions();
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Failed to save action', { variant: 'error' });
+    } finally {
+      setActionFormSaving(false);
+    }
+  };
+
+  const handleToggleActionStatus = async (act) => {
+    try {
+      await actionService.toggleActionStatus(act.id);
+      enqueueSnackbar(`Action "${act.name}" status updated`, { variant: 'info' });
+      fetchActions();
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Failed to toggle status', { variant: 'error' });
+    }
+  };
+
+  const handleDeleteAction = async () => {
+    if (!actionToDelete) return;
+    setDeletingAction(true);
+    try {
+      await actionService.deleteAction(actionToDelete.id);
+      enqueueSnackbar(`Action "${actionToDelete.name}" deleted successfully`, { variant: 'success' });
+      setDeleteActionDialogOpen(false);
+      setActionToDelete(null);
+      fetchActions();
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Cannot delete action', { variant: 'error' });
+    } finally {
+      setDeletingAction(false);
+    }
+  };
+
+  /* ──────────────────────────────────────────────────────────────────────────
+     BATCH GENERATOR HANDLERS (TAB 3)
+  ────────────────────────────────────────────────────────────────────────── */
   const handleOpenBatchGenerator = async () => {
+    if (modulesList.length === 0) await fetchModules();
     setBatchModuleId(modulesList[0]?.id || '');
     setBatchSelectedActionIds(new Set());
     setBatchDialogOpen(true);
-    await fetchActions();
+    if (actionsList.length === 0) await fetchActions();
   };
 
   const handleToggleBatchAction = (actionId) => {
@@ -534,14 +654,11 @@ export const ModuleRoleManagement = () => {
     }
   };
 
-  /* ──────────────────────────────────────────────────────────────────────────
-     TOTAL SUMMARY METRICS
-  ────────────────────────────────────────────────────────────────────────── */
   const totalSelectedCount = selectedPermissionIds.size;
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
-      {/* ── Breadcrumbs & Top Header ── */}
+      {/* ── Breadcrumbs & Header ── */}
       <Breadcrumbs sx={{ mb: 1.5, fontSize: '0.85rem' }}>
         <Link component={RouterLink} to="/" underline="hover" color="inherit">
           Dashboard
@@ -563,10 +680,10 @@ export const ModuleRoleManagement = () => {
       >
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 800, color: T.textPrimary, letterSpacing: '-0.02em' }}>
-            Access Control & RBAC Matrix
+            Access Control & RBAC Configuration
           </Typography>
           <Typography variant="body2" sx={{ color: T.textSecondary, mt: 0.3 }}>
-            Create dynamic user-defined roles, configure system modules, and manage permission capabilities.
+            Manage custom roles, system modules, atomic actions, and permission assignments.
           </Typography>
         </Box>
 
@@ -601,6 +718,8 @@ export const ModuleRoleManagement = () => {
                 fontWeight: 700,
                 borderRadius: 2,
                 px: 2.5,
+                boxShadow: '0 4px 14px rgba(30, 64, 175, 0.25)',
+                '&:hover': { backgroundColor: T.primaryCont },
               }}
             >
               Add Module
@@ -608,6 +727,25 @@ export const ModuleRoleManagement = () => {
           )}
 
           {activeTab === 2 && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleOpenCreateAction}
+              sx={{
+                backgroundColor: T.primary,
+                textTransform: 'none',
+                fontWeight: 700,
+                borderRadius: 2,
+                px: 2.5,
+                boxShadow: '0 4px 14px rgba(30, 64, 175, 0.25)',
+                '&:hover': { backgroundColor: T.primaryCont },
+              }}
+            >
+              Add Action
+            </Button>
+          )}
+
+          {activeTab === 3 && (
             <Button
               variant="outlined"
               startIcon={<AutoGenIcon />}
@@ -646,15 +784,15 @@ export const ModuleRoleManagement = () => {
         >
           <Tab icon={<RoleIcon fontSize="small" />} iconPosition="start" label="Custom Roles & Matrix" />
           <Tab icon={<ModuleIcon fontSize="small" />} iconPosition="start" label="System Modules" />
+          <Tab icon={<ActionIcon fontSize="small" />} iconPosition="start" label="Action Verbs" />
           <Tab icon={<PermissionIcon fontSize="small" />} iconPosition="start" label="Permissions Catalog" />
         </Tabs>
 
         {/* ══════════════════════════════════════════════════════════════════════
-            TAB PANEL 0: ROLES MANAGEMENT
+            TAB PANEL 0: ROLES
         ══════════════════════════════════════════════════════════════════════ */}
         {activeTab === 0 && (
           <Box sx={{ p: { xs: 2, sm: 3 } }}>
-            {/* Filters */}
             <Grid container spacing={2} sx={{ mb: 2.5 }}>
               <Grid item xs={12} sm={6} md={4}>
                 <TextField
@@ -673,7 +811,6 @@ export const ModuleRoleManagement = () => {
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#ffffff' } }}
                 />
               </Grid>
-
               <Grid item xs={12} sm={6} md={3}>
                 <TextField
                   fullWidth
@@ -693,7 +830,6 @@ export const ModuleRoleManagement = () => {
               </Grid>
             </Grid>
 
-            {/* Roles Table */}
             <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${T.border}`, borderRadius: 2 }}>
               <Table size="small">
                 <TableHead sx={{ backgroundColor: '#f8fafc' }}>
@@ -722,7 +858,7 @@ export const ModuleRoleManagement = () => {
                     </TableRow>
                   ) : (
                     roles.map((r) => (
-                      <TableRow key={r.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                      <TableRow key={r.id} hover>
                         <TableCell>
                           <Typography variant="subtitle2" sx={{ fontWeight: 700, color: T.textPrimary }}>
                             {r.name}
@@ -757,7 +893,7 @@ export const ModuleRoleManagement = () => {
                         </TableCell>
                         <TableCell>
                           {r.is_system ? (
-                            <Tooltip title="System-defined built-in role (protected from deletion)">
+                            <Tooltip title="System-defined built-in role">
                               <Chip
                                 icon={<SystemIcon style={{ fontSize: 13 }} />}
                                 label="System"
@@ -785,7 +921,6 @@ export const ModuleRoleManagement = () => {
                                 <EditIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
-
                             {!r.is_system && (
                               <>
                                 <Tooltip title={r.is_active ? 'Deactivate Role' : 'Activate Role'}>
@@ -799,7 +934,7 @@ export const ModuleRoleManagement = () => {
                                     color="error"
                                     onClick={() => {
                                       setRoleToDelete(r);
-                                      setDeleteDialogOpen(true);
+                                      setDeleteRoleDialogOpen(true);
                                     }}
                                   >
                                     <DeleteIcon fontSize="small" />
@@ -831,7 +966,7 @@ export const ModuleRoleManagement = () => {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════════
-            TAB PANEL 1: MODULES MANAGEMENT
+            TAB PANEL 1: MODULES
         ══════════════════════════════════════════════════════════════════════ */}
         {activeTab === 1 && (
           <Box sx={{ p: { xs: 2, sm: 3 } }}>
@@ -905,6 +1040,18 @@ export const ModuleRoleManagement = () => {
                                 {m.is_active ? <InactiveIcon fontSize="small" /> : <ActiveIcon fontSize="small" color="success" />}
                               </IconButton>
                             </Tooltip>
+                            <Tooltip title="Delete Module">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => {
+                                  setModuleToDelete(m);
+                                  setDeleteModuleDialogOpen(true);
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -929,9 +1076,125 @@ export const ModuleRoleManagement = () => {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════════
-            TAB PANEL 2: PERMISSIONS CATALOG
+            TAB PANEL 2: ACTIONS (VERBS)
         ══════════════════════════════════════════════════════════════════════ */}
         {activeTab === 2 && (
+          <Box sx={{ p: { xs: 2, sm: 3 } }}>
+            <Box sx={{ maxWidth: 400, mb: 2.5 }}>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Search action verbs..."
+                value={actionSearch}
+                onChange={(e) => setActionSearch(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" sx={{ color: T.textSecondary }} />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, backgroundColor: '#ffffff' } }}
+              />
+            </Box>
+
+            <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${T.border}`, borderRadius: 2 }}>
+              <Table size="small">
+                <TableHead sx={{ backgroundColor: '#f8fafc' }}>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 700 }}>Action Name</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Code / Verb</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                        <CircularProgress size={32} />
+                      </TableCell>
+                    </TableRow>
+                  ) : actionsList.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center" sx={{ py: 6, color: T.textSecondary }}>
+                        No actions found. Click &quot;Add Action&quot; to define new action verbs.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    actionsList.map((a) => (
+                      <TableRow key={a.id} hover>
+                        <TableCell sx={{ fontWeight: 700 }}>{a.name}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={a.code}
+                            size="small"
+                            color="secondary"
+                            variant="outlined"
+                            sx={{ fontFamily: 'monospace', fontWeight: 700 }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ color: T.textSecondary }}>{a.description || '—'}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={a.is_active ? 'Active' : 'Inactive'}
+                            size="small"
+                            color={a.is_active ? 'success' : 'default'}
+                            sx={{ fontWeight: 600 }}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                            <Tooltip title="Edit Action">
+                              <IconButton size="small" color="primary" onClick={() => handleOpenEditAction(a)}>
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title={a.is_active ? 'Deactivate Action' : 'Activate Action'}>
+                              <IconButton size="small" onClick={() => handleToggleActionStatus(a)}>
+                                {a.is_active ? <InactiveIcon fontSize="small" /> : <ActiveIcon fontSize="small" color="success" />}
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete Action">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => {
+                                  setActionToDelete(a);
+                                  setDeleteActionDialogOpen(true);
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                component="div"
+                count={actionTotal}
+                rowsPerPage={actionRowsPerPage}
+                page={actionPage}
+                onPageChange={(e, p) => setActionPage(p)}
+                onRowsPerPageChange={(e) => {
+                  setActionRowsPerPage(parseInt(e.target.value, 10));
+                  setActionPage(0);
+                }}
+              />
+            </TableContainer>
+          </Box>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            TAB PANEL 3: PERMISSIONS CATALOG
+        ══════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 3 && (
           <Box sx={{ p: { xs: 2, sm: 3 } }}>
             <Grid container spacing={2} sx={{ mb: 2.5 }}>
               <Grid item xs={12} sm={6} md={4}>
@@ -995,7 +1258,7 @@ export const ModuleRoleManagement = () => {
                   ) : permissionsList.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} align="center" sx={{ py: 6, color: T.textSecondary }}>
-                        No permissions found.
+                        No permissions found. Click &quot;Batch Generate Permissions&quot; to auto-create them.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -1057,7 +1320,7 @@ export const ModuleRoleManagement = () => {
       </Paper>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          DIALOG: CREATE / EDIT ROLE & PERMISSION MATRIX
+          DIALOG: CREATE / EDIT ROLE
       ══════════════════════════════════════════════════════════════════════ */}
       <Dialog
         open={roleDialogOpen}
@@ -1070,7 +1333,6 @@ export const ModuleRoleManagement = () => {
           {roleDialogMode === 'create' ? 'Create Custom Dynamic Role' : `Edit Role: ${selectedRole?.name}`}
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
-          {/* Form Fields */}
           <Grid container spacing={2} sx={{ mb: 3, mt: 0.5 }}>
             <Grid item xs={12} sm={6}>
               <TextField
@@ -1112,7 +1374,6 @@ export const ModuleRoleManagement = () => {
 
           <Divider sx={{ mb: 2 }} />
 
-          {/* Permission Matrix Header */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
             <Box>
               <Typography variant="subtitle1" sx={{ fontWeight: 800, color: T.textPrimary }}>
@@ -1122,7 +1383,6 @@ export const ModuleRoleManagement = () => {
                 Selected: <strong>{totalSelectedCount}</strong> permissions assigned
               </Typography>
             </Box>
-
             <Stack direction="row" spacing={1}>
               <Button size="small" variant="outlined" onClick={() => handleSelectAllMatrix(true)}>
                 Select All
@@ -1133,7 +1393,6 @@ export const ModuleRoleManagement = () => {
             </Stack>
           </Box>
 
-          {/* Matrix Modules Accordion */}
           {matrixLoading ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <CircularProgress size={28} />
@@ -1227,12 +1486,7 @@ export const ModuleRoleManagement = () => {
             variant="contained"
             onClick={handleSaveRole}
             disabled={roleFormSaving}
-            sx={{
-              backgroundColor: T.primary,
-              fontWeight: 700,
-              px: 3,
-              '&:hover': { backgroundColor: T.primaryCont },
-            }}
+            sx={{ backgroundColor: T.primary, fontWeight: 700, px: 3 }}
           >
             {roleFormSaving ? <CircularProgress size={20} color="inherit" /> : 'Save Role'}
           </Button>
@@ -1302,7 +1556,69 @@ export const ModuleRoleManagement = () => {
       </Dialog>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          DIALOG: BATCH PERMISSION GENERATOR
+          DIALOG: CREATE / EDIT ACTION (TAB 2)
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Dialog
+        open={actionDialogOpen}
+        onClose={() => !actionFormSaving && setActionDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, backgroundColor: '#f8fafc', borderBottom: `1px solid ${T.border}` }}>
+          {actionDialogMode === 'create' ? 'Add Action Verb' : `Edit Action: ${selectedAction?.name}`}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Action Name"
+              placeholder="e.g. Create, List / View, Update / Edit, Approve, Export"
+              value={actionForm.name}
+              onChange={(e) => setActionForm({ ...actionForm, name: e.target.value })}
+              required
+            />
+            <TextField
+              fullWidth
+              size="small"
+              label="Action Code (Verb Slug)"
+              placeholder="e.g. create, list, update, delete, approve, export"
+              value={actionForm.code}
+              onChange={(e) => setActionForm({ ...actionForm, code: e.target.value })}
+              disabled={actionDialogMode === 'edit'}
+              helperText={actionDialogMode === 'edit' ? 'Code cannot be changed once created' : 'Lowercase identifier (e.g. create, update, delete)'}
+              required
+            />
+            <TextField
+              fullWidth
+              size="small"
+              multiline
+              rows={2}
+              label="Description"
+              placeholder="Explain what this action verb allows the user to do..."
+              value={actionForm.description}
+              onChange={(e) => setActionForm({ ...actionForm, description: e.target.value })}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, px: 3, borderTop: `1px solid ${T.border}` }}>
+          <Button onClick={() => setActionDialogOpen(false)} disabled={actionFormSaving}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveAction}
+            disabled={actionFormSaving}
+            sx={{ backgroundColor: T.primary, fontWeight: 700 }}
+          >
+            {actionFormSaving ? <CircularProgress size={20} color="inherit" /> : 'Save Action'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          DIALOG: BATCH PERMISSION GENERATOR (TAB 3)
       ══════════════════════════════════════════════════════════════════════ */}
       <Dialog
         open={batchDialogOpen}
@@ -1316,7 +1632,8 @@ export const ModuleRoleManagement = () => {
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           <Typography variant="body2" sx={{ color: T.textSecondary, mb: 2, mt: 1 }}>
-            Select a target module and pick the action verbs to automatically create standard permissions (e.g. <code>module.create</code>, <code>module.update</code>).
+            Select a target module and pick the action verbs to automatically create standard permissions (e.g.{' '}
+            <code>module.create</code>, <code>module.update</code>).
           </Typography>
 
           <TextField
@@ -1340,7 +1657,7 @@ export const ModuleRoleManagement = () => {
           </Typography>
 
           <Grid container spacing={1}>
-            {availableActions.map((a) => (
+            {actionsList.map((a) => (
               <Grid item xs={6} key={a.id}>
                 <FormControlLabel
                   control={
@@ -1380,22 +1697,54 @@ export const ModuleRoleManagement = () => {
         </DialogActions>
       </Dialog>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          DIALOG: DELETE CONFIRMATION
-      ══════════════════════════════════════════════════════════════════════ */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="xs" fullWidth>
+      {/* ── Delete Confirmation Dialogs ── */}
+      <Dialog open={deleteRoleDialogOpen} onClose={() => setDeleteRoleDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 800 }}>Confirm Role Deletion</DialogTitle>
         <DialogContent>
           <Typography variant="body2">
-            Are you sure you want to delete role <strong>{roleToDelete?.name}</strong>? Users assigned to this role will lose its permissions.
+            Are you sure you want to delete role <strong>{roleToDelete?.name}</strong>?
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deletingRole}>
+          <Button onClick={() => setDeleteRoleDialogOpen(false)} disabled={deletingRole}>
             Cancel
           </Button>
           <Button variant="contained" color="error" onClick={handleDeleteRole} disabled={deletingRole}>
             {deletingRole ? <CircularProgress size={20} color="inherit" /> : 'Delete Role'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteModuleDialogOpen} onClose={() => setDeleteModuleDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>Confirm Module Deletion</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Are you sure you want to delete module <strong>{moduleToDelete?.name}</strong>?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteModuleDialogOpen(false)} disabled={deletingModule}>
+            Cancel
+          </Button>
+          <Button variant="contained" color="error" onClick={handleDeleteModule} disabled={deletingModule}>
+            {deletingModule ? <CircularProgress size={20} color="inherit" /> : 'Delete Module'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteActionDialogOpen} onClose={() => setDeleteActionDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>Confirm Action Deletion</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Are you sure you want to delete action <strong>{actionToDelete?.name}</strong>?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteActionDialogOpen(false)} disabled={deletingAction}>
+            Cancel
+          </Button>
+          <Button variant="contained" color="error" onClick={handleDeleteAction} disabled={deletingAction}>
+            {deletingAction ? <CircularProgress size={20} color="inherit" /> : 'Delete Action'}
           </Button>
         </DialogActions>
       </Dialog>
