@@ -61,19 +61,19 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { projects } = useProjects();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
 
   const [openMenu, setOpenMenu] = useState(
     location.pathname.startsWith('/projects') && !location.pathname.startsWith('/projects/tracking-types') ? 'projects' :
       location.pathname.startsWith('/users') ? 'users' :
-    location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types') ? 'organizations' :
-      location.pathname.startsWith('/company') ? 'company' :
-        location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/foundation/') ? 'foundation' :
-            location.pathname.startsWith('/document-sequences') ? 'docmgmt' :
-              location.pathname.startsWith('/contracts') ? 'contracts' :
-                null
+        location.pathname.startsWith('/organization') && !location.pathname.startsWith('/organization-types') ? 'organizations' :
+          location.pathname.startsWith('/company') ? 'company' :
+            location.pathname.startsWith('/currencies') || location.pathname.startsWith('/proposal-statuses') || location.pathname.startsWith('/organization-types') || location.pathname.startsWith('/project-categories') || location.pathname.startsWith('/project-statuses') || location.pathname.startsWith('/projects/tracking-types') || location.pathname.startsWith('/foundation/') ? 'foundation' :
+              location.pathname.startsWith('/document-sequences') ? 'docmgmt' :
+                location.pathname.startsWith('/contracts') ? 'contracts' :
+                  null
   );
 
   const handleMenuToggle = (menu) => {
@@ -88,9 +88,9 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   };
 
   const projectSubItems = [
-    { text: 'Projects List', icon: <ListIcon />, path: '/projects'},
-    { text: 'Project Proposals', icon: <ProposalIcon />, path: '/projects/proposals' },
-    { text: 'Proposal Reviewers', icon: <UsersIcon />, path: '/projects/reviews' },
+    { text: 'Projects List', icon: <ListIcon />, path: '/projects', permission: 'project.list' },
+    { text: 'Project Proposals', icon: <ProposalIcon />, path: '/projects/proposals', permission: 'proposal.list' },
+    { text: 'Proposal Reviewers', icon: <UsersIcon />, path: '/projects/reviews', permission: 'proposal.proposal_review_list' },
   ];
 
   const userSubItems = [
@@ -100,18 +100,17 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   ];
 
   const orgSubItems = [
-    { text: 'Organizations List', icon: <OrganizationIcon />, path: '/organizations' },
+    { text: 'Organizations List', icon: <OrganizationIcon />, path: '/organizations', permission: 'organization.list' },
   ];
 
   const companySubItems = [
-    { text: 'Company List', icon: <CompanyNavIcon />, path: '/company/companymanagement' },
-    { text: 'Org Unit Types', icon: <CategoryIcon />, path: '/company/orgunitype' },
-    { text: 'Org Structure', icon: <FloorTypeIcon />, path: '/company/companyorgunit' },
+    { text: 'Company List', icon: <CompanyNavIcon />, path: '/company/companymanagement', permission: 'company_management.list_company' },
+    { text: 'Org Unit Types', icon: <CategoryIcon />, path: '/company/orgunitype', permission: 'company_management.list_org_unit_type' },
+    { text: 'Org Structure', icon: <FloorTypeIcon />, path: '/company/companyorgunit', permission: 'company_management.list_org_structure' },
   ];
 
   const buildingSubItems = [
     { text: 'Buildings List', icon: <BuildingNavIcon />, path: '/buildings' },
-    // { text: 'Create Building', icon: <AddIcon />, path: '/buildings/new' },
   ];
 
   const contractSubItems = [
@@ -164,9 +163,15 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   };
 
   const filterSubItems = (items) => {
-    if (!searchQuery) return items;
-    return items.filter((item) => item.text.toLowerCase().includes(searchQuery.toLowerCase()));
+    return items.filter((item) => {
+      const matchesSearch = !searchQuery || item.text.toLowerCase().includes(searchQuery.toLowerCase());
+      const hasAccess = hasPermission(item.permission);
+      return matchesSearch && hasAccess;
+    });
   };
+
+  // Determine whether a parent group should be visible (at least one child accessible)
+  const canSeeGroup = (items) => items.some((item) => hasPermission(item.permission));
 
   const drawerContent = (
     <Box
@@ -344,777 +349,789 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
           </ListItem>
 
           {/* Projects Group */}
-          <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
-            <ListItemButton
-              onClick={() => handleMenuToggle('projects')}
-              sx={{
-                borderRadius: '12px',
-                py: 1.1,
-                px: 1.75,
-                backgroundColor: isProjectsGroupActive && !isMenuOpen('projects') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
-                color: isProjectsGroupActive ? '#ffffff' : '#cbd5e1',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                borderLeft: isProjectsGroupActive ? '3px solid #818cf8' : '3px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  color: '#ffffff',
-                  transform: 'translateX(3px)',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: isProjectsGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
-                <ProjectIcon sx={{ fontSize: 20 }} />
-              </ListItemIcon>
-              <ListItemText
-                primary="Projects"
-                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isProjectsGroupActive ? 700 : 500 }}
-              />
-              <Box
+          {canSeeGroup(projectSubItems) && (
+            <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <ListItemButton
+                onClick={() => handleMenuToggle('projects')}
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  transition: 'transform 0.2s ease',
-                  transform: isMenuOpen('projects') ? 'rotate(180deg)' : 'rotate(0deg)',
+                  borderRadius: '12px',
+                  py: 1.1,
+                  px: 1.75,
+                  backgroundColor: isProjectsGroupActive && !isMenuOpen('projects') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                  color: isProjectsGroupActive ? '#ffffff' : '#cbd5e1',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  borderLeft: isProjectsGroupActive ? '3px solid #818cf8' : '3px solid transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    color: '#ffffff',
+                    transform: 'translateX(3px)',
+                  },
                 }}
               >
-                <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
-              </Box>
-            </ListItemButton>
+                <ListItemIcon sx={{ color: isProjectsGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
+                  <ProjectIcon sx={{ fontSize: 20 }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Projects"
+                  primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isProjectsGroupActive ? 700 : 500 }}
+                />
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'transform 0.2s ease',
+                    transform: isMenuOpen('projects') ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                >
+                  <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
+                </Box>
+              </ListItemButton>
 
-            <Collapse in={isMenuOpen('projects')} timeout="auto" unmountOnExit>
-              <List
-                disablePadding
-                sx={{
-                  ml: 2.2,
-                  pl: 1.5,
-                  pt: 0.6,
-                  pb: 0.6,
-                  borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 0.4,
-                }}
-              >
-                {filterSubItems(projectSubItems).map((item) => {
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <ListItem key={item.text} disablePadding>
-                      <ListItemButton
-                        onClick={() => handleNavigate(item.path)}
-                        sx={{
-                          borderRadius: '10px',
-                          py: 0.85,
-                          px: 1.5,
-                          backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-                          color: isActive ? '#a5b4fc' : '#94a3b8',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                            color: '#ffffff',
-                            transform: 'translateX(4px)',
-                          },
-                        }}
-                      >
-                        <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
-                          {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item.text}
-                          primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
-                        />
-                        {item.badge !== undefined && (
-                          <Chip
-                            label={item.badge}
-                            size="small"
-                            sx={{
-                              height: 18,
-                              fontSize: '0.65rem',
-                              backgroundColor: isActive ? '#4f46e5' : 'rgba(255, 255, 255, 0.08)',
+              <Collapse in={isMenuOpen('projects')} timeout="auto" unmountOnExit>
+                <List
+                  disablePadding
+                  sx={{
+                    ml: 2.2,
+                    pl: 1.5,
+                    pt: 0.6,
+                    pb: 0.6,
+                    borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 0.4,
+                  }}
+                >
+                  {filterSubItems(projectSubItems).map((item) => {
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <ListItem key={item.text} disablePadding>
+                        <ListItemButton
+                          onClick={() => handleNavigate(item.path)}
+                          sx={{
+                            borderRadius: '10px',
+                            py: 0.85,
+                            px: 1.5,
+                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+                            color: isActive ? '#a5b4fc' : '#94a3b8',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
                               color: '#ffffff',
-                              fontWeight: 800,
-                              borderRadius: '6px',
-                            }}
+                              transform: 'translateX(4px)',
+                            },
+                          }}
+                        >
+                          <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
+                            {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={item.text}
+                            primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
                           />
-                        )}
-                      </ListItemButton>
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Collapse>
-          </ListItem>
+                          {item.badge !== undefined && (
+                            <Chip
+                              label={item.badge}
+                              size="small"
+                              sx={{
+                                height: 18,
+                                fontSize: '0.65rem',
+                                backgroundColor: isActive ? '#4f46e5' : 'rgba(255, 255, 255, 0.08)',
+                                color: '#ffffff',
+                                fontWeight: 800,
+                                borderRadius: '6px',
+                              }}
+                            />
+                          )}
+                        </ListItemButton>
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Collapse>
+            </ListItem>
+          )}
 
           {/* Organizations Group */}
-          <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
-            <ListItemButton
-              onClick={() => handleMenuToggle('organizations')}
-              sx={{
-                borderRadius: '12px',
-                py: 1.1,
-                px: 1.75,
-                backgroundColor: isOrgGroupActive && !isMenuOpen('organizations') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
-                color: isOrgGroupActive ? '#ffffff' : '#cbd5e1',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                borderLeft: isOrgGroupActive ? '3px solid #818cf8' : '3px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  color: '#ffffff',
-                  transform: 'translateX(3px)',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: isOrgGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
-                <OrganizationIcon sx={{ fontSize: 20 }} />
-              </ListItemIcon>
-              <ListItemText
-                primary="Organizations"
-                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isOrgGroupActive ? 700 : 500 }}
-              />
-              <Box
+          {canSeeGroup(orgSubItems) && (
+            <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <ListItemButton
+                onClick={() => handleMenuToggle('organizations')}
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  transition: 'transform 0.2s ease',
-                  transform: isMenuOpen('organizations') ? 'rotate(180deg)' : 'rotate(0deg)',
+                  borderRadius: '12px',
+                  py: 1.1,
+                  px: 1.75,
+                  backgroundColor: isOrgGroupActive && !isMenuOpen('organizations') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                  color: isOrgGroupActive ? '#ffffff' : '#cbd5e1',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  borderLeft: isOrgGroupActive ? '3px solid #818cf8' : '3px solid transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    color: '#ffffff',
+                    transform: 'translateX(3px)',
+                  },
                 }}
               >
-                <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
-              </Box>
-            </ListItemButton>
+                <ListItemIcon sx={{ color: isOrgGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
+                  <OrganizationIcon sx={{ fontSize: 20 }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Organizations"
+                  primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isOrgGroupActive ? 700 : 500 }}
+                />
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'transform 0.2s ease',
+                    transform: isMenuOpen('organizations') ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                >
+                  <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
+                </Box>
+              </ListItemButton>
 
-            <Collapse in={isMenuOpen('organizations')} timeout="auto" unmountOnExit>
-              <List
-                disablePadding
-                sx={{
-                  ml: 2.2,
-                  pl: 1.5,
-                  pt: 0.6,
-                  pb: 0.6,
-                  borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 0.4,
-                }}
-              >
-                {filterSubItems(orgSubItems).map((item) => {
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <ListItem key={item.text} disablePadding>
-                      <ListItemButton
-                        onClick={() => handleNavigate(item.path)}
-                        sx={{
-                          borderRadius: '10px',
-                          py: 0.85,
-                          px: 1.5,
-                          backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-                          color: isActive ? '#a5b4fc' : '#94a3b8',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                            color: '#ffffff',
-                            transform: 'translateX(4px)',
-                          },
-                        }}
-                      >
-                        <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
-                          {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item.text}
-                          primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Collapse>
-          </ListItem>
+              <Collapse in={isMenuOpen('organizations')} timeout="auto" unmountOnExit>
+                <List
+                  disablePadding
+                  sx={{
+                    ml: 2.2,
+                    pl: 1.5,
+                    pt: 0.6,
+                    pb: 0.6,
+                    borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 0.4,
+                  }}
+                >
+                  {filterSubItems(orgSubItems).map((item) => {
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <ListItem key={item.text} disablePadding>
+                        <ListItemButton
+                          onClick={() => handleNavigate(item.path)}
+                          sx={{
+                            borderRadius: '10px',
+                            py: 0.85,
+                            px: 1.5,
+                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+                            color: isActive ? '#a5b4fc' : '#94a3b8',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                              color: '#ffffff',
+                              transform: 'translateX(4px)',
+                            },
+                          }}
+                        >
+                          <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
+                            {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={item.text}
+                            primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Collapse>
+            </ListItem>
+          )}
 
           {/* Company Management Group */}
-          <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
-            <ListItemButton
-              onClick={() => handleMenuToggle('company')}
-              sx={{
-                borderRadius: '12px',
-                py: 1.1,
-                px: 1.75,
-                backgroundColor: isCompanyGroupActive && !isMenuOpen('company') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
-                color: isCompanyGroupActive ? '#ffffff' : '#cbd5e1',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                borderLeft: isCompanyGroupActive ? '3px solid #818cf8' : '3px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  color: '#ffffff',
-                  transform: 'translateX(3px)',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: isCompanyGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
-                <CompanyNavIcon sx={{ fontSize: 20 }} />
-              </ListItemIcon>
-              <ListItemText
-                primary="Company Management"
-                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isCompanyGroupActive ? 700 : 500 }}
-              />
-              <Box
+          {canSeeGroup(companySubItems) && (
+            <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <ListItemButton
+                onClick={() => handleMenuToggle('company')}
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  transition: 'transform 0.2s ease',
-                  transform: isMenuOpen('company') ? 'rotate(180deg)' : 'rotate(0deg)',
+                  borderRadius: '12px',
+                  py: 1.1,
+                  px: 1.75,
+                  backgroundColor: isCompanyGroupActive && !isMenuOpen('company') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                  color: isCompanyGroupActive ? '#ffffff' : '#cbd5e1',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  borderLeft: isCompanyGroupActive ? '3px solid #818cf8' : '3px solid transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    color: '#ffffff',
+                    transform: 'translateX(3px)',
+                  },
                 }}
               >
-                <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
-              </Box>
-            </ListItemButton>
+                <ListItemIcon sx={{ color: isCompanyGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
+                  <CompanyNavIcon sx={{ fontSize: 20 }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Company Management"
+                  primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isCompanyGroupActive ? 700 : 500 }}
+                />
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'transform 0.2s ease',
+                    transform: isMenuOpen('company') ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                >
+                  <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
+                </Box>
+              </ListItemButton>
 
-            <Collapse in={isMenuOpen('company')} timeout="auto" unmountOnExit>
-              <List
-                disablePadding
-                sx={{
-                  ml: 2.2,
-                  pl: 1.5,
-                  pt: 0.6,
-                  pb: 0.6,
-                  borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 0.4,
-                }}
-              >
-                {filterSubItems(companySubItems).map((item) => {
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <ListItem key={item.text} disablePadding>
-                      <ListItemButton
-                        onClick={() => handleNavigate(item.path)}
-                        sx={{
-                          borderRadius: '10px',
-                          py: 0.85,
-                          px: 1.5,
-                          backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-                          color: isActive ? '#a5b4fc' : '#94a3b8',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                            color: '#ffffff',
-                            transform: 'translateX(4px)',
-                          },
-                        }}
-                      >
-                        <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
-                          {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item.text}
-                          primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Collapse>
-          </ListItem>
+              <Collapse in={isMenuOpen('company')} timeout="auto" unmountOnExit>
+                <List
+                  disablePadding
+                  sx={{
+                    ml: 2.2,
+                    pl: 1.5,
+                    pt: 0.6,
+                    pb: 0.6,
+                    borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 0.4,
+                  }}
+                >
+                  {filterSubItems(companySubItems).map((item) => {
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <ListItem key={item.text} disablePadding>
+                        <ListItemButton
+                          onClick={() => handleNavigate(item.path)}
+                          sx={{
+                            borderRadius: '10px',
+                            py: 0.85,
+                            px: 1.5,
+                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+                            color: isActive ? '#a5b4fc' : '#94a3b8',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                              color: '#ffffff',
+                              transform: 'translateX(4px)',
+                            },
+                          }}
+                        >
+                          <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
+                            {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={item.text}
+                            primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Collapse>
+            </ListItem>
+          )}
 
           {/* Buildings Group — TEMPORARILY HIDDEN (uncomment to re-enable) */}
           {false && (
-          <>
-          <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
-            <ListItemButton
-              onClick={() => handleMenuToggle('buildings')}
-              sx={{
-                borderRadius: '12px',
-                py: 1.1,
-                px: 1.75,
-                backgroundColor: isBuildingsGroupActive && !isMenuOpen('buildings') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
-                color: isBuildingsGroupActive ? '#ffffff' : '#cbd5e1',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                borderLeft: isBuildingsGroupActive ? '3px solid #818cf8' : '3px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  color: '#ffffff',
-                  transform: 'translateX(3px)',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: isBuildingsGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
-                <BuildingNavIcon sx={{ fontSize: 20 }} />
-              </ListItemIcon>
-              <ListItemText
-                primary="Buildings"
-                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isBuildingsGroupActive ? 700 : 500 }}
-              />
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  transition: 'transform 0.2s ease',
-                  transform: isMenuOpen('buildings') ? 'rotate(180deg)' : 'rotate(0deg)',
-                }}
-              >
-                <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
-              </Box>
-            </ListItemButton>
+            <>
+              <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                <ListItemButton
+                  onClick={() => handleMenuToggle('buildings')}
+                  sx={{
+                    borderRadius: '12px',
+                    py: 1.1,
+                    px: 1.75,
+                    backgroundColor: isBuildingsGroupActive && !isMenuOpen('buildings') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                    color: isBuildingsGroupActive ? '#ffffff' : '#cbd5e1',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    borderLeft: isBuildingsGroupActive ? '3px solid #818cf8' : '3px solid transparent',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                      color: '#ffffff',
+                      transform: 'translateX(3px)',
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ color: isBuildingsGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
+                    <BuildingNavIcon sx={{ fontSize: 20 }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Buildings"
+                    primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isBuildingsGroupActive ? 700 : 500 }}
+                  />
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      transition: 'transform 0.2s ease',
+                      transform: isMenuOpen('buildings') ? 'rotate(180deg)' : 'rotate(0deg)',
+                    }}
+                  >
+                    <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
+                  </Box>
+                </ListItemButton>
 
-            <Collapse in={isMenuOpen('buildings')} timeout="auto" unmountOnExit>
-              <List
-                disablePadding
-                sx={{
-                  ml: 2.2,
-                  pl: 1.5,
-                  pt: 0.6,
-                  pb: 0.6,
-                  borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 0.4,
-                }}
-              >
-                {filterSubItems(buildingSubItems).map((item) => {
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <ListItem key={item.text} disablePadding>
-                      <ListItemButton
-                        onClick={() => handleNavigate(item.path)}
-                        sx={{
-                          borderRadius: '10px',
-                          py: 0.85,
-                          px: 1.5,
-                          backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-                          color: isActive ? '#a5b4fc' : '#94a3b8',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                            color: '#ffffff',
-                            transform: 'translateX(4px)',
-                          },
-                        }}
-                      >
-                        <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
-                          {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item.text}
-                          primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Collapse>
-          </ListItem>
+                <Collapse in={isMenuOpen('buildings')} timeout="auto" unmountOnExit>
+                  <List
+                    disablePadding
+                    sx={{
+                      ml: 2.2,
+                      pl: 1.5,
+                      pt: 0.6,
+                      pb: 0.6,
+                      borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 0.4,
+                    }}
+                  >
+                    {filterSubItems(buildingSubItems).map((item) => {
+                      const isActive = location.pathname === item.path;
+                      return (
+                        <ListItem key={item.text} disablePadding>
+                          <ListItemButton
+                            onClick={() => handleNavigate(item.path)}
+                            sx={{
+                              borderRadius: '10px',
+                              py: 0.85,
+                              px: 1.5,
+                              backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+                              color: isActive ? '#a5b4fc' : '#94a3b8',
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                                color: '#ffffff',
+                                transform: 'translateX(4px)',
+                              },
+                            }}
+                          >
+                            <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
+                              {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={item.text}
+                              primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
+                            />
+                          </ListItemButton>
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                </Collapse>
+              </ListItem>
 
-          {/* Rental Contracts Group */}
-          <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
-            <ListItemButton
-              onClick={() => handleMenuToggle('contracts')}
-              sx={{
-                borderRadius: '12px',
-                py: 1.1,
-                px: 1.75,
-                backgroundColor: isContractsGroupActive && !isMenuOpen('contracts') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
-                color: isContractsGroupActive ? '#ffffff' : '#cbd5e1',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                borderLeft: isContractsGroupActive ? '3px solid #818cf8' : '3px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  color: '#ffffff',
-                  transform: 'translateX(3px)',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: isContractsGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
-                <ContractNavIcon sx={{ fontSize: 20 }} />
-              </ListItemIcon>
-              <ListItemText
-                primary="Rental Contracts"
-                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isContractsGroupActive ? 700 : 500 }}
-              />
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  transition: 'transform 0.2s ease',
-                  transform: isMenuOpen('contracts') ? 'rotate(180deg)' : 'rotate(0deg)',
-                }}
-              >
-                <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
-              </Box>
-            </ListItemButton>
+              {/* Rental Contracts Group */}
+              <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                <ListItemButton
+                  onClick={() => handleMenuToggle('contracts')}
+                  sx={{
+                    borderRadius: '12px',
+                    py: 1.1,
+                    px: 1.75,
+                    backgroundColor: isContractsGroupActive && !isMenuOpen('contracts') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                    color: isContractsGroupActive ? '#ffffff' : '#cbd5e1',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    borderLeft: isContractsGroupActive ? '3px solid #818cf8' : '3px solid transparent',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                      color: '#ffffff',
+                      transform: 'translateX(3px)',
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ color: isContractsGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
+                    <ContractNavIcon sx={{ fontSize: 20 }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Rental Contracts"
+                    primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isContractsGroupActive ? 700 : 500 }}
+                  />
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      transition: 'transform 0.2s ease',
+                      transform: isMenuOpen('contracts') ? 'rotate(180deg)' : 'rotate(0deg)',
+                    }}
+                  >
+                    <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
+                  </Box>
+                </ListItemButton>
 
-            <Collapse in={isMenuOpen('contracts')} timeout="auto" unmountOnExit>
-              <List
-                disablePadding
-                sx={{
-                  ml: 2.2,
-                  pl: 1.5,
-                  pt: 0.6,
-                  pb: 0.6,
-                  borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 0.4,
-                }}
-              >
-                {filterSubItems(contractSubItems).map((item) => {
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <ListItem key={item.text} disablePadding>
-                      <ListItemButton
-                        onClick={() => handleNavigate(item.path)}
-                        sx={{
-                          borderRadius: '10px',
-                          py: 0.85,
-                          px: 1.5,
-                          backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-                          color: isActive ? '#a5b4fc' : '#94a3b8',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                            color: '#ffffff',
-                            transform: 'translateX(4px)',
-                          },
-                        }}
-                      >
-                        <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
-                          {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item.text}
-                          primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Collapse>
-          </ListItem>
-          </>
+                <Collapse in={isMenuOpen('contracts')} timeout="auto" unmountOnExit>
+                  <List
+                    disablePadding
+                    sx={{
+                      ml: 2.2,
+                      pl: 1.5,
+                      pt: 0.6,
+                      pb: 0.6,
+                      borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 0.4,
+                    }}
+                  >
+                    {filterSubItems(contractSubItems).map((item) => {
+                      const isActive = location.pathname === item.path;
+                      return (
+                        <ListItem key={item.text} disablePadding>
+                          <ListItemButton
+                            onClick={() => handleNavigate(item.path)}
+                            sx={{
+                              borderRadius: '10px',
+                              py: 0.85,
+                              px: 1.5,
+                              backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+                              color: isActive ? '#a5b4fc' : '#94a3b8',
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                                color: '#ffffff',
+                                transform: 'translateX(4px)',
+                              },
+                            }}
+                          >
+                            <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
+                              {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={item.text}
+                              primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
+                            />
+                          </ListItemButton>
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                </Collapse>
+              </ListItem>
+            </>
           )}
 
         </List>
 
         {/* SECTION: FOUNDATION */}
-        <Typography
-          variant="caption"
-          sx={{
-            px: 1.5,
-            mt: 2.8,
-            mb: 1,
-            display: 'block',
-            color: '#64748b',
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-            fontSize: '0.65rem',
-          }}
-        >
-          Foundation & Settings
-        </Typography>
+        {canSeeGroup(foundationSubItems) && (<>
+          <Typography
+            variant="caption"
+            sx={{
+              px: 1.5,
+              mt: 2.8,
+              mb: 1,
+              display: 'block',
+              color: '#64748b',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              fontSize: '0.65rem',
+            }}
+          >
+            Foundation & Settings
+          </Typography>
 
-        <List disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
-          <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
-            <ListItemButton
-              onClick={() => handleMenuToggle('foundation')}
-              sx={{
-                borderRadius: '12px',
-                py: 1.1,
-                px: 1.75,
-                backgroundColor: isFoundationGroupActive && !isMenuOpen('foundation') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
-                color: isFoundationGroupActive ? '#ffffff' : '#cbd5e1',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                borderLeft: isFoundationGroupActive ? '3px solid #818cf8' : '3px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  color: '#ffffff',
-                  transform: 'translateX(3px)',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: isFoundationGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
-                <FoundationIcon sx={{ fontSize: 20 }} />
-              </ListItemIcon>
-              <ListItemText
-                primary="Foundation ⚙️"
-                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isFoundationGroupActive ? 700 : 500 }}
-              />
-              <Box
+          <List disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
+            <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <ListItemButton
+                onClick={() => handleMenuToggle('foundation')}
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  transition: 'transform 0.2s ease',
-                  transform: isMenuOpen('foundation') ? 'rotate(180deg)' : 'rotate(0deg)',
+                  borderRadius: '12px',
+                  py: 1.1,
+                  px: 1.75,
+                  backgroundColor: isFoundationGroupActive && !isMenuOpen('foundation') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                  color: isFoundationGroupActive ? '#ffffff' : '#cbd5e1',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  borderLeft: isFoundationGroupActive ? '3px solid #818cf8' : '3px solid transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    color: '#ffffff',
+                    transform: 'translateX(3px)',
+                  },
                 }}
               >
-                <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
-              </Box>
-            </ListItemButton>
+                <ListItemIcon sx={{ color: isFoundationGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
+                  <FoundationIcon sx={{ fontSize: 20 }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Foundation ⚙️"
+                  primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isFoundationGroupActive ? 700 : 500 }}
+                />
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'transform 0.2s ease',
+                    transform: isMenuOpen('foundation') ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                >
+                  <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
+                </Box>
+              </ListItemButton>
 
-            <Collapse in={isMenuOpen('foundation')} timeout="auto" unmountOnExit>
-              <List
-                disablePadding
-                sx={{
-                  ml: 2.2,
-                  pl: 1.5,
-                  pt: 0.6,
-                  pb: 0.6,
-                  borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 0.4,
-                }}
-              >
-                {filterSubItems(foundationSubItems).map((item) => {
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <ListItem key={item.text} disablePadding>
-                      <ListItemButton
-                        onClick={() => handleNavigate(item.path)}
-                        sx={{
-                          borderRadius: '10px',
-                          py: 0.85,
-                          px: 1.5,
-                          backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-                          color: isActive ? '#a5b4fc' : '#94a3b8',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                            color: '#ffffff',
-                            transform: 'translateX(4px)',
-                          },
-                        }}
-                      >
-                        <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
-                          {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item.text}
-                          primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Collapse>
-          </ListItem>
-        </List>
+              <Collapse in={isMenuOpen('foundation')} timeout="auto" unmountOnExit>
+                <List
+                  disablePadding
+                  sx={{
+                    ml: 2.2,
+                    pl: 1.5,
+                    pt: 0.6,
+                    pb: 0.6,
+                    borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 0.4,
+                  }}
+                >
+                  {filterSubItems(foundationSubItems).map((item) => {
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <ListItem key={item.text} disablePadding>
+                        <ListItemButton
+                          onClick={() => handleNavigate(item.path)}
+                          sx={{
+                            borderRadius: '10px',
+                            py: 0.85,
+                            px: 1.5,
+                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+                            color: isActive ? '#a5b4fc' : '#94a3b8',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                              color: '#ffffff',
+                              transform: 'translateX(4px)',
+                            },
+                          }}
+                        >
+                          <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
+                            {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={item.text}
+                            primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Collapse>
+            </ListItem>
+          </List>
+        </>)}
 
         {/* SECTION: DOCUMENT MANAGEMENT */}
-        <Typography
-          variant="caption"
-          sx={{
-            px: 1.5,
-            mt: 2.8,
-            mb: 1,
-            display: 'block',
-            color: '#64748b',
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-            fontSize: '0.65rem',
-          }}
-        >
-          Document Management
-        </Typography>
+        {canSeeGroup(docMgmtSubItems) && (<>
+          <Typography
+            variant="caption"
+            sx={{
+              px: 1.5,
+              mt: 2.8,
+              mb: 1,
+              display: 'block',
+              color: '#64748b',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              fontSize: '0.65rem',
+            }}
+          >
+            Document Management
+          </Typography>
 
-        <List disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
-          <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
-            <ListItemButton
-              onClick={() => handleMenuToggle('docmgmt')}
-              sx={{
-                borderRadius: '12px',
-                py: 1.1,
-                px: 1.75,
-                backgroundColor: isDocMgmtGroupActive && !isMenuOpen('docmgmt') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
-                color: isDocMgmtGroupActive ? '#ffffff' : '#cbd5e1',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                borderLeft: isDocMgmtGroupActive ? '3px solid #818cf8' : '3px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  color: '#ffffff',
-                  transform: 'translateX(3px)',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: isDocMgmtGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
-                <SequenceIcon sx={{ fontSize: 20 }} />
-              </ListItemIcon>
-              <ListItemText
-                primary="Document Mngt"
-                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isDocMgmtGroupActive ? 700 : 500 }}
-              />
-              <Box
+          <List disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
+            <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <ListItemButton
+                onClick={() => handleMenuToggle('docmgmt')}
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  transition: 'transform 0.2s ease',
-                  transform: isMenuOpen('docmgmt') ? 'rotate(180deg)' : 'rotate(0deg)',
+                  borderRadius: '12px',
+                  py: 1.1,
+                  px: 1.75,
+                  backgroundColor: isDocMgmtGroupActive && !isMenuOpen('docmgmt') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                  color: isDocMgmtGroupActive ? '#ffffff' : '#cbd5e1',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  borderLeft: isDocMgmtGroupActive ? '3px solid #818cf8' : '3px solid transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    color: '#ffffff',
+                    transform: 'translateX(3px)',
+                  },
                 }}
               >
-                <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
-              </Box>
-            </ListItemButton>
+                <ListItemIcon sx={{ color: isDocMgmtGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
+                  <SequenceIcon sx={{ fontSize: 20 }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Document Mngt"
+                  primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isDocMgmtGroupActive ? 700 : 500 }}
+                />
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'transform 0.2s ease',
+                    transform: isMenuOpen('docmgmt') ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                >
+                  <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
+                </Box>
+              </ListItemButton>
 
-            <Collapse in={isMenuOpen('docmgmt')} timeout="auto" unmountOnExit>
-              <List
-                disablePadding
-                sx={{
-                  ml: 2.2,
-                  pl: 1.5,
-                  pt: 0.6,
-                  pb: 0.6,
-                  borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 0.4,
-                }}
-              >
-                {filterSubItems(docMgmtSubItems).map((item) => {
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <ListItem key={item.text} disablePadding>
-                      <ListItemButton
-                        onClick={() => handleNavigate(item.path)}
-                        sx={{
-                          borderRadius: '10px',
-                          py: 0.85,
-                          px: 1.5,
-                          backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-                          color: isActive ? '#a5b4fc' : '#94a3b8',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                            color: '#ffffff',
-                            transform: 'translateX(4px)',
-                          },
-                        }}
-                      >
-                        <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
-                          {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item.text}
-                          primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Collapse>
-          </ListItem>
-        </List>
+              <Collapse in={isMenuOpen('docmgmt')} timeout="auto" unmountOnExit>
+                <List
+                  disablePadding
+                  sx={{
+                    ml: 2.2,
+                    pl: 1.5,
+                    pt: 0.6,
+                    pb: 0.6,
+                    borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 0.4,
+                  }}
+                >
+                  {filterSubItems(docMgmtSubItems).map((item) => {
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <ListItem key={item.text} disablePadding>
+                        <ListItemButton
+                          onClick={() => handleNavigate(item.path)}
+                          sx={{
+                            borderRadius: '10px',
+                            py: 0.85,
+                            px: 1.5,
+                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+                            color: isActive ? '#a5b4fc' : '#94a3b8',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                              color: '#ffffff',
+                              transform: 'translateX(4px)',
+                            },
+                          }}
+                        >
+                          <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
+                            {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={item.text}
+                            primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Collapse>
+            </ListItem>
+          </List>
+        </>)}
 
         {/* SECTION: ADMINISTRATION */}
-        <Typography
-          variant="caption"
-          sx={{
-            px: 1.5,
-            mt: 2.8,
-            mb: 1,
-            display: 'block',
-            color: '#64748b',
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-            fontSize: '0.65rem',
-          }}
-        >
-          Administration
-        </Typography>
+        {canSeeGroup(userSubItems) && (<>
+          <Typography
+            variant="caption"
+            sx={{
+              px: 1.5,
+              mt: 2.8,
+              mb: 1,
+              display: 'block',
+              color: '#64748b',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              fontSize: '0.65rem',
+            }}
+          >
+            Administration
+          </Typography>
 
-        <List disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
-          <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
-            <ListItemButton
-              onClick={() => handleMenuToggle('users')}
-              sx={{
-                borderRadius: '12px',
-                py: 1.1,
-                px: 1.75,
-                backgroundColor: isUsersGroupActive && !isMenuOpen('users') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
-                color: isUsersGroupActive ? '#ffffff' : '#cbd5e1',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                borderLeft: isUsersGroupActive ? '3px solid #818cf8' : '3px solid transparent',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  color: '#ffffff',
-                  transform: 'translateX(3px)',
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: isUsersGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
-                <UsersIcon sx={{ fontSize: 20 }} />
-              </ListItemIcon>
-              <ListItemText
-                primary="User Management"
-                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isUsersGroupActive ? 700 : 500 }}
-              />
-              <Box
+          <List disablePadding sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
+            <ListItem disablePadding sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <ListItemButton
+                onClick={() => handleMenuToggle('users')}
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  transition: 'transform 0.2s ease',
-                  transform: isMenuOpen('users') ? 'rotate(180deg)' : 'rotate(0deg)',
+                  borderRadius: '12px',
+                  py: 1.1,
+                  px: 1.75,
+                  backgroundColor: isUsersGroupActive && !isMenuOpen('users') ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                  color: isUsersGroupActive ? '#ffffff' : '#cbd5e1',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  borderLeft: isUsersGroupActive ? '3px solid #818cf8' : '3px solid transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    color: '#ffffff',
+                    transform: 'translateX(3px)',
+                  },
                 }}
               >
-                <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
-              </Box>
-            </ListItemButton>
+                <ListItemIcon sx={{ color: isUsersGroupActive ? '#818cf8' : '#94a3b8', minWidth: 36 }}>
+                  <UsersIcon sx={{ fontSize: 20 }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary="User Management"
+                  primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isUsersGroupActive ? 700 : 500 }}
+                />
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'transform 0.2s ease',
+                    transform: isMenuOpen('users') ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                >
+                  <ExpandMore sx={{ color: '#64748b', fontSize: 18 }} />
+                </Box>
+              </ListItemButton>
 
-            <Collapse in={isMenuOpen('users')} timeout="auto" unmountOnExit>
-              <List
-                disablePadding
-                sx={{
-                  ml: 2.2,
-                  pl: 1.5,
-                  pt: 0.6,
-                  pb: 0.6,
-                  borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 0.4,
-                }}
-              >
-                {filterSubItems(userSubItems).map((item) => {
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <ListItem key={item.text} disablePadding>
-                      <ListItemButton
-                        onClick={() => handleNavigate(item.path)}
-                        sx={{
-                          borderRadius: '10px',
-                          py: 0.85,
-                          px: 1.5,
-                          backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
-                          color: isActive ? '#a5b4fc' : '#94a3b8',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
-                            color: '#ffffff',
-                            transform: 'translateX(4px)',
-                          },
-                        }}
-                      >
-                        <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
-                          {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item.text}
-                          primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Collapse>
-          </ListItem>
-        </List>
+              <Collapse in={isMenuOpen('users')} timeout="auto" unmountOnExit>
+                <List
+                  disablePadding
+                  sx={{
+                    ml: 2.2,
+                    pl: 1.5,
+                    pt: 0.6,
+                    pb: 0.6,
+                    borderLeft: '1.5px dashed rgba(99, 102, 241, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 0.4,
+                  }}
+                >
+                  {filterSubItems(userSubItems).map((item) => {
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <ListItem key={item.text} disablePadding>
+                        <ListItemButton
+                          onClick={() => handleNavigate(item.path)}
+                          sx={{
+                            borderRadius: '10px',
+                            py: 0.85,
+                            px: 1.5,
+                            backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+                            color: isActive ? '#a5b4fc' : '#94a3b8',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                              color: '#ffffff',
+                              transform: 'translateX(4px)',
+                            },
+                          }}
+                        >
+                          <ListItemIcon sx={{ color: isActive ? '#a5b4fc' : '#64748b', minWidth: 30 }}>
+                            {React.cloneElement(item.icon, { sx: { fontSize: 16 } })}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={item.text}
+                            primaryTypographyProps={{ fontSize: '0.825rem', fontWeight: isActive ? 700 : 500 }}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Collapse>
+            </ListItem>
+          </List>
+        </>)}
       </Box>
 
       {/* User Info Footer Card with Glassmorphic Accent */}

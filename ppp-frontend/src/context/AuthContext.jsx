@@ -3,6 +3,7 @@ import React, { createContext, useState, useContext, useEffect, useCallback, use
 import { authService } from '../services/authServices/authService';
 import { apiClient } from '../utils/apiClient';
 import { SessionTimeoutModal } from '../components/Common/SessionTimeoutModal';
+import { userRoleService } from '../services/moduleRolePermissionService/userRoleService';
 
 const AuthContext = createContext();
 
@@ -12,6 +13,7 @@ const REFRESH_THROTTLE_MS = 4 * 60 * 1000; // Throttle active silent refresh to 
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [permissions, setPermissions] = useState(new Set());
   const [loginError, setLoginError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isInitialCheckDone, setIsInitialCheckDone] = useState(false);
@@ -24,6 +26,17 @@ export const AuthProvider = ({ children }) => {
   const lastRefreshRef = useRef(Date.now());
   const countdownIntervalRef = useRef(null);
 
+  // Fetch and cache the current user's permissions
+  const loadPermissions = useCallback(async () => {
+    try {
+      const result = await userRoleService.getMyPermissions();
+      const perms = result?.permissions || [];
+      setPermissions(new Set(perms));
+    } catch {
+      setPermissions(new Set());
+    }
+  }, []);
+
   const login = async (emailOrUsername, password) => {
     setLoading(true);
     setLoginError(null);
@@ -33,6 +46,13 @@ export const AuthProvider = ({ children }) => {
       lastActivityRef.current = Date.now();
       lastRefreshRef.current = Date.now();
       setShowTimeoutModal(false);
+      // Load permissions right after login
+      try {
+        const result = await userRoleService.getMyPermissions();
+        setPermissions(new Set(result?.permissions || []));
+      } catch {
+        setPermissions(new Set());
+      }
       return userData;
     } catch (error) {
       setLoginError(error.message || 'Login failed');
@@ -49,6 +69,7 @@ export const AuthProvider = ({ children }) => {
       countdownIntervalRef.current = null;
     }
     setUser(null);
+    setPermissions(new Set());
     authService.logout();
     window.history.pushState(null, '', '/login');
   }, []);
@@ -79,9 +100,17 @@ export const AuthProvider = ({ children }) => {
         setUser(response.data || response);
         lastActivityRef.current = Date.now();
         lastRefreshRef.current = Date.now();
+        // Load permissions alongside profile
+        try {
+          const result = await userRoleService.getMyPermissions();
+          setPermissions(new Set(result?.permissions || []));
+        } catch {
+          setPermissions(new Set());
+        }
       } catch (error) {
         authService.logout();
         setUser(null);
+        setPermissions(new Set());
       }
     }
     setIsInitialCheckDone(true);
@@ -183,8 +212,18 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, [checkAuth]);
 
+  // Helper: check if the current user has a specific permission code
+  const hasPermission = useCallback(
+    (code) => {
+      if (!code) return true; // no restriction
+      if (permissions.size === 0) return false;
+      return permissions.has(code);
+    },
+    [permissions]
+  );
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, checkAuth, loginError, isAuthenticated, isInitialCheckDone }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, checkAuth, loginError, isAuthenticated, isInitialCheckDone, permissions, hasPermission, loadPermissions }}>
       {children}
       {user && (
         <SessionTimeoutModal
