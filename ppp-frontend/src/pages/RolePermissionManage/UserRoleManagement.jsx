@@ -35,12 +35,15 @@ import {
   Card,
   CardContent,
   Badge,
+  Radio,
+  RadioGroup,
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Refresh as RefreshIcon,
   Security as RoleIcon,
   AssignmentInd as AssignIcon,
+  GroupAdd as BulkAssignIcon,
   CheckCircle as ActiveIcon,
   Cancel as InactiveIcon,
   Visibility as ViewIcon,
@@ -118,6 +121,16 @@ const UserRoleManagement = () => {
   const [roleToRemove, setRoleToRemove] = useState(null);
   const [userForRoleRemoval, setUserForRoleRemoval] = useState(null);
   const [removingRole, setRemovingRole] = useState(false);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // STATE: BULK MULTI-USER ROLE ALLOCATION
+  // ──────────────────────────────────────────────────────────────────────────
+  const [selectedUserIds, setSelectedUserIds] = useState(new Set());
+  const [bulkAssignModalOpen, setBulkAssignModalOpen] = useState(false);
+  const [bulkSelectedRoleIds, setBulkSelectedRoleIds] = useState(new Set());
+  const [bulkAllocationMode, setBulkAllocationMode] = useState('append'); // 'append' | 'replace'
+  const [bulkRoleSearch, setBulkRoleSearch] = useState('');
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   // ──────────────────────────────────────────────────────────────────────────
   // FETCHERS
@@ -373,6 +386,135 @@ const UserRoleManagement = () => {
     return Object.values(userRolesMap).filter((roles) => roles && roles.length > 0).length;
   }, [userRolesMap]);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // MULTI-USER SELECTION LOGIC
+  // ──────────────────────────────────────────────────────────────────────────
+  const allPageUserIds = useMemo(() => displayedUsers.map((u) => u.id), [displayedUsers]);
+  const isAllPageSelected = useMemo(
+    () => allPageUserIds.length > 0 && allPageUserIds.every((id) => selectedUserIds.has(id)),
+    [allPageUserIds, selectedUserIds]
+  );
+  const isSomePageSelected = useMemo(
+    () => allPageUserIds.some((id) => selectedUserIds.has(id)) && !isAllPageSelected,
+    [allPageUserIds, selectedUserIds, isAllPageSelected]
+  );
+
+  const handleToggleSelectAllPage = () => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (isAllPageSelected) {
+        allPageUserIds.forEach((id) => next.delete(id));
+      } else {
+        allPageUserIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectUser = (userId) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const handleClearSelectedUsers = () => {
+    setSelectedUserIds(new Set());
+  };
+
+  const selectedUsersList = useMemo(() => {
+    return users.filter((u) => selectedUserIds.has(u.id));
+  }, [users, selectedUserIds]);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // HANDLERS: BULK ROLE ALLOCATION
+  // ──────────────────────────────────────────────────────────────────────────
+  const handleOpenBulkAssignModal = () => {
+    if (selectedUserIds.size === 0) {
+      enqueueSnackbar('Please select at least one user from the list', { variant: 'warning' });
+      return;
+    }
+    setBulkSelectedRoleIds(new Set());
+    setBulkRoleSearch('');
+    setBulkAllocationMode('append');
+    setBulkAssignModalOpen(true);
+  };
+
+  const handleToggleBulkRoleSelection = (roleId) => {
+    setBulkSelectedRoleIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(roleId)) next.delete(roleId);
+      else next.add(roleId);
+      return next;
+    });
+  };
+
+  const handleSelectAllBulkRoles = () => {
+    setBulkSelectedRoleIds(new Set(availableRoles.map((r) => r.id)));
+  };
+
+  const handleClearAllBulkRoles = () => {
+    setBulkSelectedRoleIds(new Set());
+  };
+
+  const handleExecuteBulkAllocation = async () => {
+    if (selectedUserIds.size === 0) return;
+    if (bulkSelectedRoleIds.size === 0) {
+      enqueueSnackbar('Please select at least one role to allocate', { variant: 'warning' });
+      return;
+    }
+
+    setBulkSaving(true);
+    const targetUserIds = Array.from(selectedUserIds);
+    const chosenRoleIds = Array.from(bulkSelectedRoleIds);
+    let successCount = 0;
+    let failCount = 0;
+    const updatedMap = { ...userRolesMap };
+
+    try {
+      await Promise.all(
+        targetUserIds.map(async (userId) => {
+          try {
+            let finalRoleIds = chosenRoleIds;
+            if (bulkAllocationMode === 'append') {
+              const existingRoles = userRolesMap[userId] || [];
+              const existingIds = existingRoles.map((r) => r.role_id);
+              finalRoleIds = Array.from(new Set([...existingIds, ...chosenRoleIds]));
+            }
+            const res = await userRoleService.assignRolesToUser(userId, finalRoleIds);
+            const list = Array.isArray(res) ? res : (res.data || res.roles || []);
+            updatedMap[userId] = list;
+            successCount++;
+          } catch (e) {
+            failCount++;
+            console.error(`Failed to assign roles to user ${userId}:`, e);
+          }
+        })
+      );
+
+      setUserRolesMap(updatedMap);
+      if (failCount === 0) {
+        enqueueSnackbar(
+          `Successfully allocated roles to ${successCount} user${successCount > 1 ? 's' : ''}!`,
+          { variant: 'success' }
+        );
+      } else {
+        enqueueSnackbar(
+          `Roles allocated to ${successCount} user${successCount > 1 ? 's' : ''} (${failCount} failed).`,
+          { variant: 'warning' }
+        );
+      }
+      setBulkAssignModalOpen(false);
+      setSelectedUserIds(new Set());
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Bulk allocation failed', { variant: 'error' });
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
       {/* ── Breadcrumbs & Header ── */}
@@ -407,7 +549,25 @@ const UserRoleManagement = () => {
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={1.5}>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          {selectedUserIds.size > 0 && (
+            <Button
+              variant="contained"
+              startIcon={<BulkAssignIcon />}
+              onClick={handleOpenBulkAssignModal}
+              sx={{
+                backgroundColor: T.secondary,
+                textTransform: 'none',
+                fontWeight: 700,
+                borderRadius: 2,
+                px: 2,
+                boxShadow: '0 4px 14px rgba(15, 118, 110, 0.25)',
+                '&:hover': { backgroundColor: '#0d655f' },
+              }}
+            >
+              Bulk Allocate ({selectedUserIds.size})
+            </Button>
+          )}
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}
@@ -564,11 +724,86 @@ const UserRoleManagement = () => {
         </Grid>
       </Paper>
 
+      {/* ── Bulk Actions Banner Bar ── */}
+      {selectedUserIds.size > 0 && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 1.5,
+            px: 2.5,
+            mb: 2.5,
+            borderRadius: 2.5,
+            backgroundColor: '#eff6ff',
+            border: '1.5px solid #bfdbfe',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 1.5,
+            boxShadow: '0 4px 14px rgba(30, 64, 175, 0.08)',
+          }}
+        >
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Chip
+              label={`${selectedUserIds.size} User${selectedUserIds.size > 1 ? 's' : ''} Selected`}
+              color="primary"
+              sx={{ fontWeight: 800, fontSize: '0.82rem' }}
+            />
+            <Typography variant="body2" sx={{ color: '#1e40af', fontWeight: 600 }}>
+              Batch allocate dynamic custom roles across all selected user accounts
+            </Typography>
+          </Stack>
+
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleClearSelectedUsers}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                color: '#1e40af',
+                borderColor: '#93c5fd',
+                backgroundColor: '#ffffff',
+                '&:hover': { backgroundColor: '#f8fafc' },
+              }}
+            >
+              Clear Selection
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<BulkAssignIcon />}
+              onClick={handleOpenBulkAssignModal}
+              sx={{
+                backgroundColor: T.primary,
+                textTransform: 'none',
+                fontWeight: 700,
+                px: 2,
+                boxShadow: '0 4px 12px rgba(30, 64, 175, 0.25)',
+                '&:hover': { backgroundColor: T.primaryCont },
+              }}
+            >
+              Allocate Roles ({selectedUserIds.size})
+            </Button>
+          </Stack>
+        </Paper>
+      )}
+
       {/* ── Users & Assigned Roles Table ── */}
       <TableContainer component={Paper} elevation={0} sx={{ border: `1px solid ${T.border}`, borderRadius: 2.5, overflow: 'hidden' }}>
         <Table size="small">
           <TableHead sx={{ backgroundColor: '#f8fafc' }}>
             <TableRow>
+              <TableCell padding="checkbox" sx={{ py: 1.5, pl: 2 }}>
+                <Checkbox
+                  color="primary"
+                  indeterminate={isSomePageSelected}
+                  checked={isAllPageSelected}
+                  onChange={handleToggleSelectAllPage}
+                  size="small"
+                />
+              </TableCell>
               <TableCell sx={{ fontWeight: 700, py: 1.5 }}>User</TableCell>
               <TableCell sx={{ fontWeight: 700, py: 1.5 }}>Contact Info</TableCell>
               <TableCell sx={{ fontWeight: 700, py: 1.5 }}>Account Status</TableCell>
@@ -579,7 +814,7 @@ const UserRoleManagement = () => {
           <TableBody>
             {loadingUsers ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                   <CircularProgress size={32} />
                   <Typography variant="body2" sx={{ color: T.textSecondary, mt: 1 }}>
                     Loading users and assignments...
@@ -588,18 +823,37 @@ const UserRoleManagement = () => {
               </TableRow>
             ) : displayedUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: T.textSecondary }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 6, color: T.textSecondary }}>
                   No users found matching current filters.
                 </TableCell>
               </TableRow>
             ) : (
               displayedUsers.map((u) => {
+                const isUserSelected = selectedUserIds.has(u.id);
                 const assignedRoles = userRolesMap[u.id] || [];
                 const fullName = `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username || 'User';
                 const initials = (u.first_name?.[0] || u.username?.[0] || 'U').toUpperCase();
 
                 return (
-                  <TableRow key={u.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                  <TableRow
+                    key={u.id}
+                    hover
+                    selected={isUserSelected}
+                    sx={{
+                      '&:last-child td, &:last-child th': { border: 0 },
+                      backgroundColor: isUserSelected ? '#f0f7ff !important' : undefined,
+                    }}
+                  >
+                    {/* Multi-Select Checkbox */}
+                    <TableCell padding="checkbox" sx={{ pl: 2 }}>
+                      <Checkbox
+                        color="primary"
+                        checked={isUserSelected}
+                        onChange={() => handleToggleSelectUser(u.id)}
+                        size="small"
+                      />
+                    </TableCell>
+
                     {/* User Profile */}
                     <TableCell>
                       <Stack direction="row" spacing={1.5} alignItems="center">
@@ -1091,6 +1345,285 @@ const UserRoleManagement = () => {
           </Button>
           <Button variant="contained" color="error" onClick={handleConfirmRemoveRole} disabled={removingRole}>
             {removingRole ? <CircularProgress size={20} color="inherit" /> : 'Remove Role'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          DIALOG: BULK ROLE ALLOCATION (MULTIPLE USERS)
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Dialog
+        open={bulkAssignModalOpen}
+        onClose={() => !bulkSaving && setBulkAssignModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, backgroundColor: '#f8fafc', borderBottom: `1px solid ${T.border}` }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Avatar sx={{ bgcolor: T.primary, width: 38, height: 38 }}>
+                <BulkAssignIcon />
+              </Avatar>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+                  Bulk Role Allocation
+                </Typography>
+                <Typography variant="caption" sx={{ color: T.textSecondary }}>
+                  Assigning dynamic custom roles across {selectedUserIds.size} selected accounts
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton onClick={() => setBulkAssignModalOpen(false)} disabled={bulkSaving} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 3 }}>
+          {/* Selected Users Chips Preview */}
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: T.textPrimary }}>
+              Target Accounts ({selectedUserIds.size}):
+            </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 0.8,
+                maxHeight: 110,
+                overflowY: 'auto',
+                p: 1.2,
+                backgroundColor: '#f8fafc',
+                borderRadius: 2,
+                border: `1px solid ${T.border}`,
+              }}
+            >
+              {selectedUsersList.map((u) => (
+                <Chip
+                  key={u.id}
+                  avatar={<Avatar src={u.avatar_url}>{(u.first_name?.[0] || 'U').toUpperCase()}</Avatar>}
+                  label={`${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontWeight: 600, backgroundColor: '#ffffff' }}
+                />
+              ))}
+            </Box>
+          </Box>
+
+          {/* Allocation Strategy: Append vs Replace */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: T.textPrimary }}>
+              Allocation Mode:
+            </Typography>
+            <Grid container spacing={1.5}>
+              <Grid item xs={12} sm={6}>
+                <Paper
+                  onClick={() => setBulkAllocationMode('append')}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    border: `1.5px solid ${bulkAllocationMode === 'append' ? T.primary : T.border}`,
+                    backgroundColor: bulkAllocationMode === 'append' ? `${T.primary}08` : '#ffffff',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  elevation={0}
+                >
+                  <FormControlLabel
+                    value="append"
+                    control={<Radio checked={bulkAllocationMode === 'append'} size="small" />}
+                    label={
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: T.textPrimary }}>
+                          Add to Existing Roles (Recommended)
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: T.textSecondary, display: 'block' }}>
+                          Retains each user&apos;s current roles and adds the chosen roles to their account.
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{ m: 0, alignItems: 'flex-start' }}
+                  />
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <Paper
+                  onClick={() => setBulkAllocationMode('replace')}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    border: `1.5px solid ${bulkAllocationMode === 'replace' ? '#f59e0b' : T.border}`,
+                    backgroundColor: bulkAllocationMode === 'replace' ? '#fffbeb' : '#ffffff',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  elevation={0}
+                >
+                  <FormControlLabel
+                    value="replace"
+                    control={<Radio checked={bulkAllocationMode === 'replace'} size="small" color="warning" />}
+                    label={
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: T.textPrimary }}>
+                          Replace Existing Roles
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: T.textSecondary, display: 'block' }}>
+                          Overwrites all existing roles on each selected user with strictly the chosen roles.
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{ m: 0, alignItems: 'flex-start' }}
+                  />
+                </Paper>
+              </Grid>
+            </Grid>
+          </Box>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Search roles in bulk modal & quick buttons */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1.5 }}>
+            <TextField
+              size="small"
+              placeholder="Search roles to allocate..."
+              value={bulkRoleSearch}
+              onChange={(e) => setBulkRoleSearch(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" sx={{ color: T.textSecondary }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ width: { xs: '100%', sm: 260 }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+
+            <Stack direction="row" spacing={1}>
+              <Button size="small" variant="text" onClick={handleSelectAllBulkRoles} sx={{ textTransform: 'none', fontWeight: 600 }}>
+                Select All
+              </Button>
+              <Button size="small" variant="text" color="inherit" onClick={handleClearAllBulkRoles} sx={{ textTransform: 'none', fontWeight: 600 }}>
+                Clear All
+              </Button>
+            </Stack>
+          </Box>
+
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+            Select Roles to Allocate ({bulkSelectedRoleIds.size} selected):
+          </Typography>
+
+          <Box sx={{ maxHeight: 320, overflowY: 'auto', pr: 0.5 }}>
+            <Grid container spacing={1.5}>
+              {availableRoles
+                .filter((r) =>
+                  bulkRoleSearch
+                    ? r.name.toLowerCase().includes(bulkRoleSearch.toLowerCase()) ||
+                      r.code.toLowerCase().includes(bulkRoleSearch.toLowerCase())
+                    : true
+                )
+                .map((r) => {
+                  const isSelected = bulkSelectedRoleIds.has(r.id);
+                  return (
+                    <Grid item xs={12} sm={6} key={r.id}>
+                      <Box
+                        onClick={() => handleToggleBulkRoleSelection(r.id)}
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          border: `1.5px solid ${isSelected ? T.primary : T.border}`,
+                          backgroundColor: isSelected ? `${T.primary}0a` : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease-in-out',
+                          '&:hover': {
+                            borderColor: T.primary,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                          },
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => handleToggleBulkRoleSelection(r.id)}
+                            size="small"
+                            sx={{ p: 0.3, mt: 0.2 }}
+                          />
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: T.textPrimary }}>
+                                {r.name}
+                              </Typography>
+                              {r.is_system && (
+                                <Chip
+                                  label="System"
+                                  size="small"
+                                  color="warning"
+                                  sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700 }}
+                                />
+                              )}
+                            </Box>
+                            <Chip
+                              label={r.code}
+                              size="small"
+                              variant="outlined"
+                              sx={{
+                                height: 20,
+                                fontSize: '0.68rem',
+                                fontFamily: 'monospace',
+                                fontWeight: 600,
+                                mt: 0.4,
+                                mb: 0.5,
+                              }}
+                            />
+                            {r.description && (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: T.textSecondary,
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                {r.description}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Grid>
+                  );
+                })}
+            </Grid>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2, px: 3, borderTop: `1px solid ${T.border}` }}>
+          <Button onClick={() => setBulkAssignModalOpen(false)} disabled={bulkSaving} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleExecuteBulkAllocation}
+            disabled={bulkSaving || bulkSelectedRoleIds.size === 0}
+            sx={{
+              backgroundColor: T.primary,
+              fontWeight: 700,
+              px: 3,
+              '&:hover': { backgroundColor: T.primaryCont },
+            }}
+          >
+            {bulkSaving ? (
+              <Stack direction="row" spacing={1} alignItems="center">
+                <CircularProgress size={18} color="inherit" />
+                <span>Allocating Roles...</span>
+              </Stack>
+            ) : (
+              `Allocate Roles to ${selectedUserIds.size} User${selectedUserIds.size > 1 ? 's' : ''}`
+            )}
           </Button>
         </DialogActions>
       </Dialog>
