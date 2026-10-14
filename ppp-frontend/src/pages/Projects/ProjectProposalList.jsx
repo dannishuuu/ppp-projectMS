@@ -57,6 +57,13 @@ export const ProjectProposalList = () => {
   const { enqueueSnackbar } = useSnackbar();
   const { hasPermission } = useAuth();
 
+  // Permissions for page actions
+  const canViewDetails = hasPermission('proposal.details') || hasPermission('proposal.view');
+  const canEditProposal = hasPermission('proposal.update') || hasPermission('proposal.edit');
+  const canCreateProposal = hasPermission('proposal.create');
+  const canDeleteProposal = hasPermission('proposal.delete');
+  const canSubmitProposal = hasPermission('proposal.submit');
+
   // Data list
   const [proposals, setProposals] = useState([]);
   const [loading, setLoading] = useState(true);

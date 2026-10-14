@@ -52,6 +52,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   AutoFixHigh as AutoGenIcon,
   VerifiedUser as SystemIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -167,6 +168,7 @@ export const ModuleRoleManagement = () => {
   const [alreadyAssociatedActionIds, setAlreadyAssociatedActionIds] = useState(new Set());
   const [batchLoadingActions, setBatchLoadingActions] = useState(false);
   const [batchGenerating, setBatchGenerating] = useState(false);
+  const [batchActionSearch, setBatchActionSearch] = useState('');
 
   /* ──────────────────────────────────────────────────────────────────────────
      FETCHERS
@@ -611,6 +613,7 @@ export const ModuleRoleManagement = () => {
   };
 
   const handleOpenBatchGenerator = async () => {
+    setBatchActionSearch('');
     let mods = allModules;
     if (mods.length === 0) {
       try {
@@ -721,6 +724,17 @@ export const ModuleRoleManagement = () => {
   };
 
   const totalSelectedCount = selectedPermissionIds.size;
+
+  // Batch generator: source list of action verbs + search-filtered view
+  const batchActionsSource = allActions.length > 0 ? allActions : actionsList;
+  const batchActionSearchTerm = batchActionSearch.trim().toLowerCase();
+  const filteredBatchActions = batchActionSearchTerm
+    ? batchActionsSource.filter(
+        (a) =>
+          (a.name || '').toLowerCase().includes(batchActionSearchTerm) ||
+          (a.code || '').toLowerCase().includes(batchActionSearchTerm)
+      )
+    : batchActionsSource;
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
@@ -1782,7 +1796,7 @@ export const ModuleRoleManagement = () => {
       <Dialog
         open={batchDialogOpen}
         onClose={() => !batchGenerating && setBatchDialogOpen(false)}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
       >
@@ -1822,7 +1836,7 @@ export const ModuleRoleManagement = () => {
             }}
           >
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              Action Verbs ({batchSelectedActionIds.size} of {(allActions.length > 0 ? allActions : actionsList).length} selected):
+              Action Verbs ({batchSelectedActionIds.size} of {batchActionsSource.length} selected):
             </Typography>
             <Stack direction="row" spacing={1}>
               <Button
@@ -1854,6 +1868,35 @@ export const ModuleRoleManagement = () => {
             </Stack>
           </Box>
 
+          {/* Search action verbs (client-side filter of the list below) */}
+          <TextField
+            size="small"
+            fullWidth
+            placeholder="Search action verbs by name or code..."
+            value={batchActionSearch}
+            onChange={(e) => setBatchActionSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: T.textSecondary }} />
+                </InputAdornment>
+              ),
+              endAdornment: batchActionSearch ? (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    onClick={() => setBatchActionSearch('')}
+                    sx={{ p: 0.25 }}
+                    title="Clear search"
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            }}
+            sx={{ mb: 1.5, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+          />
+
           {batchLoadingActions ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 5, gap: 1.5 }}>
               <CircularProgress size={24} />
@@ -1861,14 +1904,27 @@ export const ModuleRoleManagement = () => {
                 Loading module permissions...
               </Typography>
             </Box>
-          ) : (allActions.length > 0 ? allActions : actionsList).length === 0 ? (
+          ) : batchActionsSource.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4, color: T.textSecondary }}>
               No action verbs defined. Add action verbs first.
+            </Box>
+          ) : filteredBatchActions.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="body2" sx={{ color: T.textSecondary }}>
+                No action verbs match &ldquo;{batchActionSearch}&rdquo;.
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => setBatchActionSearch('')}
+                sx={{ mt: 1, textTransform: 'none', fontWeight: 700, color: T.primary }}
+              >
+                Clear search
+              </Button>
             </Box>
           ) : (
             <Box sx={{ maxHeight: 380, overflowY: 'auto', pr: 0.5 }}>
               <Grid container spacing={1.5}>
-                {(allActions.length > 0 ? allActions : actionsList).map((a) => {
+                {filteredBatchActions.map((a) => {
                   const isSelected = batchSelectedActionIds.has(a.id);
                   const isAlreadyAssociated = alreadyAssociatedActionIds.has(a.id);
 
