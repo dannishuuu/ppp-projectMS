@@ -55,6 +55,7 @@ import {
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { pppProjectService } from '../../services/projectServices/pppProjectService';
+import { useAuth } from '../../context/AuthContext';
 
 /* ── InfraNexus PPP Design Tokens ─────────────────────────────────────────── */
 const D = {
@@ -132,6 +133,13 @@ export const ProjectDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+  const { hasPermission } = useAuth();
+
+  // Permissions for the header action buttons:
+  //  - Print Dossier requires project.print
+  //  - Edit Concession requires project.update OR project.edit
+  const canPrintDossier = hasPermission('project.print');
+  const canEditConcession = hasPermission('project.update') || hasPermission('project.edit');
 
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -350,45 +358,49 @@ export const ProjectDetails = () => {
               Back to Directory
             </Button>
 
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<PrintIcon fontSize="small" />}
-              onClick={() => window.print()}
-              sx={{
-                display: { xs: 'none', md: 'inline-flex' },
-                fontWeight: 600,
-                borderRadius: 2,
-                px: 2,
-                py: 0.75,
-                borderColor: D.border,
-                color: D.textMuted,
-                backgroundColor: D.card,
-                textTransform: 'none',
-                '&:hover': { borderColor: D.textPrimary, color: D.textPrimary },
-              }}
-            >
-              Print Dossier
-            </Button>
+            {canPrintDossier && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<PrintIcon fontSize="small" />}
+                onClick={() => window.print()}
+                sx={{
+                  display: { xs: 'none', md: 'inline-flex' },
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  px: 2,
+                  py: 0.75,
+                  borderColor: D.border,
+                  color: D.textMuted,
+                  backgroundColor: D.card,
+                  textTransform: 'none',
+                  '&:hover': { borderColor: D.textPrimary, color: D.textPrimary },
+                }}
+              >
+                Print Dossier
+              </Button>
+            )}
 
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<EditIcon fontSize="small" />}
-              onClick={() => navigate(`/projects/${project.id}/edit`)}
-              sx={{
-                fontWeight: 700,
-                borderRadius: 2,
-                px: 2.5,
-                py: 0.75,
-                backgroundColor: D.primary,
-                boxShadow: '0 4px 14px rgba(0, 14, 161, 0.28)',
-                textTransform: 'none',
-                '&:hover': { backgroundColor: D.primaryCont, boxShadow: '0 6px 20px rgba(0, 14, 161, 0.38)' },
-              }}
-            >
-              Edit Concession
-            </Button>
+            {canEditConcession && (
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<EditIcon fontSize="small" />}
+                onClick={() => navigate(`/projects/${project.id}/edit`)}
+                sx={{
+                  fontWeight: 700,
+                  borderRadius: 2,
+                  px: 2.5,
+                  py: 0.75,
+                  backgroundColor: D.primary,
+                  boxShadow: '0 4px 14px rgba(0, 14, 161, 0.28)',
+                  textTransform: 'none',
+                  '&:hover': { backgroundColor: D.primaryCont, boxShadow: '0 6px 20px rgba(0, 14, 161, 0.38)' },
+                }}
+              >
+                Edit Concession
+              </Button>
+            )}
           </Stack>
         </Box>
       </Paper>
