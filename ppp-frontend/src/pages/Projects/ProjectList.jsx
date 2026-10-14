@@ -233,11 +233,6 @@ export const ProjectList = () => {
   const { hasPermission } = useAuth();
 
   // Permissions for page actions:
-  //  - Actions column: Details requires project.details OR project.view,
-  //    Edit requires project.update
-  //  - Quick Export (CSV) requires project.export
-  //  - New Concession (and the empty-state Register First Project button)
-  //    requires project.create
   const canViewDetails = hasPermission('project.details') || hasPermission('project.view');
   const canEditProject = hasPermission('project.update') || hasPermission('project.edit');
   const canExportProjects = hasPermission('project.export');

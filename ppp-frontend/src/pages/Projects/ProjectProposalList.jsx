@@ -48,12 +48,14 @@ import { formatDate } from '../../utils/formatters';
 import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 import { SubmitProposalDialog } from '../../components/Projects/SubmitProposalDialog';
 import { ReviewStatisticsDialog } from '../../components/Projects/ReviewStatisticsDialog';
+import { useAuth } from '../../context/AuthContext';
 
 export const ProjectProposalList = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { enqueueSnackbar } = useSnackbar();
+  const { hasPermission } = useAuth();
 
   // Data list
   const [proposals, setProposals] = useState([]);
