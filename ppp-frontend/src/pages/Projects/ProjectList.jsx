@@ -43,6 +43,7 @@ import { useSnackbar } from 'notistack';
 import { pppProjectService } from '../../services/projectServices/pppProjectService';
 import { projectStatusService } from '../../services/foundationService/projectStatusService';
 import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
+import { useAuth } from '../../context/AuthContext';
 
 /* ── Design Tokens (InfraNexus PPP palette) ─────────────────────────────────── */
 const D = {
@@ -229,6 +230,18 @@ const StatusPill = ({ name }) => {
 export const ProjectList = () => {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+  const { hasPermission } = useAuth();
+
+  // Permissions for page actions:
+  //  - Actions column: Details requires project.details OR project.view,
+  //    Edit requires project.update
+  //  - Quick Export (CSV) requires project.export
+  //  - New Concession (and the empty-state Register First Project button)
+  //    requires project.create
+  const canViewDetails = hasPermission('project.details') || hasPermission('project.view');
+  const canEditProject = hasPermission('project.update');
+  const canExportProjects = hasPermission('project.export');
+  const canCreateProject = hasPermission('project.create');
 
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
@@ -446,29 +459,40 @@ export const ProjectList = () => {
         );
       },
     },
-    {
-      field: 'actions',
-      headerName: '',
-      width: 108,
-      sortable: false, filterable: false,
-      align: 'right', headerAlign: 'right',
-      renderCell: ({ row }) => (
-        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25 }}>
-          <Tooltip title="View Details">
-            <IconButton size="small" onClick={() => navigate(`/projects/${row.id}`)}
-              sx={{ borderRadius: '8px', color: D.textLight, p: 0.75, '&:hover': { color: D.primaryCont, bgcolor: D.surfaceLow } }}>
-              <ViewIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Edit Project">
-            <IconButton size="small" onClick={() => navigate(`/projects/${row.id}/edit`)}
-              sx={{ borderRadius: '8px', color: D.textLight, p: 0.75, '&:hover': { color: D.primaryCont, bgcolor: D.surfaceLow } }}>
-              <EditIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      ),
-    },
+    // Actions column — rendered only when the user holds at least one of the
+    // action permissions: project.details or project.view (Details button) and
+    // project.update (Edit button). Without either, the column is hidden.
+    ...(canViewDetails || canEditProject
+      ? [
+          {
+            field: 'actions',
+            headerName: '',
+            width: canViewDetails && canEditProject ? 108 : 62,
+            sortable: false, filterable: false,
+            align: 'right', headerAlign: 'right',
+            renderCell: ({ row }) => (
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25 }}>
+                {canViewDetails && (
+                  <Tooltip title="View Details">
+                    <IconButton size="small" onClick={() => navigate(`/projects/${row.id}`)}
+                      sx={{ borderRadius: '8px', color: D.textLight, p: 0.75, '&:hover': { color: D.primaryCont, bgcolor: D.surfaceLow } }}>
+                      <ViewIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {canEditProject && (
+                  <Tooltip title="Edit Project">
+                    <IconButton size="small" onClick={() => navigate(`/projects/${row.id}/edit`)}
+                      sx={{ borderRadius: '8px', color: D.textLight, p: 0.75, '&:hover': { color: D.primaryCont, bgcolor: D.surfaceLow } }}>
+                      <EditIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+            ),
+          },
+        ]
+      : []),
   ];
 
   /* ── Render ─────────────────────────────────────────────────────────────── */
@@ -531,14 +555,18 @@ export const ProjectList = () => {
         </Box>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.25 }}>
-          <Button variant="outlined" size="small" startIcon={<DownloadIcon sx={{ fontSize: 15 }} />} onClick={handleExport}
-            sx={{ borderRadius: '8px', borderColor: D.border, color: D.textPrimary, fontWeight: 500, fontSize: '0.78rem', textTransform: 'none', fontFamily: 'Inter, sans-serif', bgcolor: D.card, px: 1.75, py: 0.75, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', '&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' } }}>
-            Quick Export (CSV)
-          </Button>
-          <Button variant="contained" size="small" startIcon={<AddIcon sx={{ fontSize: 16 }} />} onClick={() => navigate('/projects/new')}
-            sx={{ borderRadius: '8px', fontWeight: 600, fontSize: '0.78rem', textTransform: 'none', fontFamily: 'Inter, sans-serif', px: 2, py: 0.85, bgcolor: D.primaryCont, boxShadow: '0 2px 8px rgba(28,42,200,0.2)', '&:hover': { bgcolor: D.primaryMid } }}>
-            New Concession
-          </Button>
+          {canExportProjects && (
+            <Button variant="outlined" size="small" startIcon={<DownloadIcon sx={{ fontSize: 15 }} />} onClick={handleExport}
+              sx={{ borderRadius: '8px', borderColor: D.border, color: D.textPrimary, fontWeight: 500, fontSize: '0.78rem', textTransform: 'none', fontFamily: 'Inter, sans-serif', bgcolor: D.card, px: 1.75, py: 0.75, boxShadow: '0 1px 2px rgba(0,0,0,0.05)', '&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' } }}>
+              Quick Export (CSV)
+            </Button>
+          )}
+          {canCreateProject && (
+            <Button variant="contained" size="small" startIcon={<AddIcon sx={{ fontSize: 16 }} />} onClick={() => navigate('/projects/new')}
+              sx={{ borderRadius: '8px', fontWeight: 600, fontSize: '0.78rem', textTransform: 'none', fontFamily: 'Inter, sans-serif', px: 2, py: 0.85, bgcolor: D.primaryCont, boxShadow: '0 2px 8px rgba(28,42,200,0.2)', '&:hover': { bgcolor: D.primaryMid } }}>
+              New Concession
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -737,10 +765,12 @@ export const ProjectList = () => {
                   <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', color: D.textPrimary, fontFamily: '"Plus Jakarta Sans", Inter, sans-serif' }}>No projects found</Typography>
                   <Typography sx={{ fontSize: '0.8125rem', color: D.textMuted, mt: 0.5, fontFamily: 'Inter, sans-serif' }}>Adjust your filters or register the first PPP concession</Typography>
                 </Box>
-                <Button variant="outlined" size="small" startIcon={<AddIcon />} onClick={() => navigate('/projects/new')}
-                  sx={{ borderRadius: '8px', textTransform: 'none', borderColor: D.primaryCont, color: D.primaryCont, fontFamily: 'Inter, sans-serif', fontWeight: 600, '&:hover': { bgcolor: D.primaryLight } }}>
-                  Register First Project
-                </Button>
+                {canCreateProject && (
+                  <Button variant="outlined" size="small" startIcon={<AddIcon />} onClick={() => navigate('/projects/new')}
+                    sx={{ borderRadius: '8px', textTransform: 'none', borderColor: D.primaryCont, color: D.primaryCont, fontFamily: 'Inter, sans-serif', fontWeight: 600, '&:hover': { bgcolor: D.primaryLight } }}>
+                    Register First Project
+                  </Button>
+                )}
               </Box>
             ),
           }}
