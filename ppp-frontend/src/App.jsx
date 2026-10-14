@@ -6,6 +6,7 @@ import theme from './theme/theme';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProjectProvider } from './context/ProjectContext';
 import { MainLayout } from './components/Layout/MainLayout';
+import { PermissionGuard } from './components/PermissionGuard';
 import { Dashboard } from './pages/Dashboard/Dashboard';
 import { ProjectList } from './pages/Projects/ProjectList';
 import { ProjectDetails } from './pages/Projects/ProjectDetails';
@@ -96,6 +97,11 @@ function App() {
                 >
                   <Route index element={<Dashboard />} />
 
+                  {/* Routes gated by permissions — renders the AccessDenied (403)
+                      page inside the layout when the signed-in user lacks the
+                      required permission for the active path.
+                      See utils/routePermissions.js for the path → permission map. */}
+                  <Route element={<PermissionGuard />}>
                   {/* Project pages */}
                   <Route path="projects" element={<ProjectList />} />
                   <Route path="projects/new" element={<ProjectForm />} />
@@ -160,6 +166,7 @@ function App() {
 				          <Route path="contracts/approval" element={<ContractApprovalPage />} />
                   <Route path="contracts/:id" element={<ContractDetailPage />} />
                   <Route path="contracts/:id/edit" element={<ContractEditPage />} />
+                  </Route>
                 </Route>
 
                 {/* Catch-all */}
