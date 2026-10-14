@@ -466,12 +466,6 @@ export const ProjectList = () => {
               <EditIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton size="small" onClick={() => setDeleteTarget(row)}
-              sx={{ borderRadius: '8px', color: D.textLight, p: 0.75, '&:hover': { color: D.errorFg, bgcolor: D.errorBg } }}>
-              <DeleteIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
         </Box>
       ),
     },
