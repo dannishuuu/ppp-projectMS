@@ -140,6 +140,10 @@ export const ModuleRoleManagement = () => {
 
   const [matrixModules, setMatrixModules] = useState([]);
   const [matrixLoading, setMatrixLoading] = useState(false);
+  // Search / expand state for the permission matrix inside Create/Edit Role dialog
+  const [matrixModuleSearch, setMatrixModuleSearch] = useState('');
+  const [matrixPermSearch, setMatrixPermSearch] = useState({});   // { [module_id]: string }
+  const [expandedModules, setExpandedModules] = useState({});     // { [module_id]: boolean }
 
   /* ──────────────────────────────────────────────────────────────────────────
      STATUS TOGGLE CONFIRMATION STATE (MODULES / ACTIONS / ROLES)
@@ -260,7 +264,15 @@ export const ModuleRoleManagement = () => {
     setMatrixLoading(true);
     try {
       const data = await permissionService.getPermissionMatrix();
-      setMatrixModules(Array.isArray(data) ? data : []);
+      const modules = Array.isArray(data) ? data : [];
+      setMatrixModules(modules);
+      // Expand all modules by default
+      const allExpanded = {};
+      modules.forEach((m) => { allExpanded[m.module_id] = true; });
+      setExpandedModules(allExpanded);
+      // Reset search state
+      setMatrixModuleSearch('');
+      setMatrixPermSearch({});
     } catch (err) {
       enqueueSnackbar('Failed to load permission matrix', { variant: 'warning' });
     } finally {
@@ -1595,6 +1607,23 @@ export const ModuleRoleManagement = () => {
             </Stack>
           </Box>
 
+          {/* Module Search */}
+          <TextField
+            size="small"
+            fullWidth
+            placeholder="Search modules..."
+            value={matrixModuleSearch}
+            onChange={(e) => setMatrixModuleSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: T.textSecondary }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+          />
+
           {matrixLoading ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <CircularProgress size={28} />
@@ -1605,78 +1634,130 @@ export const ModuleRoleManagement = () => {
           ) : matrixModules.length === 0 ? (
             <Alert severity="info">No permissions configured in the system yet.</Alert>
           ) : (
-            <Box sx={{ maxHeight: 380, overflowY: 'auto', pr: 0.5 }}>
-              {matrixModules.map((mod) => {
-                const perms = mod.permissions || [];
-                const allSelected = perms.length > 0 && perms.every((p) => selectedPermissionIds.has(p.id));
-                const someSelected = perms.some((p) => selectedPermissionIds.has(p.id)) && !allSelected;
+            <Box sx={{ maxHeight: 420, overflowY: 'auto', pr: 0.5 }}>
+              {matrixModules
+                .filter((mod) =>
+                  !matrixModuleSearch ||
+                  mod.module_name.toLowerCase().includes(matrixModuleSearch.toLowerCase())
+                )
+                .map((mod) => {
+                  const allPerms = mod.permissions || [];
+                  const permSearch = (matrixPermSearch[mod.module_id] || '').toLowerCase();
+                  const perms = permSearch
+                    ? allPerms.filter(
+                        (p) =>
+                          p.name.toLowerCase().includes(permSearch) ||
+                          p.code.toLowerCase().includes(permSearch)
+                      )
+                    : allPerms;
 
-                return (
-                  <Accordion
-                    key={mod.module_id}
-                    defaultExpanded
-                    sx={{
-                      mb: 1,
-                      border: `1px solid ${T.border}`,
-                      borderRadius: '8px !important',
-                      boxShadow: 'none',
-                      '&:before': { display: 'none' },
-                    }}
-                  >
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ backgroundColor: '#f8fafc' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', pr: 1 }}>
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              checked={allSelected}
-                              indeterminate={someSelected}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                handleToggleModuleAll(perms, e.target.checked);
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                            />
+                  const allSelected = allPerms.length > 0 && allPerms.every((p) => selectedPermissionIds.has(p.id));
+                  const someSelected = allPerms.some((p) => selectedPermissionIds.has(p.id)) && !allSelected;
+                  const isExpanded = expandedModules[mod.module_id] !== false; // default true
+
+                  return (
+                    <Accordion
+                      key={mod.module_id}
+                      expanded={isExpanded}
+                      onChange={(_, val) =>
+                        setExpandedModules((prev) => ({ ...prev, [mod.module_id]: val }))
+                      }
+                      sx={{
+                        mb: 1,
+                        border: `1px solid ${T.border}`,
+                        borderRadius: '8px !important',
+                        boxShadow: 'none',
+                        '&:before': { display: 'none' },
+                      }}
+                    >
+                      <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ backgroundColor: '#f8fafc' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', pr: 1 }}>
+                          <FormControlLabel
+                            control={
+                              <Checkbox
+                                checked={allSelected}
+                                indeterminate={someSelected}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleModuleAll(allPerms, e.target.checked);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            }
+                            label={
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                {mod.module_name}
+                              </Typography>
+                            }
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <Chip
+                            label={`${allPerms.length} actions`}
+                            size="small"
+                            sx={{ ml: 'auto', fontSize: '0.7rem' }}
+                          />
+                        </Box>
+                      </AccordionSummary>
+
+                      <AccordionDetails sx={{ pt: 1, pb: 2 }}>
+                        {/* Per-module permission search */}
+                        <TextField
+                          size="small"
+                          fullWidth
+                          placeholder={`Search permissions in ${mod.module_name}...`}
+                          value={matrixPermSearch[mod.module_id] || ''}
+                          onChange={(e) =>
+                            setMatrixPermSearch((prev) => ({
+                              ...prev,
+                              [mod.module_id]: e.target.value,
+                            }))
                           }
-                          label={
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                              {mod.module_name}
-                            </Typography>
-                          }
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SearchIcon fontSize="small" sx={{ color: T.textSecondary }} />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{ mb: 1.5, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                           onClick={(e) => e.stopPropagation()}
                         />
-                        <Chip label={`${perms.length} actions`} size="small" sx={{ ml: 'auto', fontSize: '0.7rem' }} />
-                      </Box>
-                    </AccordionSummary>
-                    <AccordionDetails sx={{ pt: 1, pb: 2 }}>
-                      <Grid container spacing={1}>
-                        {perms.map((p) => (
-                          <Grid item xs={12} sm={6} md={4} key={p.id}>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={selectedPermissionIds.has(p.id)}
-                                  onChange={() => handleTogglePermission(p.id)}
-                                  size="small"
+
+                        {perms.length === 0 ? (
+                          <Typography variant="caption" sx={{ color: T.textSecondary, pl: 1 }}>
+                            No permissions match your search.
+                          </Typography>
+                        ) : (
+                          <Grid container spacing={1}>
+                            {perms.map((p) => (
+                              <Grid item xs={12} sm={6} md={4} key={p.id}>
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      checked={selectedPermissionIds.has(p.id)}
+                                      onChange={() => handleTogglePermission(p.id)}
+                                      size="small"
+                                    />
+                                  }
+                                  label={
+                                    <Box>
+                                      <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.82rem' }}>
+                                        {p.name}
+                                      </Typography>
+                                      <Typography variant="caption" sx={{ color: T.textSecondary, fontFamily: 'monospace' }}>
+                                        {p.code}
+                                      </Typography>
+                                    </Box>
+                                  }
                                 />
-                              }
-                              label={
-                                <Box>
-                                  <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.82rem' }}>
-                                    {p.name}
-                                  </Typography>
-                                  <Typography variant="caption" sx={{ color: T.textSecondary, fontFamily: 'monospace' }}>
-                                    {p.code}
-                                  </Typography>
-                                </Box>
-                              }
-                            />
+                              </Grid>
+                            ))}
                           </Grid>
-                        ))}
-                      </Grid>
-                    </AccordionDetails>
-                  </Accordion>
-                );
-              })}
+                        )}
+                      </AccordionDetails>
+                    </Accordion>
+                  );
+                })}
             </Box>
           )}
         </DialogContent>
