@@ -266,9 +266,9 @@ export const ModuleRoleManagement = () => {
       const data = await permissionService.getPermissionMatrix();
       const modules = Array.isArray(data) ? data : [];
       setMatrixModules(modules);
-      // Expand all modules by default
+      // Collapse all modules by default (user expands when needed)
       const allExpanded = {};
-      modules.forEach((m) => { allExpanded[m.module_id] = true; });
+      modules.forEach((m) => { allExpanded[m.module_id] = false; });
       setExpandedModules(allExpanded);
       // Reset search state
       setMatrixModuleSearch('');
@@ -1653,7 +1653,7 @@ export const ModuleRoleManagement = () => {
 
                   const allSelected = allPerms.length > 0 && allPerms.every((p) => selectedPermissionIds.has(p.id));
                   const someSelected = allPerms.some((p) => selectedPermissionIds.has(p.id)) && !allSelected;
-                  const isExpanded = expandedModules[mod.module_id] !== false; // default true
+                  const isExpanded = expandedModules[mod.module_id] === true; // default collapsed
 
                   return (
                     <Accordion
