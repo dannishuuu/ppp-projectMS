@@ -239,7 +239,7 @@ export const ProjectList = () => {
   //  - New Concession (and the empty-state Register First Project button)
   //    requires project.create
   const canViewDetails = hasPermission('project.details') || hasPermission('project.view');
-  const canEditProject = hasPermission('project.update');
+  const canEditProject = hasPermission('project.update') || hasPermission('project.edit');
   const canExportProjects = hasPermission('project.export');
   const canCreateProject = hasPermission('project.create');
 
