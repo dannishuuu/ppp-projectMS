@@ -94,9 +94,9 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   ];
 
   const userSubItems = [
-    { text: 'Users List', icon: <UsersListIcon />, path: '/users/list' },
-    { text: 'Roles & Permissions', icon: <RoleIcon />, path: '/users/roles-permissions' },
-    { text: 'Assign Roles', icon: <UserRoleNavIcon />, path: '/users/user-roles' },
+    { text: 'Users List', icon: <UsersListIcon />, path: '/users/list', permission: 'user.list' },
+    { text: 'Roles & Permissions', icon: <RoleIcon />, path: '/users/roles-permissions', permission: 'permission.list' },
+    { text: 'Assign Roles', icon: <UserRoleNavIcon />, path: '/users/user-roles', permission: 'user.user_role_management' },
   ];
 
   const orgSubItems = [
@@ -119,24 +119,24 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   ];
 
   const foundationSubItems = [
-    { text: 'Organization Types', icon: <CategoryIcon />, path: 'foundation/organization-types' },
-    { text: 'Tracking Types', icon: <CategoryIcon />, path: 'foundation/tracking-types' },
-    { text: 'Project Categories', icon: <CategoryIcon />, path: 'foundation/project-categories' },
-    { text: 'Project Statuses', icon: <StatusIcon />, path: 'foundation/project-statuses' },
-    { text: 'Currencies', icon: <CurrencyIcon />, path: 'foundation/currencies' },
-    { text: 'Proposal Statuses', icon: <StatusIcon />, path: 'foundation/proposal-statuses' },
-    { text: 'Geographic Mngt', icon: <GeographicIcon />, path: '/foundation/geographical' },
-    { text: 'Building Types', icon: <BuildingTypeIcon />, path: '/foundation/building-types' },
-    { text: 'Shop Types', icon: <ShopServiceIcon />, path: '/foundation/shop-service-types' },
-    { text: 'Payment Timings', icon: <TimingIcon />, path: '/foundation/payment-timings' },
-    { text: 'Rental Payment Types', icon: <RentalTypeIcon />, path: '/foundation/rental-payment-types' },
-    { text: 'Area Units', icon: <AreaUnitIcon />, path: '/foundation/area-units' },
-    { text: 'Floor Types', icon: <FloorTypeIcon />, path: '/foundation/floor-types' },
-    { text: 'Business Sectors', icon: <CategoryIcon />, path: '/foundation/business-sectors' },
+    { text: 'Organization Types', icon: <CategoryIcon />, path: 'foundation/organization-types', permission: 'foundation.list_organization_type' },
+    { text: 'Tracking Types', icon: <CategoryIcon />, path: 'foundation/tracking-types', permission: 'foundation.list_tracking_type' },
+    { text: 'Project Categories', icon: <CategoryIcon />, path: 'foundation/project-categories', permission: 'foundation.list_project_category' },
+    { text: 'Project Statuses', icon: <StatusIcon />, path: 'foundation/project-statuses', permission: 'foundation.list_project_status' },
+    { text: 'Currencies', icon: <CurrencyIcon />, path: 'foundation/currencies', permission: 'foundation.list_currency' },
+    { text: 'Proposal Statuses', icon: <StatusIcon />, path: 'foundation/proposal-statuses', permission: 'foundation.list_proposal_status' },
+    { text: 'Geographic Mngt', icon: <GeographicIcon />, path: '/foundation/geographical', permission: 'foundation.list_geographical' },
+    { text: 'Building Types', icon: <BuildingTypeIcon />, path: '/foundation/building-types', permission: 'foundation.list_building_type' },
+    { text: 'Shop Types', icon: <ShopServiceIcon />, path: '/foundation/shop-service-types', permission: 'foundation.list_shop_service_type' },
+    { text: 'Payment Timings', icon: <TimingIcon />, path: '/foundation/payment-timings', permission: 'foundation.list_payment_timing' },
+    { text: 'Rental Payment Types', icon: <RentalTypeIcon />, path: '/foundation/rental-payment-types', permission: 'foundation.list_rental_payment_type' },
+    { text: 'Area Units', icon: <AreaUnitIcon />, path: '/foundation/area-units', permission: 'foundation.list_area_unit' },
+    { text: 'Floor Types', icon: <FloorTypeIcon />, path: '/foundation/floor-types', permission: 'foundation.list_floor_type' },
+    { text: 'Business Sectors', icon: <CategoryIcon />, path: '/foundation/business-sectors', permission: 'foundation.list_business_sector' },
   ];
 
   const docMgmtSubItems = [
-    { text: 'Document Seq', icon: <SequenceIcon />, path: '/document-sequences' },
+    { text: 'Document Seq', icon: <SequenceIcon />, path: '/document-sequences', permission: 'document_management.list' },
   ];
 
   // Active checks
