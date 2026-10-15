@@ -63,6 +63,7 @@ export const ProjectProposalList = () => {
   const canCreateProposal = hasPermission('proposal.create');
   const canDeleteProposal = hasPermission('proposal.delete');
   const canSubmitProposal = hasPermission('proposal.submit');
+  const canCheckProceed = hasPermission('proposal.check');
 
   // Data list
   const [proposals, setProposals] = useState([]);
@@ -253,8 +254,8 @@ export const ProjectProposalList = () => {
             Project Proposals List
           </Typography>
         </Box>
-
-        <Button
+        {canCreateProposal && (
+          <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => navigate('/projects/proposals/new')}
@@ -268,6 +269,8 @@ export const ProjectProposalList = () => {
         >
           New Proposal
         </Button>
+        )}
+        
       </Box>
 
       {/* Filters Panel */}
@@ -546,28 +549,9 @@ export const ProjectProposalList = () => {
                         }}
                       />
                     </TableCell>
-                    {/* <TableCell>
-                      {prop.submitted_at ? (
-                        <Chip
-                          label={`Submitted ${formatDate(prop.submitted_at)}`}
-                          size="small"
-                          color="success"
-                          variant="outlined"
-                          sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
-                        />
-                      ) : (
-                        <Chip
-                          label="Draft"
-                          size="small"
-                          color="warning"
-                          variant="outlined"
-                          sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
-                        />
-                      )}
-                    </TableCell> */}
                     <TableCell align="right" sx={{ pr: 1 }}>
                       <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                        {canCheckAndProceed(prop) && (
+                        {canCheckAndProceed(prop) && canCheckProceed && (
                           <Tooltip title="Check & Proceed" arrow>
                             <Button
                               size="small"
@@ -589,7 +573,7 @@ export const ProjectProposalList = () => {
                             </Button>
                           </Tooltip>
                         )}
-                        {!prop.submitted_at && (
+                        {!prop.submitted_at && canSubmitProposal && (
                           <Tooltip title="Submit Proposal" arrow>
                             <IconButton
                               size="small"
@@ -600,16 +584,18 @@ export const ProjectProposalList = () => {
                             </IconButton>
                           </Tooltip>
                         )}
-                        <Tooltip title="View Details" arrow>
-                          <IconButton
-                            size="small"
-                            onClick={() => navigate(`/projects/proposals/${prop.id}`)}
-                            sx={{ p: 0.5, color: '#6366f1' }}
-                          >
-                            <ViewIcon sx={{ fontSize: 17 }} />
-                          </IconButton>
-                        </Tooltip>
-                        {isDraftProposal(prop) && (
+                        {canViewDetails && (
+                          <Tooltip title="View Details" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={() => navigate(`/projects/proposals/${prop.id}`)}
+                              sx={{ p: 0.5, color: '#6366f1' }}
+                            >
+                              <ViewIcon sx={{ fontSize: 17 }} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {isDraftProposal(prop) && canEditProposal && (
                           <Tooltip title="Edit Proposal" arrow>
                             <IconButton
                               size="small"
@@ -620,7 +606,7 @@ export const ProjectProposalList = () => {
                             </IconButton>
                           </Tooltip>
                         )}
-                        {isDraftProposal(prop) && (
+                        {isDraftProposal(prop) && canDeleteProposal && (
                           <Tooltip title="Delete Proposal" arrow>
                             <IconButton
                               size="small"
