@@ -38,6 +38,7 @@ import { formatDate, formatDateTime } from '../../utils/formatters';
 import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 import { SubmitProposalDialog } from '../../components/Projects/SubmitProposalDialog';
 import { ReviewStatisticsDialog } from '../../components/Projects/ReviewStatisticsDialog';
+import { useAuth } from '../../context/AuthContext';
 
 const STATUS_COLORS = {
   Draft: { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' },
@@ -94,10 +95,17 @@ export const ProjectProposalDetails = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { enqueueSnackbar } = useSnackbar();
+  const { hasPermission } = useAuth();
 
   const [proposal, setProposal] = useState(null);
   const [reviewers, setReviewers] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Permissions for page actions
+  const canEditProposal = hasPermission('proposal.update') || hasPermission('proposal.edit');
+  const canDeleteProposal = hasPermission('proposal.delete');
+  const canSubmitProposal = hasPermission('proposal.submit');
+  const canCheckProceed = hasPermission('proposal.check');
 
   // Confirmation Modals
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -265,7 +273,7 @@ export const ProjectProposalDetails = () => {
                 Proposal Details
               </Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
-                {isDraft && (
+                {isDraft && canEditProposal && (
                   <Button
                     variant="outlined"
                     size="small"
@@ -276,7 +284,7 @@ export const ProjectProposalDetails = () => {
                     Edit
                   </Button>
                 )}
-                {isDraft && (
+                {isDraft && canDeleteProposal && (
                   <Button
                     variant="outlined"
                     size="small"
@@ -457,7 +465,7 @@ export const ProjectProposalDetails = () => {
             <Divider sx={{ mb: 3 }} />
 
             {/* Submit Action */}
-            {isDraft && (
+            {isDraft && canSubmitProposal && (
               <Box>
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem', mb: 2 }}>
                   Actions
