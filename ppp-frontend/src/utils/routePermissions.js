@@ -20,8 +20,11 @@
 //     `permission` field.
 
 export const ROUTE_PERMISSIONS = [
-  // Projects (action routes and children first, then the section root)
+  // Projects (action routes and children first, then the section root —
+  // MORE SPECIFIC paths MUST come first, since a path matches an entry when
+  // it equals it or is a descendant of it and the first match wins)
   { path: '/projects/proposals', permission: 'proposal.list' },
+  { path: '/projects/reviews/:id', permission: 'proposal.proposal_review_detail' },
   { path: '/projects/reviews', permission: 'proposal.proposal_review_list' },
   { path: '/projects/new', permission: 'project.create' },
   { path: '/projects/:id/edit', permission: 'project.update' },

@@ -66,6 +66,10 @@ export const ProjectReviewPage = () => {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const { user } = useAuth();
+  const { hasPermission } = useAuth();
+
+  // Permissions for page actions:
+  const canViewDetails = hasPermission('proposal.proposal_review_detail');
 
   // Data list
   const [reviewers, setReviewers] = useState([]);
@@ -363,6 +367,7 @@ export const ProjectReviewPage = () => {
                       </Typography>
                     </TableCell>
                     <TableCell align="right" sx={{ pr: 1 }}>
+                      {canViewDetails && (
                       <Button
                         variant="outlined"
                         size="small"
@@ -384,6 +389,7 @@ export const ProjectReviewPage = () => {
                       >
                         Approve Proposal
                       </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
