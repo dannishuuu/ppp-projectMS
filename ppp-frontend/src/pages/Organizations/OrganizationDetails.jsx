@@ -36,6 +36,18 @@ import { useSnackbar } from 'notistack';
 import { organizationService } from '../../services/organizationService';
 import { formatDate } from '../../utils/formatters';
 
+// License expiry status helper: Expired / Expiring soon (<=30d) / Valid
+const getLicenseExpiryInfo = (expiry) => {
+  if (!expiry) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const exp = new Date(expiry);
+  const daysLeft = Math.ceil((exp.getTime() - today.getTime()) / 86400000);
+  if (daysLeft < 0) return { label: `Expired ${Math.abs(daysLeft)}d ago`, color: 'error', value: 'expired' };
+  if (daysLeft <= 30) return { label: `Expiring in ${daysLeft}d`, color: 'warning', value: 'expiring' };
+  return { label: 'Valid', color: 'success', value: 'valid' };
+};
+
 export const OrganizationDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -221,6 +233,16 @@ export const OrganizationDetails = () => {
                   color: org.is_active ? '#059669' : '#dc2626',
                 }}
               />
+              {(() => {
+                const info = getLicenseExpiryInfo(org.license_expiry_date);
+                if (!info) return null;
+                const sx = {
+                  expired: { backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#dc2626' },
+                  expiring: { backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#b45309' },
+                  valid: { backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#059669' },
+                }[info.value];
+                return <Chip label={`License: ${info.label}`} size="small" sx={{ fontWeight: 700, fontSize: '0.72rem', ...sx }} />;
+              })()}
             </Box>
 
             {/* Display Amharic and Oromo names */}
@@ -442,9 +464,28 @@ export const OrganizationDetails = () => {
                 <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
                   License Expiry Date
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 600, fontSize: '0.85rem' }}>
-                  {org.license_expiry_date ? formatDate(org.license_expiry_date) : '-'}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      color: getLicenseExpiryInfo(org.license_expiry_date)?.value === 'expired' ? '#dc2626' : '#0f172a',
+                    }}
+                  >
+                    {org.license_expiry_date ? formatDate(org.license_expiry_date) : '-'}
+                  </Typography>
+                  {(() => {
+                    const info = getLicenseExpiryInfo(org.license_expiry_date);
+                    if (!info) return null;
+                    const sx = {
+                      expired: { backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#dc2626' },
+                      expiring: { backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#b45309' },
+                      valid: { backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#059669' },
+                    }[info.value];
+                    return <Chip label={info.label} size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, ...sx }} />;
+                  })()}
+                </Box>
               </Box>
             </Box>
           </Box>

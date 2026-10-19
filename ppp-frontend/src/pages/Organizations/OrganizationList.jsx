@@ -38,6 +38,18 @@ import { organizationService, organizationTypeService } from '../../services/org
 import { formatDate } from '../../utils/formatters';
 import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 
+// License expiry status helper: Expired / Expiring soon (<=30d) / Valid
+const getLicenseExpiryInfo = (expiry) => {
+  if (!expiry) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const exp = new Date(expiry);
+  const daysLeft = Math.ceil((exp.getTime() - today.getTime()) / 86400000);
+  if (daysLeft < 0) return { label: `Expired ${Math.abs(daysLeft)}d ago`, color: 'error', value: 'expired' };
+  if (daysLeft <= 30) return { label: `Expiring in ${daysLeft}d`, color: 'warning', value: 'expiring' };
+  return { label: 'Valid', color: 'success', value: 'valid' };
+};
+
 export const OrganizationList = () => {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
@@ -319,13 +331,15 @@ export const OrganizationList = () => {
       {/* Organizations Table */}
       <Paper sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
         <TableContainer>
-          <Table size="small" sx={{ minWidth: 700 }}>
+          <Table size="small" sx={{ minWidth: 950 }}>
             <TableHead sx={{ backgroundColor: '#f8fafc' }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Organization Name</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Type</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Business Sector</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Contact Info</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Legal Registration Date</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>License Expiry</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Status</TableCell>
                 {/* <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Created</TableCell> */}
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }} align="right">Actions</TableCell>
@@ -334,13 +348,13 @@ export const OrganizationList = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
                     <CircularProgress size={36} sx={{ color: '#4f46e5' }} />
                   </TableCell>
                 </TableRow>
               ) : organizations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6, color: '#94a3b8' }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6, color: '#94a3b8' }}>
                     No organizations found
                   </TableCell>
                 </TableRow>
@@ -438,6 +452,32 @@ export const OrganizationList = () => {
                           </Typography>
                         )}
                       </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.8rem' }}>
+                        {org.registration_date ? formatDate(org.registration_date) : '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.8rem' }}>
+                        {org.license_expiry_date ? formatDate(org.license_expiry_date) : '—'}
+                      </Typography>
+                      {(() => {
+                        const info = getLicenseExpiryInfo(org.license_expiry_date);
+                        if (!info) return null;
+                        const sx = {
+                          expired: { backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#dc2626' },
+                          expiring: { backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#b45309' },
+                          valid: { backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#059669' },
+                        }[info.value];
+                        return (
+                          <Chip
+                            label={info.label}
+                            size="small"
+                            sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, mt: 0.5, ...sx }}
+                          />
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       <Chip
