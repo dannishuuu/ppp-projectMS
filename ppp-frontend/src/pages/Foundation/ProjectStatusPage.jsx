@@ -336,7 +336,7 @@ export const ProjectStatusPage = () => {
               border: '1px solid #c7d2fe',
             }}
           />
-          {/* <Button
+          <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleDialogOpen('add')}
@@ -349,7 +349,7 @@ export const ProjectStatusPage = () => {
             }}
           >
             Add Status
-          </Button> */}
+          </Button>
         </Box>
       </Paper>
 
