@@ -539,7 +539,30 @@ export const OrganizationForm = () => {
         await organizationService.updateOrganization(id, payload);
         enqueueSnackbar('Organization updated successfully', { variant: 'success' });
       } else {
-        await organizationService.createOrganization(payload);
+        const created = await organizationService.createOrganization(payload);
+        // Attach any documents staged during creation
+        for (const pending of pendingDocs) {
+          try {
+            const uploadRes = await fileService.uploadFiles([pending.file]);
+            const uploaded = uploadRes.data?.[0];
+            if (!uploaded) throw new Error('File upload failed.');
+
+            await organizationService.addOrganizationDocument(created.id, {
+              documentTypeId: pending.documentTypeId,
+              documentNumber: pending.documentNumber,
+              title: pending.title,
+              description: pending.description,
+              issuedDate: pending.issuedDate,
+              expiryDate: pending.expiryDate,
+              filePath: uploaded.path,
+              originalFilename: uploaded.originalName,
+              fileSize: uploaded.size,
+              mimeType: uploaded.mimetype,
+            });
+          } catch (docErr) {
+            enqueueSnackbar(`Failed to attach "${pending.title}": ${docErr.message}`, { variant: 'error' });
+          }
+        }
         enqueueSnackbar('Organization created successfully', { variant: 'success' });
       }
       navigate('/organizations');
@@ -1111,9 +1134,8 @@ export const OrganizationForm = () => {
           </Box>
         </form>
 
-        {/* Supporting Documents (edit mode only) */}
-        {isEditMode && (
-          <Box sx={{ mt: 4 }}>
+        {/* Supporting Documents */}
+        <Box sx={{ mt: 4 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <Box
@@ -1150,19 +1172,29 @@ export const OrganizationForm = () => {
             </Stack>
             <Divider sx={{ borderColor: '#e2e8f0', mb: 2 }} />
 
+            {!isEditMode && (
+              <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 1.5 }}>
+                Files are staged locally and uploaded automatically right after the organization is created.
+              </Typography>
+            )}
+
             {docsLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                 <CircularProgress size={26} color="inherit" sx={{ color: '#4f46e5' }} />
               </Box>
-            ) : documents.length === 0 ? (
+            ) : displayDocs.length === 0 ? (
               <Typography variant="body2" sx={{ color: '#94a3b8', py: 2 }}>
                 No documents attached yet.
               </Typography>
             ) : (
               <Stack spacing={1}>
-                {documents.map((doc) => (
+                {displayDocs.map((doc) => {
+                  const docType = isEditMode
+                    ? doc.document_type
+                    : docTypesList.find((dt) => dt.id === doc.documentTypeId);
+                  return (
                   <Box
-                    key={doc.id}
+                    key={doc.id || doc.key}
                     sx={{
                       display: 'flex',
                       alignItems: 'center',
@@ -1183,13 +1215,13 @@ export const OrganizationForm = () => {
                         {doc.title}
                       </Typography>
                       <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.7rem', display: 'block' }}>
-                        {doc.document_type?.name}
-                        {doc.document_number ? ` • ${doc.document_number}` : ''}
-                        {` • ${doc.original_filename}`}
+                        {docType?.name}
+                        {doc.document_number || doc.documentNumber ? ` • ${doc.document_number || doc.documentNumber}` : ''}
+                        {isEditMode ? ` • ${doc.original_filename}` : ` • ${doc.file?.name || ''}`}
                       </Typography>
                     </Box>
                     <Chip
-                      label={doc.document_type?.requires_expiry ? `Exp: ${doc.expiry_date ? formatDate(doc.expiry_date) : '—'}` : 'No expiry'}
+                      label={docType?.requires_expiry ? `Exp: ${doc.expiry_date || doc.expiryDate ? formatDate(doc.expiry_date || doc.expiryDate) : '—'}` : 'No expiry'}
                       size="small"
                       sx={{
                         height: 20, fontSize: '0.68rem', fontWeight: 600,
@@ -1197,40 +1229,54 @@ export const OrganizationForm = () => {
                         color: doc.is_expired ? '#dc2626' : '#64748b',
                       }}
                     />
-                    <Chip
-                      label={doc.is_verified ? 'Verified' : 'Not Verified'}
-                      size="small"
-                      sx={{
-                        height: 20, fontSize: '0.68rem', fontWeight: 600,
-                        backgroundColor: doc.is_verified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                        color: doc.is_verified ? '#059669' : '#b45309',
-                      }}
-                    />
-                    <Button
-                      size="small"
-                      variant="text"
-                      href={`http://localhost:5000/${doc.file_path}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', color: '#0284c7' }}
-                    >
-                      Open
-                    </Button>
+                    {isEditMode ? (
+                      <Chip
+                        label={doc.is_verified ? 'Verified' : 'Not Verified'}
+                        size="small"
+                        sx={{
+                          height: 20, fontSize: '0.68rem', fontWeight: 600,
+                          backgroundColor: doc.is_verified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                          color: doc.is_verified ? '#059669' : '#b45309',
+                        }}
+                      />
+                    ) : (
+                      <Chip
+                        label="Pending save"
+                        size="small"
+                        sx={{
+                          height: 20, fontSize: '0.68rem', fontWeight: 600,
+                          backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                          color: '#4f46e5',
+                        }}
+                      />
+                    )}
+                    {isEditMode && (
+                      <Button
+                        size="small"
+                        variant="text"
+                        href={`http://localhost:5000/${doc.file_path}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', color: '#0284c7' }}
+                      >
+                        Open
+                      </Button>
+                    )}
                     <Tooltip title="Delete Document">
                       <IconButton
                         size="small"
-                        onClick={() => setDeleteDocTarget(doc)}
+                        onClick={() => (isEditMode ? setDeleteDocTarget(doc) : setPendingDocs((prev) => prev.filter((p) => p.key !== doc.key)))}
                         sx={{ color: '#dc2626', backgroundColor: '#fef2f2', borderRadius: 1.5, p: 0.6, '&:hover': { backgroundColor: '#fee2e2' } }}
                       >
                         <DeleteDocIcon sx={{ fontSize: 15 }} />
                       </IconButton>
                     </Tooltip>
                   </Box>
-                ))}
+                  );
+                })}
               </Stack>
             )}
           </Box>
-        )}
       </Paper>
 
       {/* Attach Document Modal */}
