@@ -345,6 +345,9 @@ export const OrganizationForm = () => {
     if (!formData.businessSectorId) errors.businessSectorId = 'Business sector is required.';
     if (!formData.registrationDate) errors.registrationDate = 'Legal registration date is required.';
     if (!formData.licenseNumber?.trim()) errors.licenseNumber = 'Trade license / registration number is required.';
+    if (formData.licenseExpiryDate && formData.registrationDate && new Date(formData.licenseExpiryDate) < new Date(formData.registrationDate)) {
+      errors.licenseExpiryDate = 'License expiry date cannot be earlier than the legal registration date.';
+    }
 
     setFieldErrors(errors);
 

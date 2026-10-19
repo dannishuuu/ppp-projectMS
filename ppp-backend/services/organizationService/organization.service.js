@@ -156,6 +156,11 @@ class OrganizationService {
       err.status = 400;
       throw err;
     }
+    if (licenseExpiryDate && registrationDate && new Date(licenseExpiryDate) < new Date(registrationDate)) {
+      const err = new Error('License expiry date cannot be earlier than the legal registration date.');
+      err.status = 400;
+      throw err;
+    }
 
     // Uniqueness check
     const existing = await OrganizationModel.findByName(name.trim());
@@ -309,6 +314,11 @@ class OrganizationService {
     }
     if (!licenseNumber || !licenseNumber.trim()) {
       const err = new Error('Trade license / registration number is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (licenseExpiryDate && registrationDate && new Date(licenseExpiryDate) < new Date(registrationDate)) {
+      const err = new Error('License expiry date cannot be earlier than the legal registration date.');
       err.status = 400;
       throw err;
     }
