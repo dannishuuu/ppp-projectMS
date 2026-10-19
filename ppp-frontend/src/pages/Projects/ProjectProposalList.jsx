@@ -392,7 +392,7 @@ export const ProjectProposalList = () => {
             <TableHead sx={{ backgroundColor: '#f8fafc' }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Doc. Number</TableCell>
-                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Proposal Details</TableCell>
+                {/* <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Proposal Details</TableCell> */}
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Developer</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Category</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Capital Requirement</TableCell>
@@ -465,7 +465,7 @@ export const ProjectProposalList = () => {
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
                         <Avatar sx={{ width: 32, height: 32, backgroundColor: '#c7d2fe', color: '#4338ca' }}>
                           <ProposalIcon sx={{ fontSize: 18 }} />
@@ -489,7 +489,7 @@ export const ProjectProposalList = () => {
                           </Typography>
                         </Box>
                       </Box>
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <OrgIcon sx={{ fontSize: 16, color: '#64748b' }} />

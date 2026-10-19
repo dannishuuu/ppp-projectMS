@@ -27,7 +27,6 @@ import {
   Close as CloseIcon,
   QueryStats as StatsIcon,
   MoreVert as MoreIcon,
-  TrendingUp as TrendUpIcon,
   CheckCircle as CheckCircleIcon,
   Construction as ConstructIcon,
   Verified as VerifiedIcon,
@@ -84,81 +83,35 @@ const resolveStatus = (name = '') => {
   return { bg: D.neutralBg, fg: D.neutralFg, dot: D.neutralDot, icon: <MoreHorizIcon /> };
 };
 
-/* ── Tiny sparkline SVG ──────────────────────────────────────────────────────── */
-const Sparkline = ({ color }) => (
-  <svg width="64" height="24" viewBox="0 0 64 24" fill="none" style={{ flexShrink: 0 }}>
-    <path d="M2 18L14 14L26 19L38 8L50 12L62 3"
-      stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M2 18L14 14L26 19L38 8L50 12L62 3V24H2V18Z"
-      fill={color} fillOpacity="0.08" />
-  </svg>
-);
-
 /* ── KPI Card ────────────────────────────────────────────────────────────────── */
-const KpiCard = ({ icon, iconBg, iconColor, badge, badgeColor, badgeBg, badgeBorder,
-  value, valueSub, label, footerLeft, footerRight, footerColor, loading }) => (
+const KpiCard = ({ icon, iconBg, iconColor, value, label, loading }) => (
   <Box sx={{
     flex: '1 1 220px', minWidth: 0,
     bgcolor: D.card, borderRadius: '12px',
-    border: `1px solid ${D.border}`, p: '20px',
-    display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+    border: `1px solid ${D.border}`, p: '14px 18px',
+    display: 'flex', alignItems: 'center', gap: 1.5,
     boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
     transition: 'box-shadow .2s',
     '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.08)' },
   }}>
-    {/* Top row */}
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-      <Box sx={{
-        width: 40, height: 40, borderRadius: '8px',
-        bgcolor: iconBg, color: iconColor,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        border: `1px solid ${iconColor}22`,
-      }}>
-        {icon}
-      </Box>
-      <Box sx={{
-        display: 'flex', alignItems: 'center', gap: 0.5,
-        px: 1.25, py: 0.4, borderRadius: '99px',
-        bgcolor: badgeBg, color: badgeColor,
-        border: `1px solid ${badgeBorder}`,
-        fontSize: '0.6875rem', fontWeight: 700,
-        fontFamily: 'Inter, sans-serif',
-      }}>
-        {badge}
-      </Box>
+    <Box sx={{
+      width: 38, height: 38, borderRadius: '8px', flexShrink: 0,
+      bgcolor: iconBg, color: iconColor,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      border: `1px solid ${iconColor}22`,
+    }}>
+      {icon}
     </Box>
-
-    {/* Value row */}
-    <Box sx={{ mt: 2 }}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-        {loading
-          ? <Skeleton width={60} height={42} />
-          : <Typography sx={{ fontFamily: '"Plus Jakarta Sans", Inter, sans-serif', fontWeight: 800, fontSize: '1.875rem', color: D.textPrimary, lineHeight: 1, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
-              {value}
-            </Typography>
-        }
-        <Sparkline color={iconColor} />
-      </Box>
-      <Typography sx={{ mt: 0.5, fontSize: '0.6875rem', fontWeight: 700, color: D.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Inter, sans-serif' }}>
+    <Box sx={{ minWidth: 0 }}>
+      {loading
+        ? <Skeleton width={54} height={28} />
+        : <Typography sx={{ fontFamily: '"Plus Jakarta Sans", Inter, sans-serif', fontWeight: 800, fontSize: '1.375rem', color: D.textPrimary, lineHeight: 1.1, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
+            {value}
+          </Typography>
+      }
+      <Typography sx={{ mt: 0.25, fontSize: '0.625rem', fontWeight: 700, color: D.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap' }}>
         {label}
       </Typography>
-      {valueSub && (
-        <Box sx={{
-          mt: 0.75, display: 'inline-flex', alignItems: 'center', gap: 0.5,
-          px: 1.25, py: 0.3, borderRadius: '4px',
-          bgcolor: iconBg, color: iconColor,
-          fontSize: '0.6875rem', fontWeight: 600, fontFamily: 'Inter, sans-serif',
-          border: `1px solid ${iconColor}22`,
-        }}>
-          {valueSub}
-        </Box>
-      )}
-    </Box>
-
-    {/* Footer */}
-    <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${D.borderSubtle}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <Typography sx={{ fontSize: '0.6875rem', color: D.textMuted, fontFamily: 'Inter, sans-serif' }}>{footerLeft}</Typography>
-      <Typography sx={{ fontSize: '0.6875rem', fontWeight: 600, color: footerColor || D.textPrimary, fontFamily: 'Inter, sans-serif', fontVariantNumeric: 'tabular-nums' }}>{footerRight}</Typography>
     </Box>
   </Box>
 );
@@ -557,47 +510,29 @@ export const ProjectList = () => {
         <KpiCard
           icon={<PipelineIcon sx={{ fontSize: 20 }} />}
           iconBg="#dbeafe" iconColor={D.primaryCont}
-          badge={<><TrendUpIcon sx={{ fontSize: 13 }} /> +12% YoY</>}
-          badgeBg="#f0fdf4" badgeColor="#15803d" badgeBorder="#bbf7d0"
           value={loading ? '…' : total}
           label="Total Pipeline Concessions"
-          valueSub={null}
-          footerLeft="Aggregate Value" footerRight="$42.8B Valuation"
           loading={loading}
         />
         <KpiCard
           icon={<CheckCircleIcon sx={{ fontSize: 20 }} />}
           iconBg="#f0fdf4" iconColor="#15803d"
-          badge="59.4% Portfolio"
-          badgeBg="#f0fdf4" badgeColor="#15803d" badgeBorder="#bbf7d0"
           value={loading ? '…' : stats.active}
           label="Active & Operational"
-          valueSub={<><Box component="span" sx={{ mr: 0.4, fontSize: '0.6875rem' }}>⚡</Box>99.1% Concession SLA</>}
-          footerLeft="Capital In Operation" footerRight="$26.1B deployed"
-          footerColor="#15803d"
           loading={loading}
         />
         <KpiCard
           icon={<ConstructIcon sx={{ fontSize: 20 }} />}
           iconBg="#fef9c3" iconColor="#a16207"
-          badge="$14.2B Capital at Risk"
-          badgeBg="#fef9c3" badgeColor="#a16207" badgeBorder="#fde68a"
           value={loading ? '…' : stats.construct}
           label="Under Construction / EPC"
-          valueSub={<><Box component="span" sx={{ mr: 0.4, fontSize: '0.6875rem' }}>⏱</Box>14 Critical Path</>}
-          footerLeft="Avg Completion Pace" footerRight="On schedule (94%)"
-          footerColor="#a16207"
           loading={loading}
         />
         <KpiCard
           icon={<VerifiedIcon sx={{ fontSize: 20 }} />}
           iconBg="#f5f3ff" iconColor="#7c3aed"
-          badge="100% Term Compliant"
-          badgeBg="#f5f3ff" badgeColor="#7c3aed" badgeBorder="#ddd6fe"
           value={loading ? '…' : stats.completed}
           label="Handed Over / Reverted"
-          valueSub={<><Box component="span" sx={{ mr: 0.4, fontSize: '0.6875rem' }}>🛡</Box>Audit Pass</>}
-          footerLeft="Sovereign Asset Transfer" footerRight="Zero liabilities"
           loading={loading}
         />
       </Box>
