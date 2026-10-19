@@ -561,8 +561,24 @@ class OrganizationService {
   static async verifyOrganizationDocument(documentId, payload, actorId) {
     await this.getOrganizationDocumentById(documentId);
 
-    const { notes } = payload || {};
-    const result = await OrganizationModel.verifyOrganizationDocument(documentId, actorId, notes);
+    const body = payload || {};
+    // is_verified is the status: true = approved, false + verified_at = rejected, untouched = pending
+    const status = body.status || (body.is_verified === false ? 'rejected' : 'approved');
+    const notes = body.notes ?? body.verification_notes ?? body.verificationNotes ?? null;
+
+    if (status !== 'approved' && status !== 'rejected') {
+      const err = new Error('Verification status must be either "approved" or "rejected".');
+      err.status = 400;
+      throw err;
+    }
+    if (status === 'rejected' && (!notes || !notes.trim())) {
+      const err = new Error('Verification notes are required when rejecting a document.');
+      err.status = 400;
+      throw err;
+    }
+
+    const isVerified = status === 'approved';
+    const result = await OrganizationModel.verifyOrganizationDocument(documentId, actorId, isVerified, notes);
     if (!result) {
       const err = new Error('Failed to verify document.');
       err.status = 500;

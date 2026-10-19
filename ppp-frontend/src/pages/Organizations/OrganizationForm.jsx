@@ -1265,12 +1265,26 @@ export const OrganizationForm = () => {
                                 <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="center">
                                   {isEditMode ? (
                                     <Chip
-                                      label={existingDoc.is_verified ? 'Verified' : 'Not Verified'}
+                                      label={
+                                        existingDoc.is_verified
+                                          ? 'Verified'
+                                          : existingDoc.verified_at
+                                            ? 'Rejected'
+                                            : 'Not Verified'
+                                      }
                                       size="small"
                                       sx={{
                                         height: 20, fontSize: '0.62rem', fontWeight: 700,
-                                        backgroundColor: existingDoc.is_verified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                                        color: existingDoc.is_verified ? '#059669' : '#b45309',
+                                        backgroundColor: existingDoc.is_verified
+                                          ? 'rgba(16, 185, 129, 0.1)'
+                                          : existingDoc.verified_at
+                                            ? 'rgba(239, 68, 68, 0.1)'
+                                            : 'rgba(245, 158, 11, 0.1)',
+                                        color: existingDoc.is_verified
+                                          ? '#059669'
+                                          : existingDoc.verified_at
+                                            ? '#dc2626'
+                                            : '#b45309',
                                       }}
                                     />
                                   ) : (

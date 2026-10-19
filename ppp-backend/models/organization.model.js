@@ -524,22 +524,29 @@ class OrganizationModel {
   }
 
   /**
-   * Verify an organization document.
+   * Verify (approve) or reject an organization document using is_verified:
+   *   approved → is_verified = TRUE
+   *   rejected → is_verified = FALSE but verified_at/verified_by set (decision recorded, notes mandatory)
+   * Unreviewed docs keep verified_at NULL ("Not Verified" / pending).
+   * @param {string} id
+   * @param {string} verifierId
+   * @param {boolean} isVerified
+   * @param {string|null} notes
    */
-  static async verifyOrganizationDocument(id, verifierId, notes) {
+  static async verifyOrganizationDocument(id, verifierId, isVerified, notes) {
     const query = `
       UPDATE organization_documents
-      SET is_verified = TRUE,
+      SET is_verified = :isVerified,
           verified_at = NOW(),
           verified_by = :verifierId,
           verification_notes = :notes,
           updated_at = NOW(),
           updated_by = :verifierId
       WHERE id = :id AND is_deleted = FALSE
-      RETURNING id, is_verified
+      RETURNING id, is_verified, verified_at
     `;
     const rows = await db.query(query, {
-      replacements: { id, verifierId, notes: notes || null },
+      replacements: { id, verifierId, isVerified, notes: notes || null },
       type: QueryTypes.SELECT,
     });
     return rows[0] || null;

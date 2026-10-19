@@ -16,9 +16,14 @@ import {
   useMediaQuery,
   useTheme,
   Stack,
+  TextField,
   Alert,
   IconButton,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -88,16 +93,33 @@ export const OrganizationDetails = () => {
     }
   }, [loading, org, fetchDocuments]);
 
-  const handleVerifyDoc = async (doc) => {
-    setVerifyingDocId(doc.id);
+  const [verifyDocTarget, setVerifyDocTarget] = useState(null);
+  const [verifyAction, setVerifyAction] = useState('approved'); // 'approved' | 'rejected'
+  const [verifyNotes, setVerifyNotes] = useState('');
+  const [verifySaving, setVerifySaving] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
+
+  const handleVerifyDocSubmit = async (action) => {
+    setVerifyAction(action); // 'approved' | 'rejected'
+    if (action === 'rejected' && !verifyNotes.trim()) {
+      setVerifyError('Verification notes are required when rejecting a document.');
+      return;
+    }
+    setVerifySaving(true);
+    setVerifyError('');
     try {
-      await organizationService.verifyOrganizationDocument(id, doc.id, {});
-      enqueueSnackbar('Document verified successfully', { variant: 'success' });
+      await organizationService.verifyOrganizationDocument(id, verifyDocTarget.id, {
+        status: action,
+        notes: verifyNotes.trim() || null,
+      });
+      enqueueSnackbar(action === 'approved' ? 'Document verified successfully' : 'Document rejected', { variant: 'success' });
+      setVerifyDocTarget(null);
+      setVerifyNotes('');
       fetchDocuments();
     } catch (err) {
-      enqueueSnackbar(err.message || 'Failed to verify document', { variant: 'error' });
+      setVerifyError(err.message || 'Failed to verify document');
     } finally {
-      setVerifyingDocId(null);
+      setVerifySaving(false);
     }
   };
 
@@ -643,12 +665,26 @@ export const OrganizationDetails = () => {
                   }}
                 />
                 <Chip
-                  label={doc.is_verified ? 'Verified' : 'Not Verified'}
+                  label={
+                    doc.is_verified
+                      ? 'Verified'
+                      : doc.verified_at
+                        ? 'Rejected'
+                        : 'Not Verified'
+                  }
                   size="small"
                   sx={{
                     height: 20, fontSize: '0.68rem', fontWeight: 600,
-                    backgroundColor: doc.is_verified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                    color: doc.is_verified ? '#059669' : '#b45309',
+                    backgroundColor: doc.is_verified
+                      ? 'rgba(16, 185, 129, 0.1)'
+                      : doc.verified_at
+                        ? 'rgba(239, 68, 68, 0.1)'
+                        : 'rgba(245, 158, 11, 0.1)',
+                    color: doc.is_verified
+                      ? '#059669'
+                      : doc.verified_at
+                        ? '#dc2626'
+                        : '#b45309',
                   }}
                 />
                 <Button
@@ -662,16 +698,21 @@ export const OrganizationDetails = () => {
                   Open
                 </Button>
                 {!doc.is_verified && (
-                  <Tooltip title="Verify Document">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleVerifyDoc(doc)}
-                      disabled={verifyingDocId === doc.id}
-                      sx={{ color: '#059669', backgroundColor: '#ecfdf5', borderRadius: 1.5, p: 0.6, '&:hover': { backgroundColor: '#d1fae5' } }}
-                    >
-                      {verifyingDocId === doc.id ? <CircularProgress size={14} color="inherit" /> : <VerifyIcon sx={{ fontSize: 15 }} />}
-                    </IconButton>
-                  </Tooltip>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="success"
+                    startIcon={<VerifyIcon sx={{ fontSize: 15 }} />}
+                    onClick={() => {
+                      setVerifyDocTarget(doc);
+                      setVerifyAction('approved');
+                      setVerifyNotes('');
+                      setVerifyError('');
+                    }}
+                    sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 700, fontSize: '0.72rem', borderColor: '#a7f3d0', color: '#059669', backgroundColor: '#ecfdf5', '&:hover': { backgroundColor: '#d1fae5', borderColor: '#059669' } }}
+                  >
+                    Verify Document
+                  </Button>
                 )}
               </Box>
             ))}
@@ -762,6 +803,76 @@ export const OrganizationDetails = () => {
           </Grid>
         </Grid>
       </Paper>
+
+      {/* Verify Document Modal (approve / reject with mandatory notes on reject) */}
+      <Dialog
+        open={Boolean(verifyDocTarget)}
+        onClose={() => { setVerifyDocTarget(null); setVerifyError(''); }}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, p: 0.5 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', pb: 1 }}>Verify Document</DialogTitle>
+        <Divider />
+        <DialogContent>
+          {verifyError && (
+            <Alert severity="error" sx={{ mb: 2, mt: 1.5, borderRadius: 2 }}>
+              {verifyError}
+            </Alert>
+          )}
+          <Stack spacing={1.5} sx={{ mt: 1 }}>
+            <Typography variant="body2" sx={{ color: '#334155', fontSize: '0.85rem' }}>
+              Decide on{' '}
+              <Box component="span" sx={{ fontWeight: 700, color: '#0f172a' }}>
+                {verifyDocTarget?.title}
+              </Box>
+              : approve it as valid, or reject it — rejection requires mandatory notes.
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              size="small"
+              label={verifyAction === 'rejected' ? 'Verification Notes (Required)' : 'Verification Notes'}
+              required={verifyAction === 'rejected'}
+              placeholder={verifyAction === 'rejected' ? 'Reason for rejecting this document…' : 'Optional remarks…'}
+              value={verifyNotes}
+              onChange={(e) => {
+                setVerifyNotes(e.target.value);
+                if (verifyError) setVerifyError('');
+              }}
+              disabled={verifySaving}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1.5, gap: 1 }}>
+          <Button
+            onClick={() => { setVerifyDocTarget(null); setVerifyError(''); setVerifyNotes(''); }}
+            disabled={verifySaving}
+            sx={{ borderRadius: 2, fontWeight: 600, color: '#64748b' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={() => handleVerifyDocSubmit('rejected')}
+            disabled={verifySaving}
+            sx={{ borderRadius: 2, fontWeight: 700, minWidth: 90 }}
+          >
+            Reject
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={() => handleVerifyDocSubmit('approved')}
+            disabled={verifySaving}
+            sx={{ borderRadius: 2, fontWeight: 700, minWidth: 110 }}
+          >
+            {verifySaving ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Approve'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
