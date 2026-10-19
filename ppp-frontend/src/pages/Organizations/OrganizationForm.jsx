@@ -702,6 +702,7 @@ export const OrganizationForm = () => {
           width: '100%',
         }}
       >
+        <form onSubmit={handleSubmit} noValidate>
         <Tabs
           value={activeTab}
           onChange={(event, value) => {
@@ -751,7 +752,6 @@ export const OrganizationForm = () => {
         </Tabs>
 
         {activeTab === 0 && (
-        <form onSubmit={handleSubmit} noValidate>
           <Box
             sx={{
               display: 'grid',
@@ -1139,63 +1139,6 @@ export const OrganizationForm = () => {
             </Stack>
           </Box>
 
-          {/* Submit Actions Footer */}
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mt: 4,
-              pt: 3,
-              borderTop: '1px solid #e2e8f0',
-              flexWrap: 'wrap',
-              gap: 2,
-            }}
-          >
-            <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
-              {isEditMode ? 'Changes will be saved immediately' : 'All required fields must be completed'}
-            </Typography>
-
-            <Stack direction="row" spacing={2}>
-              <Button
-                variant="outlined"
-                color="inherit"
-                onClick={() => navigate('/organizations')}
-                disabled={saving}
-                sx={{
-                  borderRadius: 2,
-                  px: 3,
-                  borderColor: '#cbd5e1',
-                  color: '#475569',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={saving}
-                startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
-                sx={{
-                  px: 4,
-                  py: 1,
-                  borderRadius: 2,
-                  fontWeight: 700,
-                  textTransform: 'none',
-                  backgroundColor: '#4f46e5',
-                  '&:hover': { backgroundColor: '#4338ca' },
-                  boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)',
-                  '&:disabled': { backgroundColor: '#e2e8f0', color: '#94a3b8', boxShadow: 'none' },
-                }}
-              >
-                {saving ? 'Saving...' : isEditMode ? 'Update Organization' : 'Create Organization'}
-              </Button>
-            </Stack>
-          </Box>
-        </form>
         )}
 
         {activeTab === 1 && (
@@ -1451,6 +1394,64 @@ export const OrganizationForm = () => {
           )}
         </Box>
         )}
+
+        {/* Submit Actions Footer (always visible on both tabs) */}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mt: 4,
+            pt: 3,
+            borderTop: '1px solid #e2e8f0',
+            flexWrap: 'wrap',
+            gap: 2,
+          }}
+        >
+          <Typography variant="caption" sx={{ color: '#94a3b8', fontStyle: 'italic' }}>
+            {isEditMode ? 'Changes will be saved immediately' : 'All required fields must be completed'}
+          </Typography>
+
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              color="inherit"
+              onClick={() => navigate('/organizations')}
+              disabled={saving}
+              sx={{
+                borderRadius: 2,
+                px: 3,
+                borderColor: '#cbd5e1',
+                color: '#475569',
+                fontWeight: 600,
+                textTransform: 'none',
+                '&:hover': { borderColor: '#94a3b8', backgroundColor: '#f8fafc' },
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={saving}
+              startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
+              sx={{
+                px: 4,
+                py: 1,
+                borderRadius: 2,
+                fontWeight: 700,
+                textTransform: 'none',
+                backgroundColor: '#4f46e5',
+                '&:hover': { backgroundColor: '#4338ca' },
+                boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)',
+                '&:disabled': { backgroundColor: '#e2e8f0', color: '#94a3b8', boxShadow: 'none' },
+              }}
+            >
+              {saving ? 'Saving...' : isEditMode ? 'Update Organization' : 'Create Organization'}
+            </Button>
+          </Stack>
+        </Box>
+        </form>
       </Paper>
 
       {/* Delete Document Confirmation */}
