@@ -63,6 +63,7 @@ export const ROUTE_PERMISSIONS = [
   { path: '/foundation/area-units', permission: 'foundation.list_area_unit' },
   { path: '/foundation/floor-types', permission: 'foundation.list_floor_type' },
   { path: '/foundation/business-sectors', permission: 'foundation.list_business_sector' },
+  { path: '/foundation/organization-document-types', permission: 'foundation.list_organization_document_type' },
 ];
 
 /**
