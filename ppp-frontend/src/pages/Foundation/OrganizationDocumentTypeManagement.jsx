@@ -128,6 +128,10 @@ export const OrganizationDocumentTypeManagement = () => {
 
   // Open Create/Edit/View Dialog
   const handleDialogOpen = (mode, docType = null) => {
+    if (mode === 'add' && !canCreateProject) return;
+    if (mode === 'edit' && !canEditProject) return;
+    if (mode === 'view' && !canViewDetails) return;
+
     setDialogMode(mode);
     setSelectedDocType(docType);
     if ((mode === 'edit' || mode === 'view') && docType) {
@@ -170,6 +174,17 @@ export const OrganizationDocumentTypeManagement = () => {
   const handleSubmit = async (e) => {
     e?.preventDefault();
     setFormError('');
+
+    if (dialogMode === 'add' && !canCreateProject) {
+      setFormError('You do not have permission to create document types.');
+      return;
+    }
+
+    if (dialogMode === 'edit' && !canEditProject) {
+      setFormError('You do not have permission to edit document types.');
+      return;
+    }
+
     if (!formData.name.trim()) {
       setFormError('Document type name is required.');
       return;
@@ -363,20 +378,22 @@ export const OrganizationDocumentTypeManagement = () => {
               border: '1px solid #c7d2fe',
             }}
           />
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => handleDialogOpen('add')}
-            sx={{
-              fontWeight: 600,
-              borderRadius: 2,
-              backgroundColor: '#4f46e5',
-              '&:hover': { backgroundColor: '#4338ca' },
-              fontSize: '0.82rem',
-            }}
-          >
-            Add Document Type
-          </Button>
+          {canCreateProject && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => handleDialogOpen('add')}
+              sx={{
+                fontWeight: 600,
+                borderRadius: 2,
+                backgroundColor: '#4f46e5',
+                '&:hover': { backgroundColor: '#4338ca' },
+                fontSize: '0.82rem',
+              }}
+            >
+              Add Document Type
+            </Button>
+          )}
         </Box>
       </Paper>
 
@@ -418,13 +435,13 @@ export const OrganizationDocumentTypeManagement = () => {
                         </Avatar>
                         <Typography
                           variant="body2"
-                          onClick={() => handleDialogOpen('view', docType)}
+                          onClick={() => canViewDetails && handleDialogOpen('view', docType)}
                           sx={{
                             fontWeight: 600,
                             color: '#0f172a',
                             fontSize: '0.82rem',
-                            cursor: 'pointer',
-                            '&:hover': { color: '#4f46e5', textDecoration: 'underline' },
+                            cursor: canViewDetails ? 'pointer' : 'default',
+                            '&:hover': canViewDetails ? { color: '#4f46e5', textDecoration: 'underline' } : {},
                           }}
                         >
                           {docType.name}
@@ -491,51 +508,59 @@ export const OrganizationDocumentTypeManagement = () => {
                     </TableCell>
                     <TableCell align="right" sx={{ pr: 1 }}>
                       <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                        <Tooltip title="View Details" arrow placement="top">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDialogOpen('view', docType)}
-                            sx={{ ...actionButtonSx, color: '#0284c7', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', '&:hover': { backgroundColor: '#e0f2fe', color: '#0369a1' } }}
-                          >
-                            <ViewIcon sx={{ fontSize: 15 }} />
-                          </IconButton>
-                        </Tooltip>
+                        {canViewDetails && (
+                          <Tooltip title="View Details" arrow placement="top">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDialogOpen('view', docType)}
+                              sx={{ ...actionButtonSx, color: '#0284c7', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', '&:hover': { backgroundColor: '#e0f2fe', color: '#0369a1' } }}
+                            >
+                              <ViewIcon sx={{ fontSize: 15 }} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
 
-                        <Tooltip title="Edit Document Type" arrow placement="top">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDialogOpen('edit', docType)}
-                            sx={{ ...actionButtonSx, color: '#4f46e5', backgroundColor: '#f5f3ff', border: '1px solid #ede9fe', '&:hover': { backgroundColor: '#ede9fe', color: '#4338ca' } }}
-                          >
-                            <EditIcon sx={{ fontSize: 15 }} />
-                          </IconButton>
-                        </Tooltip>
+                        {canEditProject && (
+                          <Tooltip title="Edit Document Type" arrow placement="top">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDialogOpen('edit', docType)}
+                              sx={{ ...actionButtonSx, color: '#4f46e5', backgroundColor: '#f5f3ff', border: '1px solid #ede9fe', '&:hover': { backgroundColor: '#ede9fe', color: '#4338ca' } }}
+                            >
+                              <EditIcon sx={{ fontSize: 15 }} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
 
-                        <Tooltip title={docType.is_active ? 'Deactivate' : 'Activate'} arrow placement="top">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleToggleDialogOpen(docType)}
-                            sx={{
-                              ...actionButtonSx,
-                              color: docType.is_active ? '#d97706' : '#059669',
-                              backgroundColor: docType.is_active ? '#fff7ed' : '#ecfdf5',
-                              border: `1px solid ${docType.is_active ? '#ffedd5' : '#d1fae5'}`,
-                              '&:hover': { backgroundColor: docType.is_active ? '#ffedd5' : '#d1fae5' },
-                            }}
-                          >
-                            {docType.is_active ? <DeactivateIcon sx={{ fontSize: 15 }} /> : <ActivateIcon sx={{ fontSize: 15 }} />}
-                          </IconButton>
-                        </Tooltip>
+                        {canExportActivate && (
+                          <Tooltip title={docType.is_active ? 'Deactivate' : 'Activate'} arrow placement="top">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleToggleDialogOpen(docType)}
+                              sx={{
+                                ...actionButtonSx,
+                                color: docType.is_active ? '#d97706' : '#059669',
+                                backgroundColor: docType.is_active ? '#fff7ed' : '#ecfdf5',
+                                border: `1px solid ${docType.is_active ? '#ffedd5' : '#d1fae5'}`,
+                                '&:hover': { backgroundColor: docType.is_active ? '#ffedd5' : '#d1fae5' },
+                              }}
+                            >
+                              {docType.is_active ? <DeactivateIcon sx={{ fontSize: 15 }} /> : <ActivateIcon sx={{ fontSize: 15 }} />}
+                            </IconButton>
+                          </Tooltip>
+                        )}
 
-                        <Tooltip title="Delete Document Type" arrow placement="top">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeleteDialogOpen(docType)}
-                            sx={{ ...actionButtonSx, color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', '&:hover': { backgroundColor: '#fee2e2', color: '#b91c1c' } }}
-                          >
-                            <DeleteIcon sx={{ fontSize: 15 }} />
-                          </IconButton>
-                        </Tooltip>
+                        {canDeleteProject && (
+                          <Tooltip title="Delete Document Type" arrow placement="top">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteDialogOpen(docType)}
+                              sx={{ ...actionButtonSx, color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', '&:hover': { backgroundColor: '#fee2e2', color: '#b91c1c' } }}
+                            >
+                              <DeleteIcon sx={{ fontSize: 15 }} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>
