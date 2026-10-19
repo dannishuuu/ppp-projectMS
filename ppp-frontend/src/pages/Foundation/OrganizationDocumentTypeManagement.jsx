@@ -69,6 +69,7 @@ export const OrganizationDocumentTypeManagement = () => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [requiredFilter, setRequiredFilter] = useState('all');
 
   // Dialog State (Create, Edit, View)
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -93,6 +94,7 @@ export const OrganizationDocumentTypeManagement = () => {
         limit: rowsPerPage,
         search: searchTerm,
         status: statusFilter,
+        required: requiredFilter,
       });
       setDocTypes(result.organizationDocumentTypes || result.rows || []);
       setTotalCount(result.pagination?.total || result.total || 0);
@@ -105,7 +107,7 @@ export const OrganizationDocumentTypeManagement = () => {
 
   useEffect(() => {
     fetchDocTypes();
-  }, [page, rowsPerPage, statusFilter]);
+  }, [page, rowsPerPage, statusFilter, requiredFilter]);
 
   // Debounced search
   useEffect(() => {
@@ -123,6 +125,17 @@ export const OrganizationDocumentTypeManagement = () => {
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // Filter changes should always return to the first page of the new result set
+  const handleStatusFilterChange = (event) => {
+    setStatusFilter(event.target.value);
+    setPage(0);
+  };
+
+  const handleRequiredFilterChange = (event) => {
+    setRequiredFilter(event.target.value);
     setPage(0);
   };
 
@@ -347,7 +360,7 @@ export const OrganizationDocumentTypeManagement = () => {
           select
           size="small"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={handleStatusFilterChange}
           sx={{
             flex: '0 0 140px',
             '& .MuiOutlinedInput-root': {
@@ -363,6 +376,29 @@ export const OrganizationDocumentTypeManagement = () => {
           <MenuItem value="all">All Status</MenuItem>
           <MenuItem value="active">Active</MenuItem>
           <MenuItem value="inactive">Inactive</MenuItem>
+        </TextField>
+
+        {/* Required Filter Dropdown */}
+        <TextField
+          select
+          size="small"
+          value={requiredFilter}
+          onChange={handleRequiredFilterChange}
+          sx={{
+            flex: '0 0 150px',
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2,
+              fontSize: '0.8rem',
+              backgroundColor: '#f8fafc',
+              '& fieldset': { borderColor: '#e2e8f0' },
+              '&:hover fieldset': { borderColor: '#cbd5e1' },
+              '&.Mui-focused fieldset': { borderColor: '#4f46e5' },
+            },
+          }}
+        >
+          <MenuItem value="all">All Requirements</MenuItem>
+          <MenuItem value="required">Required</MenuItem>
+          <MenuItem value="optional">Optional</MenuItem>
         </TextField>
 
         <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>

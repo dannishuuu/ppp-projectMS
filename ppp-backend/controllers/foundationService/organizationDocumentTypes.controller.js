@@ -3,12 +3,13 @@ const OrganizationDocumentTypesService = require('../../services/foundationServi
 
 exports.getOrganizationDocumentTypes = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, search = '', status = 'all' } = req.query;
+    const { page = 1, limit = 10, search = '', status = 'all', required = 'all' } = req.query;
     const result = await OrganizationDocumentTypesService.getOrganizationDocumentTypes({
       page: parseInt(page, 10),
       limit: parseInt(limit, 10),
       search,
       status,
+      required,
     });
     return res.status(200).json({ success: true, data: result });
   } catch (error) {

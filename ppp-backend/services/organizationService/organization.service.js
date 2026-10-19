@@ -436,6 +436,11 @@ class OrganizationService {
       err.status = 400;
       throw err;
     }
+    if (!issuedDate) {
+      const err = new Error('Issued date is required for all documents.');
+      err.status = 400;
+      throw err;
+    }
 
     const docType = await OrganizationDocumentTypesModel.findById(documentTypeId);
     if (!docType || docType.is_deleted || docType.is_active === false) {

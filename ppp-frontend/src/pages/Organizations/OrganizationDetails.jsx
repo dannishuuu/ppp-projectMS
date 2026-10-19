@@ -16,16 +16,7 @@ import {
   useMediaQuery,
   useTheme,
   Stack,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   IconButton,
   Tooltip,
 } from '@mui/material';
@@ -43,16 +34,12 @@ import {
   Description as DescriptionIcon,
   Block as DeactivateIcon,
   CheckCircle as ActivateIcon,
-  AttachFile as AttachFileIcon,
-  CloudUpload as CloudUploadIcon,
   Delete as DeleteDocIcon,
   HowToReg as VerifyIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { organizationService } from '../../services/organizationService';
-import { organizationDocumentTypesService } from '../../services/foundationService/organizationDocumentTypesService';
-import { fileService } from '../../services/fileService';
 import { formatDate } from '../../utils/formatters';
 import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 
@@ -82,17 +69,9 @@ export const OrganizationDetails = () => {
   // ── Organization Documents ──
   const [documents, setDocuments] = useState([]);
   const [docsLoading, setDocsLoading] = useState(false);
-  const [docTypesList, setDocTypesList] = useState([]);
-  const [docDialogOpen, setDocDialogOpen] = useState(false);
-  const [docSaving, setDocSaving] = useState(false);
-  const [docError, setDocError] = useState('');
-  const [selectedDocFile, setSelectedDocFile] = useState(null);
-  const [docForm, setDocForm] = useState({ documentTypeId: '', documentNumber: '', title: '', description: '', issuedDate: '', expiryDate: '' });
   const [deleteDocTarget, setDeleteDocTarget] = useState(null);
   const [deleteDocLoading, setDeleteDocLoading] = useState(false);
   const [verifyingDocId, setVerifyingDocId] = useState(null);
-
-  const selectedDocType = docTypesList.find((dt) => dt.id === docForm.documentTypeId);
 
   const fetchDocuments = useCallback(async () => {
     if (!id) return;
@@ -107,88 +86,11 @@ export const OrganizationDetails = () => {
     }
   }, [id, enqueueSnackbar]);
 
-  const fetchDocTypesList = useCallback(async () => {
-    try {
-      const res = await organizationDocumentTypesService.getOrganizationDocumentTypes({ limit: 100, status: 'active' });
-      setDocTypesList(res.organizationDocumentTypes || []);
-    } catch {
-      // non-critical
-    }
-  }, []);
-
   useEffect(() => {
     if (!loading && org) {
       fetchDocuments();
-      fetchDocTypesList();
     }
-  }, [loading, org, fetchDocuments, fetchDocTypesList]);
-
-  const handleDocDialogOpen = () => {
-    setDocForm({ documentTypeId: '', documentNumber: '', title: '', description: '', issuedDate: '', expiryDate: '' });
-    setSelectedDocFile(null);
-    setDocError('');
-    setDocDialogOpen(true);
-  };
-
-  const handleDocDialogClose = () => {
-    setDocDialogOpen(false);
-    setDocForm({ documentTypeId: '', documentNumber: '', title: '', description: '', issuedDate: '', expiryDate: '' });
-    setSelectedDocFile(null);
-    setDocError('');
-  };
-
-  const handleDocFormChange = (field) => (event) => {
-    setDocForm((prev) => ({ ...prev, [field]: event.target.value }));
-  };
-
-  const handleDocFileChange = (event) => {
-    setDocError('');
-    setSelectedDocFile(event.target.files?.[0] || null);
-  };
-
-  const handleDocSubmit = async (e) => {
-    e?.preventDefault();
-    setDocError('');
-
-    if (!docForm.title.trim()) { setDocError('Document title is required.'); return; }
-    if (!docForm.documentTypeId) { setDocError('Document type is required.'); return; }
-    if (!selectedDocFile) { setDocError('Please choose a file to upload.'); return; }
-    if (selectedDocType?.requires_expiry && !docForm.expiryDate) {
-      setDocError(`Document type "${selectedDocType.name}" requires an expiry date.`);
-      return;
-    }
-    if (docForm.issuedDate && docForm.expiryDate && new Date(docForm.expiryDate) < new Date(docForm.issuedDate)) {
-      setDocError('Expiry date cannot be earlier than the issued date.');
-      return;
-    }
-
-    setDocSaving(true);
-    try {
-      const uploadRes = await fileService.uploadFiles([selectedDocFile]);
-      const uploaded = uploadRes.data?.[0];
-      if (!uploaded) throw new Error('File upload failed.');
-
-      await organizationService.addOrganizationDocument(id, {
-        documentTypeId: docForm.documentTypeId,
-        documentNumber: docForm.documentNumber,
-        title: docForm.title,
-        description: docForm.description,
-        issuedDate: docForm.issuedDate || null,
-        expiryDate: docForm.expiryDate || null,
-        filePath: uploaded.path,
-        originalFilename: uploaded.originalName,
-        fileSize: uploaded.size,
-        mimeType: uploaded.mimetype,
-      });
-      enqueueSnackbar('Document attached successfully', { variant: 'success' });
-      handleDocDialogClose();
-      fetchDocuments();
-    } catch (err) {
-      setDocError(err.message || 'Failed to attach document.');
-    } finally {
-      setDocSaving(false);
-    }
-  };
+  }, [loading, org, fetchDocuments]);
 
   const handleDeleteDocConfirm = async () => {
     if (!deleteDocTarget) return;
@@ -709,15 +611,6 @@ export const OrganizationDetails = () => {
           >
             Supporting Documents
           </Typography>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<CloudUploadIcon sx={{ fontSize: 16 }} />}
-            onClick={handleDocDialogOpen}
-            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: '#cbd5e1', color: '#475569', '&:hover': { borderColor: '#4f46e5', color: '#4f46e5' } }}
-          >
-            Attach Document
-          </Button>
         </Box>
         <Divider sx={{ mb: 2 }} />
 
@@ -897,124 +790,6 @@ export const OrganizationDetails = () => {
           </Grid>
         </Grid>
       </Paper>
-
-      {/* Attach Document Modal */}
-      <Dialog
-        open={docDialogOpen}
-        onClose={handleDocDialogClose}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 3, p: 0.5 } }}
-      >
-        <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', pb: 1 }}>Attach Document</DialogTitle>
-        <Divider />
-        <DialogContent>
-          <Box component="form" onSubmit={handleDocSubmit}>
-            {docError && (
-              <Alert severity="error" sx={{ mb: 2, mt: 2, borderRadius: 2 }}>
-                {docError}
-              </Alert>
-            )}
-            <Stack spacing={2.5} sx={{ mt: 1 }}>
-              <Button
-                fullWidth
-                variant="outlined"
-                component="label"
-                startIcon={<AttachFileIcon />}
-                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: '#cbd5e1', color: '#475569', py: 1.2, '&:hover': { borderColor: '#4f46e5', color: '#4f46e5' } }}
-              >
-                {selectedDocFile ? selectedDocFile.name : 'Choose File'}
-                <input type="file" hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif" onChange={handleDocFileChange} />
-              </Button>
-
-              <TextField
-                required
-                fullWidth
-                label="Document Title"
-                placeholder="e.g. Trade License"
-                value={docForm.title}
-                onChange={handleDocFormChange('title')}
-                size="small"
-                disabled={docSaving}
-              />
-
-              <FormControl fullWidth size="small" disabled={docSaving}>
-                <InputLabel>Document Type</InputLabel>
-                <Select label="Document Type" value={docForm.documentTypeId} onChange={handleDocFormChange('documentTypeId')}>
-                  <MenuItem value="">Select Document Type...</MenuItem>
-                  {docTypesList.map((dt) => (
-                    <MenuItem key={dt.id} value={dt.id}>
-                      {dt.name} ({dt.code})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <TextField
-                fullWidth
-                label="Document Number"
-                placeholder="e.g. TL-2024-0091"
-                value={docForm.documentNumber}
-                onChange={handleDocFormChange('documentNumber')}
-                size="small"
-                disabled={docSaving}
-              />
-
-              <TextField
-                fullWidth
-                multiline
-                rows={2}
-                label="Description"
-                value={docForm.description}
-                onChange={handleDocFormChange('description')}
-                size="small"
-                disabled={docSaving}
-              />
-
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    label="Issued Date"
-                    slotProps={{ inputLabel: { shrink: true } }}
-                    value={docForm.issuedDate}
-                    onChange={handleDocFormChange('issuedDate')}
-                    size="small"
-                    disabled={docSaving}
-                  />
-                </Grid>
-                <Grid item xs={6}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    label={selectedDocType?.requires_expiry ? 'Expiry Date (Required)' : 'Expiry Date'}
-                    slotProps={{ inputLabel: { shrink: true } }}
-                    value={docForm.expiryDate}
-                    onChange={handleDocFormChange('expiryDate')}
-                    size="small"
-                    disabled={docSaving}
-                    required={selectedDocType?.requires_expiry}
-                  />
-                </Grid>
-              </Grid>
-            </Stack>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1.5, gap: 1 }}>
-          <Button onClick={handleDocDialogClose} disabled={docSaving} sx={{ borderRadius: 2, fontWeight: 600, color: '#64748b', '&:hover': { backgroundColor: '#f1f5f9' } }}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDocSubmit}
-            variant="contained"
-            disabled={docSaving}
-            sx={{ borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' }, minWidth: 100 }}
-          >
-            {docSaving ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Attach'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Delete Document Confirmation */}
       <ConfirmationModal

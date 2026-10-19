@@ -30,6 +30,9 @@ import {
   DialogActions,
   IconButton,
   Tooltip,
+  Tabs,
+  Tab,
+  Badge,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -40,6 +43,8 @@ import {
   AttachFile as AttachFileIcon,
   CloudUpload as CloudUploadIcon,
   Delete as DeleteDocIcon,
+  CheckCircle as CheckCircleIcon,
+  WarningAmber as WarningAmberIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -353,10 +358,18 @@ export const OrganizationForm = () => {
   const [deleteDocLoading, setDeleteDocLoading] = useState(false);
   // Documents staged on the Create page (attached to the DB after the org is created)
   const [pendingDocs, setPendingDocs] = useState([]);
+  // Form tabs: 0 = Organization Details, 1 = Supporting Documents
+  const [activeTab, setActiveTab] = useState(0);
 
   const selectedDocType = docTypesList.find((dt) => dt.id === docForm.documentTypeId);
 
   const displayDocs = isEditMode ? documents : pendingDocs;
+
+  const requiredDocTypes = docTypesList.filter((dt) => dt.is_required);
+  const uploadedTypeIds = (isEditMode ? documents : pendingDocs).map(
+    (d) => d.document_type_id ?? d.documentTypeId
+  );
+  const missingRequiredDocs = requiredDocTypes.filter((dt) => !uploadedTypeIds.includes(dt.id));
 
   const fetchDocuments = useCallback(async () => {
     if (!id) return;
@@ -415,6 +428,7 @@ export const OrganizationForm = () => {
     if (!docForm.title.trim()) { setDocError('Document title is required.'); return; }
     if (!docForm.documentTypeId) { setDocError('Document type is required.'); return; }
     if (!selectedDocFile) { setDocError('Please choose a file to upload.'); return; }
+    if (!docForm.issuedDate) { setDocError('Issued date is required for all documents.'); return; }
     if (selectedDocType?.requires_expiry && !docForm.expiryDate) {
       setDocError(`Document type "${selectedDocType.name}" requires an expiry date.`);
       return;
@@ -519,6 +533,15 @@ export const OrganizationForm = () => {
       setErrorMsg(firstError);
       return false;
     }
+
+    if (!(isEditMode && docsLoading) && missingRequiredDocs.length > 0) {
+      setActiveTab(1);
+      setErrorMsg(
+        `Required documents not yet uploaded: ${missingRequiredDocs.map((dt) => `${dt.name} (${dt.code})`).join(', ')}.`
+      );
+      return false;
+    }
+
     return true;
   };
 
@@ -688,6 +711,55 @@ export const OrganizationForm = () => {
           width: '100%',
         }}
       >
+        <Tabs
+          value={activeTab}
+          onChange={(event, value) => {
+            setActiveTab(value);
+            if (errorMsg) setErrorMsg('');
+          }}
+          sx={{
+            mb: 3,
+            borderBottom: '1px solid #e2e8f0',
+            '& .MuiTabs-indicator': { backgroundColor: '#4f46e5', height: 3, borderRadius: '3px 3px 0 0' },
+          }}
+        >
+          <Tab
+            label="Organization Details"
+            icon={<BusinessIcon sx={{ fontSize: 18 }} />}
+            iconPosition="start"
+            sx={{
+              minHeight: 48,
+              textTransform: 'none',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              color: '#64748b',
+              '&.Mui-selected': { color: '#4f46e5' },
+            }}
+          />
+          <Tab
+            label="Supporting Documents"
+            icon={
+              <Badge
+                color="error"
+                badgeContent={missingRequiredDocs.length}
+                invisible={missingRequiredDocs.length === 0}
+              >
+                <AttachFileIcon sx={{ fontSize: 18 }} />
+              </Badge>
+            }
+            iconPosition="start"
+            sx={{
+              minHeight: 48,
+              textTransform: 'none',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              color: '#64748b',
+              '&.Mui-selected': { color: '#4f46e5' },
+            }}
+          />
+        </Tabs>
+
+        {activeTab === 0 && (
         <form onSubmit={handleSubmit} noValidate>
           <Box
             sx={{
@@ -1133,9 +1205,10 @@ export const OrganizationForm = () => {
             </Stack>
           </Box>
         </form>
+        )}
 
-        {/* Supporting Documents */}
-        <Box sx={{ mt: 4 }}>
+        {activeTab === 1 && (
+        <Box sx={{ mt: 1 }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <Box
@@ -1171,6 +1244,57 @@ export const OrganizationForm = () => {
               </Button>
             </Stack>
             <Divider sx={{ borderColor: '#e2e8f0', mb: 2 }} />
+
+            {requiredDocTypes.length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ fontWeight: 700, color: '#b45309', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.4px', mb: 1.25 }}
+                >
+                  Required Documents ({requiredDocTypes.length - missingRequiredDocs.length}/{requiredDocTypes.length} uploaded)
+                </Typography>
+                <Stack spacing={0.75}>
+                  {requiredDocTypes.map((dt) => {
+                    const uploaded = uploadedTypeIds.includes(dt.id);
+                    return (
+                      <Box
+                        key={dt.id}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          p: 1,
+                          borderRadius: 1.5,
+                          border: uploaded ? '1px solid #a7f3d0' : '1px dashed #fca5a5',
+                          backgroundColor: uploaded ? '#f0fdf4' : '#fef2f2',
+                        }}
+                      >
+                        <Box sx={{ color: uploaded ? '#059669' : '#dc2626', display: 'flex', '& svg': { fontSize: 18 } }}>
+                          {uploaded ? <CheckCircleIcon /> : <WarningAmberIcon />}
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.8rem' }}>
+                            {dt.name} ({dt.code})
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.68rem', display: 'block' }}>
+                            {dt.requires_expiry ? 'Requires issue + expiry date' : 'Requires issue date'}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={uploaded ? 'Uploaded' : 'Missing'}
+                          size="small"
+                          sx={{
+                            height: 20, fontSize: '0.68rem', fontWeight: 700,
+                            backgroundColor: uploaded ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.12)',
+                            color: uploaded ? '#059669' : '#dc2626',
+                          }}
+                        />
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </Box>
+            )}
 
             {!isEditMode && (
               <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 1.5 }}>
@@ -1277,6 +1401,7 @@ export const OrganizationForm = () => {
               </Stack>
             )}
           </Box>
+        )}
       </Paper>
 
       {/* Attach Document Modal */}
@@ -1361,10 +1486,11 @@ export const OrganizationForm = () => {
               />
 
               <Stack direction="row" spacing={2}>
-                <TextField
-                  fullWidth
-                  type="date"
-                  label="Issued Date"
+                  <TextField
+                    fullWidth
+                    type="date"
+                    required
+                    label="Issued Date (Required)"
                   slotProps={{ inputLabel: { shrink: true } }}
                   value={docForm.issuedDate}
                   onChange={handleDocFormChange('issuedDate')}

@@ -20,7 +20,7 @@ const ORG_DOC_TYPE_FIELDS = `
 
 class OrganizationDocumentTypesModel {
   static async findAll(options = {}) {
-    const { limit = 100, offset = 0, search = '', status = 'all' } = options;
+    const { limit = 100, offset = 0, search = '', status = 'all', required = 'all' } = options;
 
     let where = `WHERE odt.is_deleted = FALSE`;
     const replacements = {};
@@ -33,6 +33,11 @@ class OrganizationDocumentTypesModel {
     if (status !== 'all') {
       where += ` AND odt.is_active = :isActive`;
       replacements.isActive = status === 'active';
+    }
+
+    if (required !== 'all') {
+      where += ` AND odt.is_required = :isRequired`;
+      replacements.isRequired = required === 'required';
     }
 
     const countQuery = `

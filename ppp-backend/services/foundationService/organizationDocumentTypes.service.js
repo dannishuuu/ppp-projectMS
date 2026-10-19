@@ -4,10 +4,10 @@ const OrganizationDocumentTypesModel = require('../../models/organizationDocumen
 class OrganizationDocumentTypesService {
   /**
    * Get a paginated, filtered list of organization document types.
-   * @param {object} options - { page, limit, search, status }
+   * @param {object} options - { page, limit, search, status, required }
    */
   static async getOrganizationDocumentTypes(options = {}) {
-    const { page = 1, limit = 10, search = '', status = 'all' } = options;
+    const { page = 1, limit = 10, search = '', status = 'all', required = 'all' } = options;
     const offset = (page - 1) * limit;
 
     const { rows, total } = await OrganizationDocumentTypesModel.findAll({
@@ -15,6 +15,7 @@ class OrganizationDocumentTypesService {
       offset,
       search,
       status,
+      required,
     });
 
     return {

@@ -6,16 +6,17 @@ const BASE = '/organization-document-types';
 export const organizationDocumentTypesService = {
   /**
    * Get a paginated, filtered list of organization document types.
-   * @param {object} options - { page, limit, search, status }
+   * @param {object} options - { page, limit, search, status, required }
    * @returns {Promise<{ organizationDocumentTypes: Array, pagination: object }>}
    */
   async getOrganizationDocumentTypes(options = {}) {
-    const { page = 1, limit = 10, search = '', status = 'all' } = options;
+    const { page = 1, limit = 10, search = '', status = 'all', required = 'all' } = options;
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
       search,
       status,
+      required,
     });
     const response = await apiClient.get(`${BASE}?${params.toString()}`);
     return response.data;
