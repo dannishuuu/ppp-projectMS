@@ -24,15 +24,17 @@ import {
   Fade,
   FormHelperText,
   Autocomplete,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   IconButton,
   Tooltip,
   Tabs,
   Tab,
   Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -41,10 +43,7 @@ import {
   Badge as LicenseIcon,
   Description as DescriptionIcon,
   AttachFile as AttachFileIcon,
-  CloudUpload as CloudUploadIcon,
   Delete as DeleteDocIcon,
-  CheckCircle as CheckCircleIcon,
-  WarningAmber as WarningAmberIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -342,26 +341,12 @@ export const OrganizationForm = () => {
   const [documents, setDocuments] = useState([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [docTypesList, setDocTypesList] = useState([]);
-  const [docDialogOpen, setDocDialogOpen] = useState(false);
-  const [docSaving, setDocSaving] = useState(false);
-  const [docError, setDocError] = useState('');
-  const [selectedDocFile, setSelectedDocFile] = useState(null);
-  const [docForm, setDocForm] = useState({
-    documentTypeId: '',
-    documentNumber: '',
-    title: '',
-    description: '',
-    issuedDate: '',
-    expiryDate: '',
-  });
   const [deleteDocTarget, setDeleteDocTarget] = useState(null);
   const [deleteDocLoading, setDeleteDocLoading] = useState(false);
   // Documents staged on the Create page (attached to the DB after the org is created)
   const [pendingDocs, setPendingDocs] = useState([]);
   // Form tabs: 0 = Organization Details, 1 = Supporting Documents
   const [activeTab, setActiveTab] = useState(0);
-
-  const selectedDocType = docTypesList.find((dt) => dt.id === docForm.documentTypeId);
 
   const displayDocs = isEditMode ? documents : pendingDocs;
 
@@ -398,87 +383,78 @@ export const OrganizationForm = () => {
     fetchDocTypesList();
   }, [isEditMode, fetchDocuments, fetchDocTypesList]);
 
-  const handleDocDialogOpen = () => {
-    setDocForm({ documentTypeId: '', documentNumber: '', title: '', description: '', issuedDate: '', expiryDate: '' });
-    setSelectedDocFile(null);
-    setDocError('');
-    setDocDialogOpen(true);
+  // ── Per-row drafts for the excel-like documents table ──
+  const emptyDocDraft = { file: null, title: '', documentNumber: '', issuedDate: '', expiryDate: '', saving: false, error: '' };
+  const [docDrafts, setDocDrafts] = useState({});
+
+  const setDraft = (docTypeId, patch) => {
+    setDocDrafts((prev) => ({ ...prev, [docTypeId]: { ...(prev[docTypeId] || emptyDocDraft), ...patch } }));
+  };
+  const getDraft = (docTypeId) => docDrafts[docTypeId] || emptyDocDraft;
+  const clearDraft = (docTypeId) => {
+    setDocDrafts((prev) => {
+      const next = { ...prev };
+      delete next[docTypeId];
+      return next;
+    });
   };
 
-  const handleDocDialogClose = () => {
-    setDocDialogOpen(false);
-    setDocForm({ documentTypeId: '', documentNumber: '', title: '', description: '', issuedDate: '', expiryDate: '' });
-    setSelectedDocFile(null);
-    setDocError('');
+  const handleRowFileChange = (docTypeId) => (event) => {
+    setDraft(docTypeId, { file: event.target.files?.[0] || null, error: '' });
   };
 
-  const handleDocFormChange = (field) => (event) => {
-    setDocForm((prev) => ({ ...prev, [field]: event.target.value }));
-  };
-
-  const handleDocFileChange = (event) => {
-    setDocError('');
-    setSelectedDocFile(event.target.files?.[0] || null);
-  };
-
-  const handleDocSubmit = async (e) => {
-    e?.preventDefault();
-    setDocError('');
-
-    if (!docForm.title.trim()) { setDocError('Document title is required.'); return; }
-    if (!docForm.documentTypeId) { setDocError('Document type is required.'); return; }
-    if (!selectedDocFile) { setDocError('Please choose a file to upload.'); return; }
-    if (!docForm.issuedDate) { setDocError('Issued date is required for all documents.'); return; }
-    if (selectedDocType?.requires_expiry && !docForm.expiryDate) {
-      setDocError(`Document type "${selectedDocType.name}" requires an expiry date.`);
-      return;
+  const handleRowUpload = async (docType) => {
+    const draft = docDrafts[docType.id] || {};
+    if (!draft.title?.trim()) { setDraft(docType.id, { error: 'Document title is required.' }); return; }
+    if (!draft.file) { setDraft(docType.id, { error: 'Please choose a file to upload.' }); return; }
+    if (!draft.issuedDate) { setDraft(docType.id, { error: 'Issued date is required for all documents.' }); return; }
+    if (docType.requires_expiry && !draft.expiryDate) {
+      setDraft(docType.id, { error: `"${docType.name}" requires an expiry date.` }); return;
     }
-    if (docForm.issuedDate && docForm.expiryDate && new Date(docForm.expiryDate) < new Date(docForm.issuedDate)) {
-      setDocError('Expiry date cannot be earlier than the issued date.');
-      return;
+    if (draft.issuedDate && draft.expiryDate && new Date(draft.expiryDate) < new Date(draft.issuedDate)) {
+      setDraft(docType.id, { error: 'Expiry date cannot be earlier than the issued date.' }); return;
     }
 
-    setDocSaving(true);
+    setDraft(docType.id, { saving: true, error: '' });
     try {
       if (!isEditMode) {
-        // Create page: stage the file locally; it is uploaded & attached after the org is created
         setPendingDocs((prev) => [...prev, {
           key: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          file: selectedDocFile,
-          documentTypeId: docForm.documentTypeId,
-          documentNumber: docForm.documentNumber,
-          title: docForm.title,
-          description: docForm.description,
-          issuedDate: docForm.issuedDate || null,
-          expiryDate: docForm.expiryDate || null,
+          file: draft.file,
+          documentTypeId: docType.id,
+          documentNumber: draft.documentNumber,
+          title: draft.title,
+          description: '',
+          issuedDate: draft.issuedDate || null,
+          expiryDate: draft.expiryDate || null,
         }]);
+        clearDraft(docType.id);
         enqueueSnackbar('Document staged — it will be attached after you save the organization', { variant: 'info' });
-        handleDocDialogClose();
       } else {
-        const uploadRes = await fileService.uploadFiles([selectedDocFile]);
+        const uploadRes = await fileService.uploadFiles([draft.file]);
         const uploaded = uploadRes.data?.[0];
         if (!uploaded) throw new Error('File upload failed.');
 
         await organizationService.addOrganizationDocument(id, {
-          documentTypeId: docForm.documentTypeId,
-          documentNumber: docForm.documentNumber,
-          title: docForm.title,
-          description: docForm.description,
-          issuedDate: docForm.issuedDate || null,
-          expiryDate: docForm.expiryDate || null,
+          documentTypeId: docType.id,
+          documentNumber: draft.documentNumber,
+          title: draft.title,
+          description: '',
+          issuedDate: draft.issuedDate || null,
+          expiryDate: draft.expiryDate || null,
           filePath: uploaded.path,
           originalFilename: uploaded.originalName,
           fileSize: uploaded.size,
           mimeType: uploaded.mimetype,
         });
+        clearDraft(docType.id);
         enqueueSnackbar('Document attached successfully', { variant: 'success' });
-        handleDocDialogClose();
         fetchDocuments();
       }
     } catch (err) {
-      setDocError(err.message || 'Failed to attach document.');
+      setDraft(docType.id, { error: err.message || 'Failed to attach document.' });
     } finally {
-      setDocSaving(false);
+      setDraft(docType.id, { saving: false });
     }
   };
 
@@ -1209,325 +1185,223 @@ export const OrganizationForm = () => {
 
         {activeTab === 1 && (
         <Box sx={{ mt: 1 }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 28,
-                    height: 28,
-                    borderRadius: 1.5,
-                    backgroundColor: '#4f46e512',
-                    color: '#4f46e5',
-                    '& svg': { fontSize: 16 },
-                  }}
-                >
-                  <AttachFileIcon />
-                </Box>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: 700, color: '#1e40af', letterSpacing: '0.3px', fontSize: '0.78rem', textTransform: 'uppercase' }}
-                >
-                  Supporting Documents
+          {docsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={26} sx={{ color: '#4f46e5' }} />
+            </Box>
+          ) : (
+            <>
+              {!isEditMode && (
+                <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 1.5 }}>
+                  Files are staged locally and attached automatically right after the organization is created.
                 </Typography>
-              </Stack>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<CloudUploadIcon sx={{ fontSize: 16 }} />}
-                onClick={handleDocDialogOpen}
-                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: '#cbd5e1', color: '#475569', '&:hover': { borderColor: '#4f46e5', color: '#4f46e5' } }}
-              >
-                Attach Document
-              </Button>
-            </Stack>
-            <Divider sx={{ borderColor: '#e2e8f0', mb: 2 }} />
-
-            {requiredDocTypes.length > 0 && (
-              <Box sx={{ mb: 3 }}>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: 700, color: '#b45309', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.4px', mb: 1.25 }}
-                >
-                  Required Documents ({requiredDocTypes.length - missingRequiredDocs.length}/{requiredDocTypes.length} uploaded)
+              )}
+              {requiredDocTypes.length > 0 && (
+                <Typography variant="caption" sx={{ color: '#b45309', fontWeight: 600, display: 'block', mb: 1.5 }}>
+                  Rows marked with * are required and must be uploaded before saving. Issued date is mandatory for every document; expiry date is mandatory where the type requires it.
                 </Typography>
-                <Stack spacing={0.75}>
-                  {requiredDocTypes.map((dt) => {
-                    const uploaded = uploadedTypeIds.includes(dt.id);
-                    return (
-                      <Box
-                        key={dt.id}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1.5,
-                          p: 1,
-                          borderRadius: 1.5,
-                          border: uploaded ? '1px solid #a7f3d0' : '1px dashed #fca5a5',
-                          backgroundColor: uploaded ? '#f0fdf4' : '#fef2f2',
-                        }}
-                      >
-                        <Box sx={{ color: uploaded ? '#059669' : '#dc2626', display: 'flex', '& svg': { fontSize: 18 } }}>
-                          {uploaded ? <CheckCircleIcon /> : <WarningAmberIcon />}
-                        </Box>
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.8rem' }}>
-                            {dt.name} ({dt.code})
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.68rem', display: 'block' }}>
-                            {dt.requires_expiry ? 'Requires issue + expiry date' : 'Requires issue date'}
-                          </Typography>
-                        </Box>
-                        <Chip
-                          label={uploaded ? 'Uploaded' : 'Missing'}
-                          size="small"
-                          sx={{
-                            height: 20, fontSize: '0.68rem', fontWeight: 700,
-                            backgroundColor: uploaded ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.12)',
-                            color: uploaded ? '#059669' : '#dc2626',
-                          }}
-                        />
-                      </Box>
-                    );
-                  })}
-                </Stack>
-              </Box>
-            )}
+              )}
 
-            {!isEditMode && (
-              <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 1.5 }}>
-                Files are staged locally and uploaded automatically right after the organization is created.
-              </Typography>
-            )}
+              <TableContainer sx={{ border: '1px solid #e2e8f0', borderRadius: 2, overflowX: 'auto' }}>
+                <Table size="small" sx={{ minWidth: 900 }}>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: '#f8fafc' }}>
+                      <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.68rem', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Document Type</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.68rem', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Document Number</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.68rem', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Document Title</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.68rem', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Issued Date</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.68rem', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Expiry Date</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: '#475569', fontSize: '0.68rem', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>File</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, color: '#475569', fontSize: '0.68rem', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Action / Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {docTypesList.map((dt) => {
+                      const existingDoc = (isEditMode ? documents : pendingDocs).find(
+                        (d) => (d.document_type_id ?? d.documentTypeId) === dt.id
+                      );
+                      const draft = getDraft(dt.id);
+                      const required = Boolean(dt.is_required);
+                      return (
+                        <TableRow
+                          key={dt.id}
+                          sx={{ backgroundColor: required && !existingDoc ? 'rgba(239, 68, 68, 0.03)' : undefined, '&:hover': { backgroundColor: '#f8fafc' } }}
+                        >
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+                              {required ? <Box component="span" sx={{ color: '#dc2626', mr: 0.5 }}>*</Box> : null}
+                              {dt.name}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.62rem', display: 'block' }}>
+                              {dt.code} • {required ? 'Required' : 'Optional'}{dt.requires_expiry ? ' • expiry req.' : ''}
+                            </Typography>
+                          </TableCell>
 
-            {docsLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                <CircularProgress size={26} color="inherit" sx={{ color: '#4f46e5' }} />
-              </Box>
-            ) : displayDocs.length === 0 ? (
-              <Typography variant="body2" sx={{ color: '#94a3b8', py: 2 }}>
-                No documents attached yet.
-              </Typography>
-            ) : (
-              <Stack spacing={1}>
-                {displayDocs.map((doc) => {
-                  const docType = isEditMode
-                    ? doc.document_type
-                    : docTypesList.find((dt) => dt.id === doc.documentTypeId);
-                  return (
-                  <Box
-                    key={doc.id || doc.key}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
-                      flexWrap: 'wrap',
-                      p: 1.5,
-                      borderRadius: 2,
-                      border: '1px solid #e2e8f0',
-                      backgroundColor: '#f8fafc',
-                      '&:hover': { borderColor: '#c7d2fe', backgroundColor: '#f5f7ff' },
-                    }}
-                  >
-                    <Box sx={{ color: '#4f46e5', display: 'flex', '& svg': { fontSize: 20 } }}>
-                      <DescriptionIcon />
-                    </Box>
-                    <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.85rem', noWrap: true }}>
-                        {doc.title}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.7rem', display: 'block' }}>
-                        {docType?.name}
-                        {doc.document_number || doc.documentNumber ? ` • ${doc.document_number || doc.documentNumber}` : ''}
-                        {isEditMode ? ` • ${doc.original_filename}` : ` • ${doc.file?.name || ''}`}
-                      </Typography>
-                    </Box>
-                    <Chip
-                      label={docType?.requires_expiry ? `Exp: ${doc.expiry_date || doc.expiryDate ? formatDate(doc.expiry_date || doc.expiryDate) : '—'}` : 'No expiry'}
-                      size="small"
-                      sx={{
-                        height: 20, fontSize: '0.68rem', fontWeight: 600,
-                        backgroundColor: doc.is_expired ? 'rgba(239, 68, 68, 0.1)' : '#f1f5f9',
-                        color: doc.is_expired ? '#dc2626' : '#64748b',
-                      }}
-                    />
-                    {isEditMode ? (
-                      <Chip
-                        label={doc.is_verified ? 'Verified' : 'Not Verified'}
-                        size="small"
-                        sx={{
-                          height: 20, fontSize: '0.68rem', fontWeight: 600,
-                          backgroundColor: doc.is_verified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                          color: doc.is_verified ? '#059669' : '#b45309',
-                        }}
-                      />
-                    ) : (
-                      <Chip
-                        label="Pending save"
-                        size="small"
-                        sx={{
-                          height: 20, fontSize: '0.68rem', fontWeight: 600,
-                          backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                          color: '#4f46e5',
-                        }}
-                      />
-                    )}
-                    {isEditMode && (
-                      <Button
-                        size="small"
-                        variant="text"
-                        href={`http://localhost:5000/${doc.file_path}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', color: '#0284c7' }}
-                      >
-                        Open
-                      </Button>
-                    )}
-                    <Tooltip title="Delete Document">
-                      <IconButton
-                        size="small"
-                        onClick={() => (isEditMode ? setDeleteDocTarget(doc) : setPendingDocs((prev) => prev.filter((p) => p.key !== doc.key)))}
-                        sx={{ color: '#dc2626', backgroundColor: '#fef2f2', borderRadius: 1.5, p: 0.6, '&:hover': { backgroundColor: '#fee2e2' } }}
-                      >
-                        <DeleteDocIcon sx={{ fontSize: 15 }} />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                  );
-                })}
-              </Stack>
-            )}
-          </Box>
+                          {existingDoc ? (
+                            <>
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontSize: '0.78rem', color: '#334155' }}>
+                                  {existingDoc.document_number || existingDoc.documentNumber || '—'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontSize: '0.78rem', fontWeight: 600, color: '#0f172a' }}>
+                                  {existingDoc.title}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontSize: '0.78rem', color: '#334155' }}>
+                                  {(existingDoc.issued_date || existingDoc.issuedDate) ? formatDate(existingDoc.issued_date || existingDoc.issuedDate) : '—'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontSize: '0.78rem', fontWeight: 600, color: existingDoc.is_expired ? '#dc2626' : '#334155' }}>
+                                  {(existingDoc.expiry_date || existingDoc.expiryDate) ? formatDate(existingDoc.expiry_date || existingDoc.expiryDate) : '—'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#64748b', display: 'block', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {isEditMode ? existingDoc.original_filename : existingDoc.file?.name}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="center">
+                                  {isEditMode ? (
+                                    <Chip
+                                      label={existingDoc.is_verified ? 'Verified' : 'Not Verified'}
+                                      size="small"
+                                      sx={{
+                                        height: 20, fontSize: '0.62rem', fontWeight: 700,
+                                        backgroundColor: existingDoc.is_verified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                                        color: existingDoc.is_verified ? '#059669' : '#b45309',
+                                      }}
+                                    />
+                                  ) : (
+                                    <Chip
+                                      label="Pending save"
+                                      size="small"
+                                      sx={{ height: 20, fontSize: '0.62rem', fontWeight: 700, backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#4f46e5' }}
+                                    />
+                                  )}
+                                  {isEditMode && (
+                                    <Button
+                                      size="small"
+                                      variant="text"
+                                      href={`http://localhost:5000/${existingDoc.file_path}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.7rem', color: '#0284c7', minWidth: 0, px: 1 }}
+                                    >
+                                      Open
+                                    </Button>
+                                  )}
+                                  <Tooltip title="Delete Document">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => (isEditMode ? setDeleteDocTarget(existingDoc) : setPendingDocs((prev) => prev.filter((p) => p.key !== existingDoc.key)))}
+                                      sx={{ color: '#dc2626', backgroundColor: '#fef2f2', borderRadius: 1.5, p: 0.6, '&:hover': { backgroundColor: '#fee2e2' } }}
+                                    >
+                                      <DeleteDocIcon sx={{ fontSize: 15 }} />
+                                    </IconButton>
+                                  </Tooltip>
+                                </Stack>
+                              </TableCell>
+                            </>
+                          ) : (
+                            <>
+                              <TableCell sx={{ minWidth: 120 }}>
+                                <TextField
+                                  fullWidth
+                                  placeholder="e.g. TL-2024-0091"
+                                  value={draft.documentNumber}
+                                  onChange={(e) => setDraft(dt.id, { documentNumber: e.target.value, error: '' })}
+                                  size="small"
+                                  disabled={draft.saving}
+                                  sx={{ '& .MuiOutlinedInput-root': inputSx, '& .MuiInputBase-input': { fontSize: '0.75rem', py: 0.5 } }}
+                                />
+                              </TableCell>
+                              <TableCell sx={{ minWidth: 150 }}>
+                                <TextField
+                                  required
+                                  fullWidth
+                                  placeholder="e.g. Trade License"
+                                  value={draft.title}
+                                  onChange={(e) => setDraft(dt.id, { title: e.target.value, error: '' })}
+                                  size="small"
+                                  disabled={draft.saving}
+                                  sx={{ '& .MuiOutlinedInput-root': inputSx, '& .MuiInputBase-input': { fontSize: '0.75rem', py: 0.5 } }}
+                                />
+                              </TableCell>
+                              <TableCell sx={{ minWidth: 140 }}>
+                                <TextField
+                                  required
+                                  fullWidth
+                                  type="date"
+                                  slotProps={{ inputLabel: { shrink: true } }}
+                                  value={draft.issuedDate}
+                                  onChange={(e) => setDraft(dt.id, { issuedDate: e.target.value, error: '' })}
+                                  size="small"
+                                  disabled={draft.saving}
+                                  sx={{ '& .MuiOutlinedInput-root': inputSx, '& .MuiInputBase-input': { fontSize: '0.75rem', py: 0.5 } }}
+                                />
+                              </TableCell>
+                              <TableCell sx={{ minWidth: 140 }}>
+                                <TextField
+                                  fullWidth
+                                  type="date"
+                                  required={dt.requires_expiry}
+                                  slotProps={{ inputLabel: { shrink: true } }}
+                                  value={draft.expiryDate}
+                                  onChange={(e) => setDraft(dt.id, { expiryDate: e.target.value, error: '' })}
+                                  size="small"
+                                  disabled={draft.saving}
+                                  sx={{ '& .MuiOutlinedInput-root': inputSx, '& .MuiInputBase-input': { fontSize: '0.75rem', py: 0.5 } }}
+                                />
+                              </TableCell>
+                              <TableCell sx={{ minWidth: 130 }}>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  component="label"
+                                  sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 600, borderColor: '#cbd5e1', color: '#475569', '&:hover': { borderColor: '#4f46e5', color: '#4f46e5' }, maxWidth: 130 }}
+                                >
+                                  <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 90, fontSize: '0.7rem' }}>
+                                    {draft.file ? draft.file.name : 'Choose'}
+                                  </Box>
+                                  <input type="file" hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif" onChange={handleRowFileChange(dt.id)} />
+                                </Button>
+                              </TableCell>
+                              <TableCell align="center">
+                                {draft.error ? (
+                                  <Tooltip title={draft.error}>
+                                    <Typography variant="caption" sx={{ color: '#dc2626', display: 'block', fontSize: '0.6rem', mb: 0.5 }}>
+                                      ⚠ {draft.error.length > 28 ? `${draft.error.slice(0, 28)}…` : draft.error}
+                                    </Typography>
+                                  </Tooltip>
+                                ) : null}
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  disabled={draft.saving}
+                                  onClick={() => handleRowUpload(dt)}
+                                  sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 700, fontSize: '0.7rem', backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' }, '&:disabled': { backgroundColor: '#e2e8f0', color: '#94a3b8' }, px: 1.5, minWidth: 0 }}
+                                >
+                                  {draft.saving ? <CircularProgress size={14} color="inherit" /> : 'Upload'}
+                                </Button>
+                              </TableCell>
+                            </>
+                          )}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
+        </Box>
         )}
       </Paper>
-
-      {/* Attach Document Modal */}
-      <Dialog
-        open={docDialogOpen}
-        onClose={handleDocDialogClose}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 3, p: 0.5 } }}
-      >
-        <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', pb: 1 }}>Attach Document</DialogTitle>
-        <Divider />
-        <DialogContent>
-          <Box component="form" onSubmit={handleDocSubmit}>
-            {docError && (
-              <Alert severity="error" sx={{ mb: 2, mt: 2, borderRadius: 2 }}>
-                {docError}
-              </Alert>
-            )}
-            <Stack spacing={2.5} sx={{ mt: 1 }}>
-              <Button
-                fullWidth
-                variant="outlined"
-                component="label"
-                startIcon={<AttachFileIcon />}
-                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: '#cbd5e1', color: '#475569', py: 1.2, '&:hover': { borderColor: '#4f46e5', color: '#4f46e5' } }}
-              >
-                {selectedDocFile ? selectedDocFile.name : 'Choose File'}
-                <input type="file" hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif" onChange={handleDocFileChange} />
-              </Button>
-
-              <TextField
-                required
-                fullWidth
-                label="Document Title"
-                placeholder="e.g. Trade License"
-                value={docForm.title}
-                onChange={handleDocFormChange('title')}
-                size="small"
-                disabled={docSaving}
-                sx={formFieldSx}
-              />
-
-              <FormControl fullWidth size="small" disabled={docSaving}>
-                <InputLabel>Document Type</InputLabel>
-                <Select
-                  label="Document Type"
-                  value={docForm.documentTypeId}
-                  onChange={handleDocFormChange('documentTypeId')}
-                  sx={{ '& .MuiOutlinedInput-root': inputSx }}
-                >
-                  <MenuItem value="">Select Document Type...</MenuItem>
-                  {docTypesList.map((dt) => (
-                    <MenuItem key={dt.id} value={dt.id}>
-                      {dt.name} ({dt.code})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <TextField
-                fullWidth
-                label="Document Number"
-                placeholder="e.g. TL-2024-0091"
-                value={docForm.documentNumber}
-                onChange={handleDocFormChange('documentNumber')}
-                size="small"
-                disabled={docSaving}
-                sx={formFieldSx}
-              />
-
-              <TextField
-                fullWidth
-                multiline
-                rows={2}
-                label="Description"
-                value={docForm.description}
-                onChange={handleDocFormChange('description')}
-                size="small"
-                disabled={docSaving}
-                sx={formFieldSx}
-              />
-
-              <Stack direction="row" spacing={2}>
-                  <TextField
-                    fullWidth
-                    type="date"
-                    required
-                    label="Issued Date (Required)"
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  value={docForm.issuedDate}
-                  onChange={handleDocFormChange('issuedDate')}
-                  size="small"
-                  disabled={docSaving}
-                  sx={formFieldSx}
-                />
-                <TextField
-                  fullWidth
-                  type="date"
-                  label={selectedDocType?.requires_expiry ? 'Expiry Date (Required)' : 'Expiry Date'}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  value={docForm.expiryDate}
-                  onChange={handleDocFormChange('expiryDate')}
-                  size="small"
-                  disabled={docSaving}
-                  required={selectedDocType?.requires_expiry}
-                  sx={formFieldSx}
-                />
-              </Stack>
-            </Stack>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1.5, gap: 1 }}>
-          <Button onClick={handleDocDialogClose} disabled={docSaving} sx={{ borderRadius: 2, fontWeight: 600, color: '#64748b', '&:hover': { backgroundColor: '#f1f5f9' } }}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDocSubmit}
-            variant="contained"
-            disabled={docSaving}
-            sx={{ borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' }, minWidth: 100 }}
-          >
-            {docSaving ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Attach'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Delete Document Confirmation */}
       <ConfirmationModal
