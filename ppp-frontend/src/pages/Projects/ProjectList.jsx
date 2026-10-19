@@ -431,26 +431,13 @@ export const ProjectList = () => {
           Sector &amp; Classification
         </Typography>
       ),
-      renderCell: ({ value }) => {
-        const cats = Array.isArray(value) ? value : [];
-        if (!cats.length) return <Typography sx={{ color: D.textLight, fontSize: '0.8125rem' }}>—</Typography>;
+      renderCell: ({ row }) => {
+        const cats = Array.isArray(row.categories) ? row.categories : [];
+        const names = cats.map((c) => (typeof c === 'string' ? c : (c.category_name || c.name || ''))).filter(Boolean);
         return (
-          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', py: 0.5 }}>
-            {cats.map((c, i) => (
-              <Box
-                key={i}
-                sx={{
-                  px: 1.25, py: 0.3, borderRadius: '4px',
-                  bgcolor: i === 0 ? D.primaryLight : D.borderSubtle,
-                  color: i === 0 ? D.primaryCont : D.textMuted,
-                  border: i === 0 ? `1px solid ${D.primaryLight}` : 'none',
-                  fontSize: '0.6875rem', fontWeight: 500, fontFamily: 'Inter, sans-serif',
-                }}
-              >
-                {c.category_name || c.name || c}
-              </Box>
-            ))}
-          </Box>
+          <Typography sx={{ fontSize: '0.8125rem', color: D.textPrimary, fontFamily: 'Inter, sans-serif', whiteSpace: 'normal' }}>
+            {names.join(', ') || '—'}
+          </Typography>
         );
       },
     },
