@@ -1306,22 +1306,39 @@ export const OrganizationForm = () => {
                                       Open
                                     </Button>
                                   )}
-                                  <Tooltip title="Delete Document">
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => {
-                                        if (isEditMode) {
-                                          setDeleteDocTarget(existingDoc);
-                                        } else {
-                                          setPendingDocs((prev) => prev.filter((p) => p.key !== existingDoc.key));
-                                          setExtraTypeIds((prev) => prev.filter((tid) => tid !== dt.id));
-                                        }
-                                      }}
-                                      sx={{ color: '#dc2626', backgroundColor: '#fef2f2', borderRadius: 1.5, p: 0.6, '&:hover': { backgroundColor: '#fee2e2' } }}
-                                    >
-                                      <DeleteDocIcon sx={{ fontSize: 15 }} />
-                                    </IconButton>
-                                  </Tooltip>
+                                  {(() => {
+                                    const docCanDelete = !isEditMode || !existingDoc.is_verified;
+                                    return !docCanDelete ? (
+                                      <Tooltip title="Verified documents cannot be deleted.">
+                                        <span>
+                                          <IconButton
+                                            size="small"
+                                            disabled
+                                            sx={{ color: '#94a3b8', backgroundColor: '#f1f5f9', borderRadius: 1.5, p: 0.6 }}
+                                          >
+                                            <DeleteDocIcon sx={{ fontSize: 15 }} />
+                                          </IconButton>
+                                        </span>
+                                      </Tooltip>
+                                    ) : (
+                                      <Tooltip title="Delete Document">
+                                        <IconButton
+                                          size="small"
+                                          onClick={() => {
+                                            if (isEditMode) {
+                                              setDeleteDocTarget(existingDoc);
+                                            } else {
+                                              setPendingDocs((prev) => prev.filter((p) => p.key !== existingDoc.key));
+                                              setExtraTypeIds((prev) => prev.filter((tid) => tid !== dt.id));
+                                            }
+                                          }}
+                                          sx={{ color: '#dc2626', backgroundColor: '#fef2f2', borderRadius: 1.5, p: 0.6, '&:hover': { backgroundColor: '#fee2e2' } }}
+                                        >
+                                          <DeleteDocIcon sx={{ fontSize: 15 }} />
+                                        </IconButton>
+                                      </Tooltip>
+                                    );
+                                  })()}
                                 </Stack>
                               </TableCell>
                             </>

@@ -595,6 +595,12 @@ class OrganizationService {
   static async deleteOrganizationDocument(documentId, actorId) {
     const doc = await this.getOrganizationDocumentById(documentId);
 
+    if (doc.is_verified) {
+      const err = new Error('Verified documents cannot be deleted.');
+      err.status = 403;
+      throw err;
+    }
+
     const t = await db.transaction();
     try {
       await OrganizationModel.softDeleteOrganizationDocument(t, documentId, actorId);
