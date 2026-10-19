@@ -50,6 +50,24 @@ const getLicenseExpiryInfo = (expiry) => {
   return { label: 'Valid', color: 'success', value: 'valid' };
 };
 
+// Required-document compliance helper for the list rows
+const getRequiredDocsChipInfo = (org) => {
+  const total = parseInt(org.required_docs_total || 0, 10);
+  const submitted = parseInt(org.required_docs_submitted || 0, 10);
+  const missingNames = (org.required_docs_missing_names || '').split(', ').filter(Boolean);
+
+  if (total === 0) return { label: 'None required', color: 'default', tooltip: null, missingNames };
+  if (missingNames.length === 0) {
+    return { label: `${submitted}/${total} Complete`, color: 'success', tooltip: 'All required documents submitted', missingNames };
+  }
+  return {
+    label: `${missingNames.length} missing`,
+    color: 'error',
+    tooltip: `Missing: ${missingNames.join(', ')}`,
+    missingNames,
+  };
+};
+
 export const OrganizationList = () => {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
@@ -340,6 +358,7 @@ export const OrganizationList = () => {
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Contact Info</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Legal Registration Date</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>License Expiry</TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Required Docs</TableCell>
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Status</TableCell>
                 {/* <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }}>Created</TableCell> */}
                 <TableCell sx={{ fontWeight: 700, color: '#475569', py: 1, fontSize: '0.78rem' }} align="right">Actions</TableCell>
@@ -477,6 +496,24 @@ export const OrganizationList = () => {
                             sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700, mt: 0.5, ...sx }}
                           />
                         );
+                      })()}
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const info = getRequiredDocsChipInfo(org);
+                        const sx = info.color === 'success'
+                          ? { backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#059669' }
+                          : info.color === 'error'
+                            ? { backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#dc2626' }
+                            : { backgroundColor: '#f1f5f9', color: '#64748b' };
+                        const chip = (
+                          <Chip
+                            label={info.label}
+                            size="small"
+                            sx={{ height: 19, fontSize: '0.68rem', fontWeight: 700, ...sx }}
+                          />
+                        );
+                        return info.tooltip ? <Tooltip title={info.tooltip} arrow placement="top">{chip}</Tooltip> : chip;
                       })()}
                     </TableCell>
                     <TableCell>

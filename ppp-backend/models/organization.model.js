@@ -52,7 +52,28 @@ const ORG_FIELDS = `
     SELECT COALESCE(array_agg(oot.organization_type_id::text), ARRAY[]::text[])
     FROM organization_organization_types oot
     WHERE oot.organization_id = o.id AND oot.is_deleted = FALSE
-  ) AS organization_type_ids
+  ) AS organization_type_ids,
+  (
+    SELECT COUNT(*)::int FROM organization_document_types t
+    WHERE t.is_required = TRUE AND t.is_active = TRUE AND t.is_deleted = FALSE
+      AND EXISTS (
+        SELECT 1 FROM organization_documents d
+        WHERE d.organization_id = o.id AND d.document_type_id = t.id AND d.is_deleted = FALSE
+      )
+  ) AS required_docs_submitted,
+  (
+    SELECT COUNT(*)::int FROM organization_document_types t
+    WHERE t.is_required = TRUE AND t.is_active = TRUE AND t.is_deleted = FALSE
+  ) AS required_docs_total,
+  (
+    SELECT COALESCE(string_agg(t.name, ', ' ORDER BY t.name), '')
+    FROM organization_document_types t
+    WHERE t.is_required = TRUE AND t.is_active = TRUE AND t.is_deleted = FALSE
+      AND NOT EXISTS (
+        SELECT 1 FROM organization_documents d
+        WHERE d.organization_id = o.id AND d.document_type_id = t.id AND d.is_deleted = FALSE
+      )
+  ) AS required_docs_missing_names
 `;
 
 /** Profile columns appended on every read (LEFT JOIN – nullable when no profile yet) */
