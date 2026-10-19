@@ -46,9 +46,18 @@ import { useSnackbar } from 'notistack';
 import { organizationDocumentTypesService } from '../../services/foundationService';
 import { formatDate } from '../../utils/formatters';
 import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
+import { useAuth } from '../../context/AuthContext';
 
 export const OrganizationDocumentTypeManagement = () => {
   const { enqueueSnackbar } = useSnackbar();
+  const { hasPermission } = useAuth();
+
+  // Permissions for page actions:
+  const canViewDetails = hasPermission('foundation.details_organization_document_type') || hasPermission('foundation.view_organization_document_type');
+  const canEditProject = hasPermission('foundation.update_organization_document_type') || hasPermission('foundation.edit_organization_document_type');
+  const canExportActivate = hasPermission('foundation.activate_organization_document_type');
+  const canCreateProject = hasPermission('foundation.create_organization_document_type');
+  const canDeleteProject = hasPermission('foundation.delete_organization_document_type');
 
   // State
   const [docTypes, setDocTypes] = useState([]);
