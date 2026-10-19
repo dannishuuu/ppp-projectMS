@@ -1,6 +1,7 @@
 // services/organizationService/organization.service.js
 const db = require('../../config/database');
 const OrganizationModel = require('../../models/organization.model');
+const OrganizationDocumentTypesModel = require('../../models/organizationDocumentTypes.model');
 
 class OrganizationService {
   // ─── LIST ─────────────────────────────────────────────────────────────────
@@ -365,6 +366,219 @@ class OrganizationService {
 
       await t.commit();
       return this.getOrganizationById(id);
+    } catch (err) {
+      await t.rollback();
+      throw err;
+    }
+  }
+
+  // ─── ORGANIZATION DOCUMENTS ───────────────────────────────────────────────
+
+  /**
+   * List all documents attached to an organization.
+   * @param {string} organizationId
+   * @param {object} options - { documentTypeId?, verified?: 'all'|'verified'|'unverified' }
+   */
+  static async getOrganizationDocuments(organizationId, options = {}) {
+    await this.getOrganizationById(organizationId);
+    const rows = await OrganizationModel.findOrganizationDocuments(organizationId, options);
+    return { organizationDocuments: rows };
+  }
+
+  /**
+   * Get a single organization document by UUID.
+   * @param {string} documentId
+   */
+  static async getOrganizationDocumentById(documentId) {
+    const doc = await OrganizationModel.findOrganizationDocumentById(documentId);
+    if (!doc) {
+      const err = new Error('Organization document not found.');
+      err.status = 404;
+      throw err;
+    }
+    return doc;
+  }
+
+  /**
+   * Attach a new document to an organization (metadata for an already-uploaded file).
+   * @param {string} organizationId
+   * @param {object} payload - { documentTypeId, documentNumber?, title, description?,
+   *                            filePath, originalFilename, fileSize?, mimeType?, fileHash?,
+   *                            issuedDate?, expiryDate? }
+   * @param {string} actorId
+   */
+  static async addOrganizationDocument(organizationId, payload, actorId) {
+    await this.getOrganizationById(organizationId);
+
+    const {
+      documentTypeId, documentNumber, title, description,
+      filePath, originalFilename, fileSize, mimeType, fileHash,
+      issuedDate, expiryDate,
+    } = payload;
+
+    if (!title || !title.trim()) {
+      const err = new Error('Document title is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!documentTypeId) {
+      const err = new Error('Document type is required.');
+      err.status = 400;
+      throw err;
+    }
+    if (!filePath || !filePath.trim()) {
+      const err = new Error('Uploaded file path is required. Upload the file first, then attach the metadata.');
+      err.status = 400;
+      throw err;
+    }
+    if (!originalFilename || !originalFilename.trim()) {
+      const err = new Error('Original file name is required.');
+      err.status = 400;
+      throw err;
+    }
+
+    const docType = await OrganizationDocumentTypesModel.findById(documentTypeId);
+    if (!docType || docType.is_deleted || docType.is_active === false) {
+      const err = new Error('Invalid document type.');
+      err.status = 400;
+      throw err;
+    }
+    if (docType.requires_expiry && !expiryDate) {
+      const err = new Error(`Document type "${docType.name}" requires an expiry date.`);
+      err.status = 400;
+      throw err;
+    }
+    if (issuedDate && expiryDate && new Date(expiryDate) < new Date(issuedDate)) {
+      const err = new Error('Expiry date cannot be earlier than the issued date.');
+      err.status = 400;
+      throw err;
+    }
+
+    const t = await db.transaction();
+    try {
+      const docId = await OrganizationModel.insertOrganizationDocument(t, {
+        organizationId,
+        documentTypeId,
+        documentNumber: documentNumber?.trim() || null,
+        title: title.trim(),
+        description: description?.trim() || null,
+        filePath: filePath.trim(),
+        originalFilename: originalFilename.trim(),
+        fileSize: fileSize !== undefined && fileSize !== null && fileSize !== '' ? parseInt(fileSize, 10) : null,
+        mimeType: mimeType || null,
+        fileHash: fileHash || null,
+        issuedDate: issuedDate || null,
+        expiryDate: expiryDate || null,
+        createdBy: actorId,
+      });
+      await t.commit();
+      return this.getOrganizationDocumentById(docId);
+    } catch (err) {
+      await t.rollback();
+      throw err;
+    }
+  }
+
+  /**
+   * Update an organization document's metadata (not the file itself).
+   * @param {string} documentId
+   * @param {object} payload - { documentTypeId?, documentNumber?, title?, description?, issuedDate?, expiryDate? }
+   * @param {string} actorId
+   */
+  static async updateOrganizationDocument(documentId, payload, actorId) {
+    const doc = await this.getOrganizationDocumentById(documentId);
+
+    const {
+      documentTypeId, documentNumber, title, description,
+      issuedDate, expiryDate,
+    } = payload;
+
+    if (title !== undefined && !title.trim()) {
+      const err = new Error('Document title cannot be empty.');
+      err.status = 400;
+      throw err;
+    }
+
+    const nextTypeId = documentTypeId !== undefined ? documentTypeId : doc.document_type_id;
+    const nextIssued = issuedDate !== undefined ? issuedDate : doc.issued_date;
+    const nextExpiry = expiryDate !== undefined ? expiryDate : doc.expiry_date;
+
+    if (nextTypeId && nextTypeId !== doc.document_type_id) {
+      const docType = await OrganizationDocumentTypesModel.findById(nextTypeId);
+      if (!docType || docType.is_deleted || docType.is_active === false) {
+        const err = new Error('Invalid document type.');
+        err.status = 400;
+        throw err;
+      }
+      if (docType.requires_expiry && !nextExpiry) {
+        const err = new Error(`Document type "${docType.name}" requires an expiry date.`);
+        err.status = 400;
+        throw err;
+      }
+    }
+    if (nextIssued && nextExpiry && new Date(nextExpiry) < new Date(nextIssued)) {
+      const err = new Error('Expiry date cannot be earlier than the issued date.');
+      err.status = 400;
+      throw err;
+    }
+
+    const t = await db.transaction();
+    try {
+      const updated = await OrganizationModel.updateOrganizationDocument(t, documentId, {
+        document_type_id: documentTypeId,
+        document_number: documentNumber !== undefined ? documentNumber?.trim() : undefined,
+        title: title !== undefined ? title.trim() : undefined,
+        description: description !== undefined ? description?.trim() : undefined,
+        issued_date: issuedDate,
+        expiry_date: expiryDate,
+      }, actorId);
+
+      if (!updated) {
+        const err = new Error('No changes were applied.');
+        err.status = 400;
+        throw err;
+      }
+
+      await t.commit();
+      return this.getOrganizationDocumentById(documentId);
+    } catch (err) {
+      await t.rollback();
+      throw err;
+    }
+  }
+
+  /**
+   * Mark an organization document as verified.
+   * @param {string} documentId
+   * @param {object} payload - { notes? }
+   * @param {string} actorId
+   */
+  static async verifyOrganizationDocument(documentId, payload, actorId) {
+    await this.getOrganizationDocumentById(documentId);
+
+    const { notes } = payload || {};
+    const result = await OrganizationModel.verifyOrganizationDocument(documentId, actorId, notes);
+    if (!result) {
+      const err = new Error('Failed to verify document.');
+      err.status = 500;
+      throw err;
+    }
+    return this.getOrganizationDocumentById(documentId);
+  }
+
+  /**
+   * Soft delete an organization document.
+   * @param {string} documentId
+   * @param {string} actorId
+   */
+  static async deleteOrganizationDocument(documentId, actorId) {
+    const doc = await this.getOrganizationDocumentById(documentId);
+
+    const t = await db.transaction();
+    try {
+      await OrganizationModel.softDeleteOrganizationDocument(t, documentId, actorId);
+      await t.commit();
+      return { message: `Document "${doc.title}" has been deleted successfully.` };
     } catch (err) {
       await t.rollback();
       throw err;

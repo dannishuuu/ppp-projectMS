@@ -373,6 +373,189 @@ class OrganizationModel {
       { replacements: { id, deletedBy }, transaction: t }
     );
   }
+
+  // ─── ORGANIZATION DOCUMENTS ──────────────────────────────────────────────
+
+  /** Document columns returned on every document read */
+  static ORG_DOC_FIELDS = `
+    od.id,
+    od.organization_id,
+    od.document_type_id,
+    od.document_number,
+    od.title,
+    od.description,
+    od.file_path,
+    od.original_filename,
+    od.file_size,
+    od.mime_type,
+    od.file_hash,
+    od.issued_date,
+    od.expiry_date,
+    od.is_verified,
+    od.verified_at,
+    od.verified_by,
+    od.verification_notes,
+    od.version,
+    od.parent_document_id,
+    od.is_active,
+    od.created_at,
+    od.updated_at,
+    v.first_name || ' ' || v.last_name AS verified_by_name,
+    creator.first_name || ' ' || creator.last_name AS created_by_name,
+    updater.first_name || ' ' || updater.last_name AS updated_by_name,
+    json_build_object(
+      'id', odt.id,
+      'name', odt.name,
+      'code', odt.code,
+      'requires_expiry', odt.requires_expiry
+    ) AS document_type,
+    CASE
+      WHEN od.expiry_date IS NULL THEN NULL
+      ELSE (od.expiry_date < CURRENT_DATE)
+    END AS is_expired
+  `;
+
+  static ORG_DOC_JOIN = `
+    FROM organization_documents od
+    LEFT JOIN organization_document_types odt ON odt.id = od.document_type_id
+    LEFT JOIN users v        ON v.id = od.verified_by
+    LEFT JOIN users creator  ON creator.id = od.created_by
+    LEFT JOIN users updater  ON updater.id = od.updated_by
+  `;
+
+  /**
+   * List documents belonging to an organization (optionally filtered by type / verified).
+   */
+  static async findOrganizationDocuments(organizationId, { documentTypeId = null, verified = 'all' } = {}) {
+    let where = `WHERE od.organization_id = :organizationId AND od.is_deleted = FALSE`;
+    const replacements = { organizationId };
+
+    if (documentTypeId) {
+      where += ` AND od.document_type_id = :documentTypeId`;
+      replacements.documentTypeId = documentTypeId;
+    }
+    if (verified === 'verified') where += ` AND od.is_verified = TRUE`;
+    if (verified === 'unverified') where += ` AND od.is_verified = FALSE`;
+
+    const query = `
+      SELECT ${this.ORG_DOC_FIELDS}
+      ${this.ORG_DOC_JOIN}
+      ${where}
+      ORDER BY od.created_at DESC
+    `;
+    const rows = await db.query(query, { replacements, type: QueryTypes.SELECT });
+    return rows;
+  }
+
+  /**
+   * Get a single organization document by UUID.
+   */
+  static async findOrganizationDocumentById(id) {
+    const query = `
+      SELECT ${this.ORG_DOC_FIELDS}
+      ${this.ORG_DOC_JOIN}
+      WHERE od.id = :id AND od.is_deleted = FALSE
+    `;
+    const rows = await db.query(query, { replacements: { id }, type: QueryTypes.SELECT });
+    return rows[0] || null;
+  }
+
+  /**
+   * Insert a row into `organization_documents` (called inside a transaction).
+   */
+  static async insertOrganizationDocument(t, {
+    organizationId, documentTypeId, documentNumber, title, description,
+    filePath, originalFilename, fileSize, mimeType, fileHash,
+    issuedDate, expiryDate, createdBy,
+  }) {
+    const query = `
+      INSERT INTO organization_documents
+        (organization_id, document_type_id, document_number, title, description,
+         file_path, original_filename, file_size, mime_type, file_hash,
+         issued_date, expiry_date, created_by, updated_by)
+      VALUES
+        (:organizationId, :documentTypeId, :documentNumber, :title, :description,
+         :filePath, :originalFilename, :fileSize, :mimeType, :fileHash,
+         :issuedDate, :expiryDate, :createdBy, :createdBy)
+      RETURNING id
+    `;
+    const rows = await db.query(query, {
+      replacements: {
+        organizationId,
+        documentTypeId,
+        documentNumber: documentNumber || null,
+        title,
+        description: description || null,
+        filePath,
+        originalFilename,
+        fileSize: fileSize ?? null,
+        mimeType: mimeType || null,
+        fileHash: fileHash || null,
+        issuedDate: issuedDate || null,
+        expiryDate: expiryDate || null,
+        createdBy,
+      },
+      type: QueryTypes.SELECT,
+      transaction: t,
+    });
+    return rows[0].id;
+  }
+
+  /**
+   * Update mutable fields of an organization document (called inside a transaction).
+   */
+  static async updateOrganizationDocument(t, id, fields, updatedBy) {
+    const allowed = ['document_number', 'title', 'description', 'issued_date', 'expiry_date', 'document_type_id'];
+    const setClauses = [];
+    const replacements = { id, updatedBy };
+
+    for (const [key, value] of Object.entries(fields)) {
+      if (allowed.includes(key) && value !== undefined) {
+        setClauses.push(`${key} = :${key}`);
+        replacements[key] = value === '' ? null : value;
+      }
+    }
+    if (setClauses.length === 0) return false;
+
+    setClauses.push('updated_at = NOW()', 'updated_by = :updatedBy');
+    const query = `UPDATE organization_documents SET ${setClauses.join(', ')} WHERE id = :id AND is_deleted = FALSE`;
+    const result = await db.query(query, { replacements, transaction: t });
+    return true;
+  }
+
+  /**
+   * Verify an organization document.
+   */
+  static async verifyOrganizationDocument(id, verifierId, notes) {
+    const query = `
+      UPDATE organization_documents
+      SET is_verified = TRUE,
+          verified_at = NOW(),
+          verified_by = :verifierId,
+          verification_notes = :notes,
+          updated_at = NOW(),
+          updated_by = :verifierId
+      WHERE id = :id AND is_deleted = FALSE
+      RETURNING id, is_verified
+    `;
+    const rows = await db.query(query, {
+      replacements: { id, verifierId, notes: notes || null },
+      type: QueryTypes.SELECT,
+    });
+    return rows[0] || null;
+  }
+
+  /**
+   * Soft delete a single organization document.
+   */
+  static async softDeleteOrganizationDocument(t, id, deletedBy) {
+    await db.query(
+      `UPDATE organization_documents
+       SET is_deleted = TRUE, deleted_at = NOW(), deleted_by = :deletedBy
+       WHERE id = :id`,
+      { replacements: { id, deletedBy }, transaction: t }
+    );
+  }
 }
 
 module.exports = OrganizationModel;

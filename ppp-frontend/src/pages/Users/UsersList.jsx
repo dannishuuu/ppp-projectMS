@@ -6,7 +6,7 @@ import {
   Button,
   Chip,
   IconButton,
-    Paper,
+  Paper,
   Table,
   TableBody,
   TableCell,

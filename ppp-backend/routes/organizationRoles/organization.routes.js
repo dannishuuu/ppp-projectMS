@@ -14,4 +14,12 @@ router.put('/:id',                    authMiddleware, OrgController.updateOrgani
 router.patch('/:id/toggle-status',    authMiddleware, OrgController.toggleOrganizationStatus);
 router.delete('/:id',                 authMiddleware, OrgController.deleteOrganization);
 
+// ─── Organization documents ───────────────────────────────────────────────────
+router.get('/:id/documents',                        authMiddleware, OrgController.getOrganizationDocuments);
+router.post('/:id/documents',                       authMiddleware, OrgController.addOrganizationDocument);
+router.get('/:id/documents/:documentId',            authMiddleware, OrgController.getOrganizationDocumentById);
+router.put('/:id/documents/:documentId',            authMiddleware, OrgController.updateOrganizationDocument);
+router.patch('/:id/documents/:documentId/verify',   authMiddleware, OrgController.verifyOrganizationDocument);
+router.delete('/:id/documents/:documentId',         authMiddleware, OrgController.deleteOrganizationDocument);
+
 module.exports = router;

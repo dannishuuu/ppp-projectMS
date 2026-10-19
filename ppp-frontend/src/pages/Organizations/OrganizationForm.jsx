@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -24,6 +24,12 @@ import {
   Fade,
   FormHelperText,
   Autocomplete,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -31,6 +37,9 @@ import {
   Business as BusinessIcon,
   Badge as LicenseIcon,
   Description as DescriptionIcon,
+  AttachFile as AttachFileIcon,
+  CloudUpload as CloudUploadIcon,
+  Delete as DeleteDocIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
@@ -40,6 +49,10 @@ import { countriesService } from '../../services/foundationService/countriesServ
 import { regionsService } from '../../services/foundationService/regionsService';
 import { zonesService } from '../../services/foundationService/zonesService';
 import { woredasService } from '../../services/foundationService/woredasService';
+import { organizationDocumentTypesService } from '../../services/foundationService/organizationDocumentTypesService';
+import { fileService } from '../../services/fileService';
+import { formatDate } from '../../utils/formatters';
+import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 
 const inputSx = {
   borderRadius: 2,
@@ -319,6 +332,156 @@ export const OrganizationForm = () => {
       setFormData((prev) => ({ ...prev, yearsOfExperience: Math.max(0, adjustedYears) }));
     }
   }, [formData.registrationDate]);
+
+  // ── Organization Documents (edit mode only) ──
+  const [documents, setDocuments] = useState([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [docTypesList, setDocTypesList] = useState([]);
+  const [docDialogOpen, setDocDialogOpen] = useState(false);
+  const [docSaving, setDocSaving] = useState(false);
+  const [docError, setDocError] = useState('');
+  const [selectedDocFile, setSelectedDocFile] = useState(null);
+  const [docForm, setDocForm] = useState({
+    documentTypeId: '',
+    documentNumber: '',
+    title: '',
+    description: '',
+    issuedDate: '',
+    expiryDate: '',
+  });
+  const [deleteDocTarget, setDeleteDocTarget] = useState(null);
+  const [deleteDocLoading, setDeleteDocLoading] = useState(false);
+  // Documents staged on the Create page (attached to the DB after the org is created)
+  const [pendingDocs, setPendingDocs] = useState([]);
+
+  const selectedDocType = docTypesList.find((dt) => dt.id === docForm.documentTypeId);
+
+  const displayDocs = isEditMode ? documents : pendingDocs;
+
+  const fetchDocuments = useCallback(async () => {
+    if (!id) return;
+    setDocsLoading(true);
+    try {
+      const res = await organizationService.getOrganizationDocuments(id);
+      setDocuments(res.organizationDocuments || []);
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Failed to load organization documents', { variant: 'error' });
+    } finally {
+      setDocsLoading(false);
+    }
+  }, [id, enqueueSnackbar]);
+
+  const fetchDocTypesList = useCallback(async () => {
+    try {
+      const res = await organizationDocumentTypesService.getOrganizationDocumentTypes({ limit: 100, status: 'active' });
+      setDocTypesList(res.organizationDocumentTypes || []);
+    } catch {
+      // non-critical
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isEditMode) fetchDocuments();
+    fetchDocTypesList();
+  }, [isEditMode, fetchDocuments, fetchDocTypesList]);
+
+  const handleDocDialogOpen = () => {
+    setDocForm({ documentTypeId: '', documentNumber: '', title: '', description: '', issuedDate: '', expiryDate: '' });
+    setSelectedDocFile(null);
+    setDocError('');
+    setDocDialogOpen(true);
+  };
+
+  const handleDocDialogClose = () => {
+    setDocDialogOpen(false);
+    setDocForm({ documentTypeId: '', documentNumber: '', title: '', description: '', issuedDate: '', expiryDate: '' });
+    setSelectedDocFile(null);
+    setDocError('');
+  };
+
+  const handleDocFormChange = (field) => (event) => {
+    setDocForm((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleDocFileChange = (event) => {
+    setDocError('');
+    setSelectedDocFile(event.target.files?.[0] || null);
+  };
+
+  const handleDocSubmit = async (e) => {
+    e?.preventDefault();
+    setDocError('');
+
+    if (!docForm.title.trim()) { setDocError('Document title is required.'); return; }
+    if (!docForm.documentTypeId) { setDocError('Document type is required.'); return; }
+    if (!selectedDocFile) { setDocError('Please choose a file to upload.'); return; }
+    if (selectedDocType?.requires_expiry && !docForm.expiryDate) {
+      setDocError(`Document type "${selectedDocType.name}" requires an expiry date.`);
+      return;
+    }
+    if (docForm.issuedDate && docForm.expiryDate && new Date(docForm.expiryDate) < new Date(docForm.issuedDate)) {
+      setDocError('Expiry date cannot be earlier than the issued date.');
+      return;
+    }
+
+    setDocSaving(true);
+    try {
+      if (!isEditMode) {
+        // Create page: stage the file locally; it is uploaded & attached after the org is created
+        setPendingDocs((prev) => [...prev, {
+          key: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          file: selectedDocFile,
+          documentTypeId: docForm.documentTypeId,
+          documentNumber: docForm.documentNumber,
+          title: docForm.title,
+          description: docForm.description,
+          issuedDate: docForm.issuedDate || null,
+          expiryDate: docForm.expiryDate || null,
+        }]);
+        enqueueSnackbar('Document staged — it will be attached after you save the organization', { variant: 'info' });
+        handleDocDialogClose();
+      } else {
+        const uploadRes = await fileService.uploadFiles([selectedDocFile]);
+        const uploaded = uploadRes.data?.[0];
+        if (!uploaded) throw new Error('File upload failed.');
+
+        await organizationService.addOrganizationDocument(id, {
+          documentTypeId: docForm.documentTypeId,
+          documentNumber: docForm.documentNumber,
+          title: docForm.title,
+          description: docForm.description,
+          issuedDate: docForm.issuedDate || null,
+          expiryDate: docForm.expiryDate || null,
+          filePath: uploaded.path,
+          originalFilename: uploaded.originalName,
+          fileSize: uploaded.size,
+          mimeType: uploaded.mimetype,
+        });
+        enqueueSnackbar('Document attached successfully', { variant: 'success' });
+        handleDocDialogClose();
+        fetchDocuments();
+      }
+    } catch (err) {
+      setDocError(err.message || 'Failed to attach document.');
+    } finally {
+      setDocSaving(false);
+    }
+  };
+
+  const handleDeleteDocConfirm = async () => {
+    if (!deleteDocTarget) return;
+    setDeleteDocLoading(true);
+    try {
+      await organizationService.deleteOrganizationDocument(id, deleteDocTarget.id);
+      enqueueSnackbar('Document deleted', { variant: 'success' });
+      setDeleteDocTarget(null);
+      fetchDocuments();
+    } catch (err) {
+      enqueueSnackbar(err.message || 'Failed to delete document', { variant: 'error' });
+    } finally {
+      setDeleteDocLoading(false);
+    }
+  };
 
   const handleChange = (field) => (event) => {
     setFormData((prev) => ({ ...prev, [field]: event.target.value }));
@@ -947,7 +1110,264 @@ export const OrganizationForm = () => {
             </Stack>
           </Box>
         </form>
+
+        {/* Supporting Documents (edit mode only) */}
+        {isEditMode && (
+          <Box sx={{ mt: 4 }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 28,
+                    height: 28,
+                    borderRadius: 1.5,
+                    backgroundColor: '#4f46e512',
+                    color: '#4f46e5',
+                    '& svg': { fontSize: 16 },
+                  }}
+                >
+                  <AttachFileIcon />
+                </Box>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ fontWeight: 700, color: '#1e40af', letterSpacing: '0.3px', fontSize: '0.78rem', textTransform: 'uppercase' }}
+                >
+                  Supporting Documents
+                </Typography>
+              </Stack>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<CloudUploadIcon sx={{ fontSize: 16 }} />}
+                onClick={handleDocDialogOpen}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: '#cbd5e1', color: '#475569', '&:hover': { borderColor: '#4f46e5', color: '#4f46e5' } }}
+              >
+                Attach Document
+              </Button>
+            </Stack>
+            <Divider sx={{ borderColor: '#e2e8f0', mb: 2 }} />
+
+            {docsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress size={26} color="inherit" sx={{ color: '#4f46e5' }} />
+              </Box>
+            ) : documents.length === 0 ? (
+              <Typography variant="body2" sx={{ color: '#94a3b8', py: 2 }}>
+                No documents attached yet.
+              </Typography>
+            ) : (
+              <Stack spacing={1}>
+                {documents.map((doc) => (
+                  <Box
+                    key={doc.id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      flexWrap: 'wrap',
+                      p: 1.5,
+                      borderRadius: 2,
+                      border: '1px solid #e2e8f0',
+                      backgroundColor: '#f8fafc',
+                      '&:hover': { borderColor: '#c7d2fe', backgroundColor: '#f5f7ff' },
+                    }}
+                  >
+                    <Box sx={{ color: '#4f46e5', display: 'flex', '& svg': { fontSize: 20 } }}>
+                      <DescriptionIcon />
+                    </Box>
+                    <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: '#0f172a', fontSize: '0.85rem', noWrap: true }}>
+                        {doc.title}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#64748b', fontSize: '0.7rem', display: 'block' }}>
+                        {doc.document_type?.name}
+                        {doc.document_number ? ` • ${doc.document_number}` : ''}
+                        {` • ${doc.original_filename}`}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={doc.document_type?.requires_expiry ? `Exp: ${doc.expiry_date ? formatDate(doc.expiry_date) : '—'}` : 'No expiry'}
+                      size="small"
+                      sx={{
+                        height: 20, fontSize: '0.68rem', fontWeight: 600,
+                        backgroundColor: doc.is_expired ? 'rgba(239, 68, 68, 0.1)' : '#f1f5f9',
+                        color: doc.is_expired ? '#dc2626' : '#64748b',
+                      }}
+                    />
+                    <Chip
+                      label={doc.is_verified ? 'Verified' : 'Not Verified'}
+                      size="small"
+                      sx={{
+                        height: 20, fontSize: '0.68rem', fontWeight: 600,
+                        backgroundColor: doc.is_verified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                        color: doc.is_verified ? '#059669' : '#b45309',
+                      }}
+                    />
+                    <Button
+                      size="small"
+                      variant="text"
+                      href={`http://localhost:5000/${doc.file_path}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.75rem', color: '#0284c7' }}
+                    >
+                      Open
+                    </Button>
+                    <Tooltip title="Delete Document">
+                      <IconButton
+                        size="small"
+                        onClick={() => setDeleteDocTarget(doc)}
+                        sx={{ color: '#dc2626', backgroundColor: '#fef2f2', borderRadius: 1.5, p: 0.6, '&:hover': { backgroundColor: '#fee2e2' } }}
+                      >
+                        <DeleteDocIcon sx={{ fontSize: 15 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ))}
+              </Stack>
+            )}
+          </Box>
+        )}
       </Paper>
+
+      {/* Attach Document Modal */}
+      <Dialog
+        open={docDialogOpen}
+        onClose={handleDocDialogClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, p: 0.5 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: '#0f172a', pb: 1 }}>Attach Document</DialogTitle>
+        <Divider />
+        <DialogContent>
+          <Box component="form" onSubmit={handleDocSubmit}>
+            {docError && (
+              <Alert severity="error" sx={{ mb: 2, mt: 2, borderRadius: 2 }}>
+                {docError}
+              </Alert>
+            )}
+            <Stack spacing={2.5} sx={{ mt: 1 }}>
+              <Button
+                fullWidth
+                variant="outlined"
+                component="label"
+                startIcon={<AttachFileIcon />}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: '#cbd5e1', color: '#475569', py: 1.2, '&:hover': { borderColor: '#4f46e5', color: '#4f46e5' } }}
+              >
+                {selectedDocFile ? selectedDocFile.name : 'Choose File'}
+                <input type="file" hidden accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif" onChange={handleDocFileChange} />
+              </Button>
+
+              <TextField
+                required
+                fullWidth
+                label="Document Title"
+                placeholder="e.g. Trade License"
+                value={docForm.title}
+                onChange={handleDocFormChange('title')}
+                size="small"
+                disabled={docSaving}
+                sx={formFieldSx}
+              />
+
+              <FormControl fullWidth size="small" disabled={docSaving}>
+                <InputLabel>Document Type</InputLabel>
+                <Select
+                  label="Document Type"
+                  value={docForm.documentTypeId}
+                  onChange={handleDocFormChange('documentTypeId')}
+                  sx={{ '& .MuiOutlinedInput-root': inputSx }}
+                >
+                  <MenuItem value="">Select Document Type...</MenuItem>
+                  {docTypesList.map((dt) => (
+                    <MenuItem key={dt.id} value={dt.id}>
+                      {dt.name} ({dt.code})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <TextField
+                fullWidth
+                label="Document Number"
+                placeholder="e.g. TL-2024-0091"
+                value={docForm.documentNumber}
+                onChange={handleDocFormChange('documentNumber')}
+                size="small"
+                disabled={docSaving}
+                sx={formFieldSx}
+              />
+
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                label="Description"
+                value={docForm.description}
+                onChange={handleDocFormChange('description')}
+                size="small"
+                disabled={docSaving}
+                sx={formFieldSx}
+              />
+
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Issued Date"
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  value={docForm.issuedDate}
+                  onChange={handleDocFormChange('issuedDate')}
+                  size="small"
+                  disabled={docSaving}
+                  sx={formFieldSx}
+                />
+                <TextField
+                  fullWidth
+                  type="date"
+                  label={selectedDocType?.requires_expiry ? 'Expiry Date (Required)' : 'Expiry Date'}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  value={docForm.expiryDate}
+                  onChange={handleDocFormChange('expiryDate')}
+                  size="small"
+                  disabled={docSaving}
+                  required={selectedDocType?.requires_expiry}
+                  sx={formFieldSx}
+                />
+              </Stack>
+            </Stack>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1.5, gap: 1 }}>
+          <Button onClick={handleDocDialogClose} disabled={docSaving} sx={{ borderRadius: 2, fontWeight: 600, color: '#64748b', '&:hover': { backgroundColor: '#f1f5f9' } }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDocSubmit}
+            variant="contained"
+            disabled={docSaving}
+            sx={{ borderRadius: 2, fontWeight: 700, backgroundColor: '#4f46e5', '&:hover': { backgroundColor: '#4338ca' }, minWidth: 100 }}
+          >
+            {docSaving ? <CircularProgress size={20} sx={{ color: 'white' }} /> : 'Attach'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Document Confirmation */}
+      <ConfirmationModal
+        open={Boolean(deleteDocTarget)}
+        title="Delete Document"
+        message={`Are you sure you want to delete "${deleteDocTarget?.title}"? This action cannot be undone.`}
+        onConfirm={handleDeleteDocConfirm}
+        onClose={() => setDeleteDocTarget(null)}
+        loading={deleteDocLoading}
+        confirmText="Delete"
+        confirmColor="error"
+      />
     </Box>
   );
 };

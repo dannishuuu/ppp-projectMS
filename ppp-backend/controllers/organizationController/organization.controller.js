@@ -81,3 +81,75 @@ exports.deleteOrganization = async (req, res, next) => {
     next(error);
   }
 };
+
+// ─── ORGANIZATION DOCUMENTS ───────────────────────────────────────────────────
+// GET /api/v1/organizations/:id/documents
+exports.getOrganizationDocuments = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { documentTypeId = null, verified = 'all' } = req.query;
+    const result = await OrganizationService.getOrganizationDocuments(id, { documentTypeId, verified });
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/v1/organizations/:id/documents/:documentId
+exports.getOrganizationDocumentById = async (req, res, next) => {
+  try {
+    const { documentId } = req.params;
+    const doc = await OrganizationService.getOrganizationDocumentById(documentId);
+    return res.status(200).json({ success: true, data: doc });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/v1/organizations/:id/documents
+exports.addOrganizationDocument = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const actorId = req.user?.id;
+    const doc = await OrganizationService.addOrganizationDocument(id, req.body, actorId);
+    return res.status(201).json({ success: true, data: doc });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/v1/organizations/:id/documents/:documentId
+exports.updateOrganizationDocument = async (req, res, next) => {
+  try {
+    const { documentId } = req.params;
+    const actorId = req.user?.id;
+    const updated = await OrganizationService.updateOrganizationDocument(documentId, req.body, actorId);
+    return res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PATCH /api/v1/organizations/:id/documents/:documentId/verify
+exports.verifyOrganizationDocument = async (req, res, next) => {
+  try {
+    const { documentId } = req.params;
+    const actorId = req.user?.id;
+    const updated = await OrganizationService.verifyOrganizationDocument(documentId, req.body, actorId);
+    return res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/v1/organizations/:id/documents/:documentId
+exports.deleteOrganizationDocument = async (req, res, next) => {
+  try {
+    const { documentId } = req.params;
+    const actorId = req.user?.id;
+    const result = await OrganizationService.deleteOrganizationDocument(documentId, actorId);
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
