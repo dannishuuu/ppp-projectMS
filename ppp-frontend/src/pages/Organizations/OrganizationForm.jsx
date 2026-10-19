@@ -130,6 +130,7 @@ export const OrganizationForm = () => {
     yearsOfExperience: '',
     registrationDate: '',
     licenseNumber: '',
+    licenseExpiryDate: '',
     bio: '',
     pastProjectsSummary: '',
   });
@@ -276,6 +277,7 @@ export const OrganizationForm = () => {
           yearsOfExperience: org.years_of_experience ?? '',
           registrationDate: org.registration_date ? org.registration_date.split('T')[0] : '',
           licenseNumber: org.license_number || '',
+          licenseExpiryDate: org.license_expiry_date ? org.license_expiry_date.split('T')[0] : '',
           bio: org.bio || '',
           pastProjectsSummary: org.past_projects_summary || '',
         });
@@ -804,6 +806,17 @@ export const OrganizationForm = () => {
                 inputProps={{
                   style: { textTransform: 'uppercase' }
                 }}
+              />
+
+              <TextField
+                fullWidth
+                type="date"
+                label="License Expiry Date"
+                slotProps={{ inputLabel: { shrink: true } }}
+                value={formData.licenseExpiryDate}
+                onChange={handleChange('licenseExpiryDate')}
+                size="small"
+                sx={formFieldSx}
               />
 
               <TextField

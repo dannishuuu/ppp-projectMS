@@ -36,7 +36,7 @@ export const organizationService = {
 
   /**
    * Create a new organization with its profile and organization types.
-   * @param {object} payload - { name, organizationTypeIds, phone, email, address, profileExperience, businessSector, yearsOfExperience, registrationDate, licenseNumber, bio, pastProjectsSummary }
+    * @param {object} payload - { name, organizationTypeIds, phone, email, address, profileExperience, businessSector, yearsOfExperience, registrationDate, licenseNumber, licenseExpiryDate, bio, pastProjectsSummary }
    * @returns {Promise<object>}
    */
   async createOrganization(payload) {

@@ -436,6 +436,16 @@ export const OrganizationDetails = () => {
                   {org.registration_date ? formatDate(org.registration_date) : '-'}
                 </Typography>
               </Box>
+              <Divider light />
+
+              <Box>
+                <Typography variant="caption" sx={{ color: '#64748b', display: 'block' }}>
+                  License Expiry Date
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 600, fontSize: '0.85rem' }}>
+                  {org.license_expiry_date ? formatDate(org.license_expiry_date) : '-'}
+                </Typography>
+              </Box>
             </Box>
           </Box>
 

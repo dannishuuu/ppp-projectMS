@@ -62,6 +62,7 @@ const PROFILE_FIELDS = `
   op.years_of_experience,
   op.registration_date,
   op.license_number,
+  op.license_expiry_date,
   op.bio,
   op.past_projects_summary,
   bs.eng_name                   AS business_sector_name,
@@ -209,12 +210,12 @@ class OrganizationModel {
   /**
    * Insert a row into `organization_profiles`.
    */
-  static async insertProfile(t, { organizationId, businessSectorId, yearsOfExperience, registrationDate, licenseNumber, bio, pastProjectsSummary, createdBy }) {
+  static async insertProfile(t, { organizationId, businessSectorId, yearsOfExperience, registrationDate, licenseNumber, licenseExpiryDate, bio, pastProjectsSummary, createdBy }) {
     const query = `
       INSERT INTO organization_profiles
-        (organization_id, business_sector_id, years_of_experience, registration_date, license_number, bio, past_projects_summary, created_by, updated_by)
+        (organization_id, business_sector_id, years_of_experience, registration_date, license_number, license_expiry_date, bio, past_projects_summary, created_by, updated_by)
       VALUES
-        (:organizationId, :businessSectorId, :yearsOfExperience, :registrationDate, :licenseNumber, :bio, :pastProjectsSummary, :createdBy, :createdBy)
+        (:organizationId, :businessSectorId, :yearsOfExperience, :registrationDate, :licenseNumber, :licenseExpiryDate, :bio, :pastProjectsSummary, :createdBy, :createdBy)
       RETURNING id
     `;
     const rows = await db.query(query, {
@@ -224,6 +225,7 @@ class OrganizationModel {
         yearsOfExperience: yearsOfExperience ?? null,
         registrationDate: registrationDate || null,
         licenseNumber: licenseNumber || null,
+        licenseExpiryDate: licenseExpiryDate || null,
         bio: bio || null,
         pastProjectsSummary: pastProjectsSummary || null,
         createdBy,
@@ -297,7 +299,7 @@ class OrganizationModel {
   }
 
   static async updateProfile(t, organizationId, fields, updatedBy) {
-    const allowed = ['business_sector_id', 'years_of_experience', 'registration_date', 'license_number', 'bio', 'past_projects_summary'];
+    const allowed = ['business_sector_id', 'years_of_experience', 'registration_date', 'license_number', 'license_expiry_date', 'bio', 'past_projects_summary'];
     const setClauses = [];
     const replacements = { organizationId, updatedBy };
 
@@ -321,6 +323,7 @@ class OrganizationModel {
         yearsOfExperience: fields.years_of_experience,
         registrationDate: fields.registration_date,
         licenseNumber: fields.license_number,
+        licenseExpiryDate: fields.license_expiry_date,
         bio: fields.bio,
         pastProjectsSummary: fields.past_projects_summary,
         createdBy: updatedBy,

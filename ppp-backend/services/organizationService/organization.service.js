@@ -55,7 +55,7 @@ class OrganizationService {
    *
    *   // organization_profiles table fields
    *   businessSector?, yearsOfExperience?, registrationDate?,
-   *   licenseNumber?, bio?, pastProjectsSummary?
+    *   licenseNumber?, licenseExpiryDate?, bio?, pastProjectsSummary?
    * }
    *
    * @param {object} payload
@@ -80,6 +80,7 @@ class OrganizationService {
       yearsOfExperience,
       registrationDate,
       licenseNumber,
+      licenseExpiryDate,
       bio,
       pastProjectsSummary,
     } = payload;
@@ -193,6 +194,7 @@ class OrganizationService {
         yearsOfExperience: yearsOfExperience !== undefined && yearsOfExperience !== '' && yearsOfExperience !== null ? parseInt(yearsOfExperience, 10) : null,
         registrationDate,
         licenseNumber: licenseNumber.trim(),
+        licenseExpiryDate,
         bio: bio ? bio.trim() : null,
         pastProjectsSummary: pastProjectsSummary ? pastProjectsSummary.trim() : null,
         createdBy: actorId,
@@ -234,6 +236,7 @@ class OrganizationService {
       yearsOfExperience,
       registrationDate,
       licenseNumber,
+      licenseExpiryDate,
       bio,
       pastProjectsSummary,
     } = payload;
@@ -345,6 +348,7 @@ class OrganizationService {
         years_of_experience: yearsOfExperience,
         registration_date: registrationDate,
         license_number: licenseNumber,
+        license_expiry_date: licenseExpiryDate,
         bio,
         past_projects_summary: pastProjectsSummary,
       }, actorId);
