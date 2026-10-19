@@ -472,11 +472,11 @@ class OrganizationModel {
       INSERT INTO organization_documents
         (organization_id, document_type_id, document_number, title, description,
          file_path, original_filename, file_size, mime_type, file_hash,
-         issued_date, expiry_date, created_by, updated_by)
+         issued_date, expiry_date, is_verified, created_by, updated_by)
       VALUES
         (:organizationId, :documentTypeId, :documentNumber, :title, :description,
          :filePath, :originalFilename, :fileSize, :mimeType, :fileHash,
-         :issuedDate, :expiryDate, :createdBy, :createdBy)
+         :issuedDate, :expiryDate, NULL, :createdBy, :createdBy)
       RETURNING id
     `;
     const rows = await db.query(query, {
