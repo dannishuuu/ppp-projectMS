@@ -345,6 +345,8 @@ export const OrganizationForm = () => {
   const [deleteDocLoading, setDeleteDocLoading] = useState(false);
   // Documents staged on the Create page (attached to the DB after the org is created)
   const [pendingDocs, setPendingDocs] = useState([]);
+  // Optional (non-required) document types manually added to the table on the Create page
+  const [extraTypeIds, setExtraTypeIds] = useState([]);
   // Form tabs: 0 = Organization Details, 1 = Supporting Documents
   const [activeTab, setActiveTab] = useState(0);
 
@@ -355,6 +357,19 @@ export const OrganizationForm = () => {
     (d) => d.document_type_id ?? d.documentTypeId
   );
   const missingRequiredDocs = requiredDocTypes.filter((dt) => !uploadedTypeIds.includes(dt.id));
+
+  // Table rows: create mode = required types + manually added ones; edit mode = required + types having a document
+  const tableDocTypes = useMemo(() => {
+    if (isEditMode) {
+      return docTypesList.filter((dt) => dt.is_required || uploadedTypeIds.includes(dt.id));
+    }
+    const extras = extraTypeIds
+      .map((tid) => docTypesList.find((dt) => dt.id === tid))
+      .filter(Boolean);
+    return [...requiredDocTypes, ...extras];
+  }, [isEditMode, docTypesList, extraTypeIds, requiredDocTypes, uploadedTypeIds]);
+
+  const availableExtraTypes = docTypesList.filter((dt) => !tableDocTypes.some((t) => t.id === dt.id));
 
   const fetchDocuments = useCallback(async () => {
     if (!id) return;
@@ -1202,6 +1217,34 @@ export const OrganizationForm = () => {
                 </Typography>
               )}
 
+              {!isEditMode && availableExtraTypes.length > 0 && (
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                  <TextField
+                    select
+                    size="small"
+                    label="Add Document Type"
+                    value=""
+                    onChange={(event) => {
+                      if (event.target.value) {
+                        setExtraTypeIds((prev) => [...prev, event.target.value]);
+                      }
+                    }}
+                    sx={{
+                      minWidth: 240,
+                      '& .MuiOutlinedInput-root': inputSx,
+                      '& .MuiInputBase-input': { fontSize: '0.8rem', py: 0.75, cursor: 'pointer' },
+                    }}
+                  >
+                    <MenuItem value="">Add another document type…</MenuItem>
+                    {availableExtraTypes.map((dt) => (
+                      <MenuItem key={dt.id} value={dt.id}>
+                        {dt.name} ({dt.code})
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Box>
+              )}
+
               <TableContainer sx={{ border: '1px solid #e2e8f0', borderRadius: 2, overflowX: 'auto' }}>
                 <Table size="small" sx={{ minWidth: 900 }}>
                   <TableHead>
@@ -1216,7 +1259,7 @@ export const OrganizationForm = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {docTypesList.map((dt) => {
+                    {tableDocTypes.map((dt) => {
                       const existingDoc = (isEditMode ? documents : pendingDocs).find(
                         (d) => (d.document_type_id ?? d.documentTypeId) === dt.id
                       );
@@ -1298,7 +1341,14 @@ export const OrganizationForm = () => {
                                   <Tooltip title="Delete Document">
                                     <IconButton
                                       size="small"
-                                      onClick={() => (isEditMode ? setDeleteDocTarget(existingDoc) : setPendingDocs((prev) => prev.filter((p) => p.key !== existingDoc.key)))}
+                                      onClick={() => {
+                                        if (isEditMode) {
+                                          setDeleteDocTarget(existingDoc);
+                                        } else {
+                                          setPendingDocs((prev) => prev.filter((p) => p.key !== existingDoc.key));
+                                          setExtraTypeIds((prev) => prev.filter((tid) => tid !== dt.id));
+                                        }
+                                      }}
                                       sx={{ color: '#dc2626', backgroundColor: '#fef2f2', borderRadius: 1.5, p: 0.6, '&:hover': { backgroundColor: '#fee2e2' } }}
                                     >
                                       <DeleteDocIcon sx={{ fontSize: 15 }} />
