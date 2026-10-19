@@ -22,6 +22,7 @@ const checklistRoutes = require('./routes/projectController/checklist.routes');
 const currencyRoutes = require('./routes/foundationService/currency.routes');
 const proposalStatusRoutes = require('./routes/foundationService/proposalStatus.routes');
 const projectStatusRoutes = require('./routes/foundationService/projectStatus.routes');
+const organizationDocumentTypesRoutes = require('./routes/foundationService/organizationDocumentTypes.routes');
 const fileRoutes = require('./routes/file.routes');
 const reviewDecisionRoutes = require('./routes/reviewDecision.routes');
 const proposalReviewRoutes = require('./routes/proposalReview.routes');
@@ -104,6 +105,7 @@ app.use('/api/v1/proposal-statuses', proposalStatusRoutes);
 
 // Project status routes
 app.use('/api/v1/project-statuses', projectStatusRoutes);
+app.use('/api/v1/organization-document-types', organizationDocumentTypesRoutes);
 
 // File upload routes
 app.use('/api/v1/files', fileRoutes);

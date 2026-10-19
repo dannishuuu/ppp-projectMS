@@ -32,6 +32,7 @@ import { ProjectReviewPage } from './pages/Projects/ProjectReviewPage';
 import { ProjectReviewApprovalPage } from './pages/Projects/ProjectReviewApprovalPage';
 import { ProjectTrackingTypePage } from './pages/Foundation/ProjectTrackingTypePage';
 import { ProjectStatusPage } from './pages/Foundation/ProjectStatusPage';
+import { OrganizationDocumentTypeManagement } from './pages/Foundation/OrganizationDocumentTypeManagement';
 import { DocumentSequencePage } from './pages/DocumentManagement/DocumentSequencePage';
 import { GeographicManagement } from './pages/Foundation/GeographicManagement';
 import { BuildingTypePage } from './pages/Foundation/BuildingTypePage';
@@ -148,6 +149,7 @@ function App() {
                   <Route path="foundation/tracking-types" element={<ProjectTrackingTypePage />} />
                   <Route path="foundation/project-categories" element={<ProjectCategoryPage />} />
                   <Route path="foundation/project-statuses" element={<ProjectStatusPage />} />
+                  <Route path="foundation/organization-document-types" element={<OrganizationDocumentTypeManagement />} />
 
                   {/* Building Management pages */}
                   <Route path="buildings" element={<BuildingIndexPage />} />

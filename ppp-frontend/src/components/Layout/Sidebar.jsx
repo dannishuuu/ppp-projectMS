@@ -47,6 +47,7 @@ import {
   FactCheck as ApprovalNavIcon,
   Security as RoleIcon,
   AssignmentInd as UserRoleNavIcon,
+  LibraryBooks as OrgDocTypeNavIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProjects } from '../../context/ProjectContext';
@@ -133,6 +134,7 @@ export const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     { text: 'Area Units', icon: <AreaUnitIcon />, path: '/foundation/area-units', permission: 'foundation.list_area_unit' },
     { text: 'Floor Types', icon: <FloorTypeIcon />, path: '/foundation/floor-types', permission: 'foundation.list_floor_type' },
     { text: 'Business Sectors', icon: <CategoryIcon />, path: '/foundation/business-sectors', permission: 'foundation.list_business_sector' },
+    { text: 'Organization Doc Types', icon: <OrgDocTypeNavIcon />, path: '/foundation/organization-document-types', permission: 'foundation.list_organization_document_type' },
   ];
 
   const docMgmtSubItems = [
