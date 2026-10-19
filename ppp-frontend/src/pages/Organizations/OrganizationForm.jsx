@@ -447,7 +447,7 @@ export const OrganizationForm = () => {
         clearDraft(docType.id);
         enqueueSnackbar('Document staged — it will be attached after you save the organization', { variant: 'info' });
       } else {
-        const uploadRes = await fileService.uploadFiles([draft.file]);
+        const uploadRes = await fileService.uploadOrganizationFiles([draft.file]);
         const uploaded = uploadRes.data?.[0];
         if (!uploaded) throw new Error('File upload failed.');
 
@@ -558,7 +558,7 @@ export const OrganizationForm = () => {
         // Attach any documents staged during creation
         for (const pending of pendingDocs) {
           try {
-            const uploadRes = await fileService.uploadFiles([pending.file]);
+            const uploadRes = await fileService.uploadOrganizationFiles([pending.file]);
             const uploaded = uploadRes.data?.[0];
             if (!uploaded) throw new Error('File upload failed.');
 

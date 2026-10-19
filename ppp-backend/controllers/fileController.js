@@ -1,17 +1,22 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
-// Configure multer storage
-const storage = multer.diskStorage({
+// Configure multer storage factory (per destination folder)
+const makeStorage = (destination) => multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/proposals/');
+    cb(null, destination);
   },
   filename: (req, file, cb) => {
     const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
     cb(null, uniqueName);
   },
 });
+
+// Ensure destination folders exist
+fs.mkdirSync('uploads/proposals/', { recursive: true });
+fs.mkdirSync('uploads/organizationdocuments/', { recursive: true });
 
 // File filter - allow common document types
 const fileFilter = (req, file, cb) => {
@@ -39,13 +44,19 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage,
+  storage: makeStorage('uploads/proposals/'),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter,
 }).array('files', 5); // Allow up to 5 files
 
-exports.uploadFiles = (req, res, next) => {
-  upload(req, res, (err) => {
+const orgDocumentUpload = multer({
+  storage: makeStorage('uploads/organizationdocuments/'),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter,
+}).array('files', 5); // Allow up to 5 files
+
+const handleMulterUpload = (multerMiddleware, req, res, next) => {
+  multerMiddleware(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({ success: false, message: 'File size exceeds 10MB limit' });
@@ -58,7 +69,7 @@ exports.uploadFiles = (req, res, next) => {
     if (err) {
       return res.status(400).json({ success: false, message: err.message });
     }
-    
+
     // Process uploaded files
     const uploadedFiles = req.files.map(file => ({
       id: uuidv4(),
@@ -69,9 +80,18 @@ exports.uploadFiles = (req, res, next) => {
       mimetype: file.mimetype,
       uploadedAt: new Date().toISOString(),
     }));
-    
+
     res.status(200).json({ success: true, data: uploadedFiles });
   });
+};
+
+exports.uploadFiles = (req, res, next) => {
+  handleMulterUpload(upload, req, res, next);
+};
+
+// Organization documents are stored under uploads/organizationdocuments/
+exports.uploadOrganizationFiles = (req, res, next) => {
+  handleMulterUpload(orgDocumentUpload, req, res, next);
 };
 
 exports.deleteFile = (req, res, next) => {
