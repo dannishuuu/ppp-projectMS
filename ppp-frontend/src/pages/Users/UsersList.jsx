@@ -6,8 +6,7 @@ import {
   Button,
   Chip,
   IconButton,
-  Tooltip,
-  Paper,
+    Paper,
   Table,
   TableBody,
   TableCell,
@@ -489,200 +488,194 @@ export const UsersList = () => {
                       </Typography>
                     </TableCell> */}
                     <TableCell align="right" sx={{ pr: 1 }}>
-                      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-                        <Tooltip title="View Details" arrow placement="top">
-                          <IconButton
+                      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <Button
+                          size="small"
+                          startIcon={<ViewIcon sx={{ fontSize: 15 }} />}
+                          onClick={() => navigate(`/users/${user.id}`)}
+                          sx={{
+                            color: '#0284c7',
+                            backgroundColor: '#f0f9ff',
+                            border: '1px solid #bae6fd',
+                            borderRadius: 1.5,
+                            px: 1,
+                            py: 0.45,
+                            minWidth: 'auto',
+                            textTransform: 'none',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: '#e0f2fe',
+                              color: '#0369a1',
+                              transform: 'translateY(-1px)',
+                              boxShadow: '0 2px 4px rgba(2, 132, 199, 0.15)',
+                            },
+                          }}
+                        >
+                          View
+                        </Button>
+
+                        <Button
+                          size="small"
+                          startIcon={<EditIcon sx={{ fontSize: 15 }} />}
+                          onClick={() => navigate(`/users/${user.id}/edit`)}
+                          disabled={isCurrentUser(user.id)}
+                          sx={{
+                            color: isCurrentUser(user.id) ? '#94a3b8' : '#4f46e5',
+                            backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#f5f3ff',
+                            border: `1px solid ${isCurrentUser(user.id) ? '#e2e8f0' : '#ede9fe'}`,
+                            borderRadius: 1.5,
+                            px: 1,
+                            py: 0.45,
+                            minWidth: 'auto',
+                            textTransform: 'none',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#ede9fe',
+                              color: isCurrentUser(user.id) ? '#94a3b8' : '#4338ca',
+                              transform: isCurrentUser(user.id) ? 'none' : 'translateY(-1px)',
+                              boxShadow: isCurrentUser(user.id) ? 'none' : '0 2px 4px rgba(79, 70, 229, 0.15)',
+                            },
+                            '&.Mui-disabled': {
+                              backgroundColor: '#f1f5f9',
+                              borderColor: '#e2e8f0',
+                            },
+                          }}
+                        >
+                          Edit
+                        </Button>
+
+                        <Button
+                          size="small"
+                          startIcon={<PasswordResetIcon sx={{ fontSize: 15 }} />}
+                          onClick={() => handlePasswordDialogOpen(user)}
+                          disabled={isCurrentUser(user.id)}
+                          sx={{
+                            color: isCurrentUser(user.id) ? '#94a3b8' : '#7c3aed',
+                            backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#f5f3ff',
+                            border: `1px solid ${isCurrentUser(user.id) ? '#e2e8f0' : '#ede9fe'}`,
+                            borderRadius: 1.5,
+                            px: 1,
+                            py: 0.45,
+                            minWidth: 'auto',
+                            textTransform: 'none',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#ede9fe',
+                              color: isCurrentUser(user.id) ? '#94a3b8' : '#6d28d9',
+                              transform: isCurrentUser(user.id) ? 'none' : 'translateY(-1px)',
+                              boxShadow: isCurrentUser(user.id) ? 'none' : '0 2px 4px rgba(124, 58, 237, 0.15)',
+                            },
+                            '&.Mui-disabled': {
+                              backgroundColor: '#f1f5f9',
+                              borderColor: '#e2e8f0',
+                            },
+                          }}
+                        >
+                          Reset Password
+                        </Button>
+
+                        <Button
+                          size="small"
+                          startIcon={user.is_active ? <DeactivateIcon sx={{ fontSize: 15 }} /> : <ActivateIcon sx={{ fontSize: 15 }} />}
+                          onClick={() => handleToggleDialogOpen(user)}
+                          disabled={isCurrentUser(user.id)}
+                          sx={{
+                            color: isCurrentUser(user.id) ? '#94a3b8' : user.is_active ? '#d97706' : '#059669',
+                            backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : user.is_active ? '#fff7ed' : '#ecfdf5',
+                            border: `1px solid ${isCurrentUser(user.id) ? '#e2e8f0' : user.is_active ? '#ffedd5' : '#d1fae5'}`,
+                            borderRadius: 1.5,
+                            px: 1,
+                            py: 0.45,
+                            minWidth: 'auto',
+                            textTransform: 'none',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : user.is_active ? '#ffedd5' : '#d1fae5',
+                              color: isCurrentUser(user.id) ? '#94a3b8' : user.is_active ? '#b45309' : '#047857',
+                              transform: isCurrentUser(user.id) ? 'none' : 'translateY(-1px)',
+                              boxShadow: isCurrentUser(user.id)
+                                ? 'none'
+                                : user.is_active
+                                ? '0 2px 4px rgba(217, 119, 6, 0.15)'
+                                : '0 2px 4px rgba(5, 150, 105, 0.15)',
+                            },
+                            '&.Mui-disabled': {
+                              backgroundColor: '#f1f5f9',
+                              borderColor: '#e2e8f0',
+                            },
+                          }}
+                        >
+                          {user.is_active ? 'Deactivate' : 'Activate'}
+                        </Button>
+
+                        {isLocked(user) && (
+                          <Button
                             size="small"
-                            onClick={() => navigate(`/users/${user.id}`)}
+                            startIcon={<UnlockIcon sx={{ fontSize: 15 }} />}
+                            onClick={() => handleUnlockDialogOpen(user)}
                             sx={{
-                              color: '#0284c7',
-                              backgroundColor: '#f0f9ff',
-                              border: '1px solid #bae6fd',
+                              color: '#b45309',
+                              backgroundColor: '#fffbeb',
+                              border: '1px solid #fde68a',
                               borderRadius: 1.5,
-                              p: 0.6,
+                              px: 1,
+                              py: 0.45,
+                              minWidth: 'auto',
+                              textTransform: 'none',
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
                               transition: 'all 0.2s ease',
                               '&:hover': {
-                                backgroundColor: '#e0f2fe',
-                                color: '#0369a1',
+                                backgroundColor: '#fef3c7',
+                                color: '#92400e',
                                 transform: 'translateY(-1px)',
-                                boxShadow: '0 2px 4px rgba(2, 132, 199, 0.15)',
+                                boxShadow: '0 2px 4px rgba(180, 83, 9, 0.15)',
                               },
                             }}
                           >
-                            <ViewIcon sx={{ fontSize: 15 }} />
-                          </IconButton>
-                        </Tooltip>
-
-                        <Tooltip
-                          title={isCurrentUser(user.id) ? 'You cannot edit yourself' : 'Edit User'}
-                          arrow
-                          placement="top"
-                        >
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={() => navigate(`/users/${user.id}/edit`)}
-                              disabled={isCurrentUser(user.id)}
-                              sx={{
-                                color: isCurrentUser(user.id) ? '#94a3b8' : '#4f46e5',
-                                backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#f5f3ff',
-                                border: `1px solid ${isCurrentUser(user.id) ? '#e2e8f0' : '#ede9fe'}`,
-                                borderRadius: 1.5,
-                                p: 0.6,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#ede9fe',
-                                  color: isCurrentUser(user.id) ? '#94a3b8' : '#4338ca',
-                                  transform: isCurrentUser(user.id) ? 'none' : 'translateY(-1px)',
-                                  boxShadow: isCurrentUser(user.id) ? 'none' : '0 2px 4px rgba(79, 70, 229, 0.15)',
-                                },
-                                '&.Mui-disabled': {
-                                  backgroundColor: '#f1f5f9',
-                                  borderColor: '#e2e8f0',
-                                },
-                              }}
-                            >
-                              <EditIcon sx={{ fontSize: 15 }} />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-
-                        <Tooltip
-                          title={isCurrentUser(user.id) ? 'You cannot reset your own password' : 'Reset Password'}
-                          arrow
-                          placement="top"
-                        >
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={() => handlePasswordDialogOpen(user)}
-                              disabled={isCurrentUser(user.id)}
-                              sx={{
-                                color: isCurrentUser(user.id) ? '#94a3b8' : '#7c3aed',
-                                backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#f5f3ff',
-                                border: `1px solid ${isCurrentUser(user.id) ? '#e2e8f0' : '#ede9fe'}`,
-                                borderRadius: 1.5,
-                                p: 0.6,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#ede9fe',
-                                  color: isCurrentUser(user.id) ? '#94a3b8' : '#6d28d9',
-                                  transform: isCurrentUser(user.id) ? 'none' : 'translateY(-1px)',
-                                  boxShadow: isCurrentUser(user.id) ? 'none' : '0 2px 4px rgba(124, 58, 237, 0.15)',
-                                },
-                                '&.Mui-disabled': {
-                                  backgroundColor: '#f1f5f9',
-                                  borderColor: '#e2e8f0',
-                                },
-                              }}
-                            >
-                              <PasswordResetIcon sx={{ fontSize: 15 }} />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-
-                        <Tooltip
-                          title={
-                            isCurrentUser(user.id)
-                              ? 'You cannot change your own status'
-                              : user.is_active
-                              ? 'Deactivate User'
-                              : 'Activate User'
-                          }
-                          arrow
-                          placement="top"
-                        >
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleToggleDialogOpen(user)}
-                              disabled={isCurrentUser(user.id)}
-                              sx={{
-                                color: isCurrentUser(user.id) ? '#94a3b8' : user.is_active ? '#d97706' : '#059669',
-                                backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : user.is_active ? '#fff7ed' : '#ecfdf5',
-                                border: `1px solid ${isCurrentUser(user.id) ? '#e2e8f0' : user.is_active ? '#ffedd5' : '#d1fae5'}`,
-                                borderRadius: 1.5,
-                                p: 0.6,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : user.is_active ? '#ffedd5' : '#d1fae5',
-                                  color: isCurrentUser(user.id) ? '#94a3b8' : user.is_active ? '#b45309' : '#047857',
-                                  transform: isCurrentUser(user.id) ? 'none' : 'translateY(-1px)',
-                                  boxShadow: isCurrentUser(user.id)
-                                    ? 'none'
-                                    : user.is_active
-                                    ? '0 2px 4px rgba(217, 119, 6, 0.15)'
-                                    : '0 2px 4px rgba(5, 150, 105, 0.15)',
-                                },
-                                '&.Mui-disabled': {
-                                  backgroundColor: '#f1f5f9',
-                                  borderColor: '#e2e8f0',
-                                },
-                              }}
-                            >
-                              {user.is_active ? (
-                                <DeactivateIcon sx={{ fontSize: 15 }} />
-                              ) : (
-                                <ActivateIcon sx={{ fontSize: 15 }} />
-                              )}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-
-                        {isLocked(user) && (
-                          <Tooltip title="Unlock User" arrow placement="top">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleUnlockDialogOpen(user)}
-                              sx={{
-                                color: '#b45309',
-                                backgroundColor: '#fffbeb',
-                                border: '1px solid #fde68a',
-                                borderRadius: 1.5,
-                                p: 0.6,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: '#fef3c7',
-                                  color: '#92400e',
-                                  transform: 'translateY(-1px)',
-                                  boxShadow: '0 2px 4px rgba(180, 83, 9, 0.15)',
-                                },
-                              }}
-                            >
-                              <UnlockIcon sx={{ fontSize: 15 }} />
-                            </IconButton>
-                          </Tooltip>
+                            Unlock
+                          </Button>
                         )}
 
-                        <Tooltip title={isCurrentUser(user.id) ? 'You cannot delete yourself' : 'Delete User'} arrow placement="top">
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleDeleteDialogOpen(user)}
-                              disabled={isCurrentUser(user.id)}
-                              sx={{
-                                color: isCurrentUser(user.id) ? '#94a3b8' : '#dc2626',
-                                backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#fef2f2',
-                                border: `1px solid ${isCurrentUser(user.id) ? '#e2e8f0' : '#fee2e2'}`,
-                                borderRadius: 1.5,
-                                p: 0.6,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#fee2e2',
-                                  color: isCurrentUser(user.id) ? '#94a3b8' : '#b91c1c',
-                                  transform: isCurrentUser(user.id) ? 'none' : 'translateY(-1px)',
-                                  boxShadow: isCurrentUser(user.id) ? 'none' : '0 2px 4px rgba(220, 38, 38, 0.15)',
-                                },
-                                '&.Mui-disabled': {
-                                  backgroundColor: '#f1f5f9',
-                                  borderColor: '#e2e8f0',
-                                },
-                              }}
-                            >
-                              <DeleteIcon sx={{ fontSize: 15 }} />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
+                        <Button
+                          size="small"
+                          startIcon={<DeleteIcon sx={{ fontSize: 15 }} />}
+                          onClick={() => handleDeleteDialogOpen(user)}
+                          disabled={isCurrentUser(user.id)}
+                          sx={{
+                            color: isCurrentUser(user.id) ? '#94a3b8' : '#dc2626',
+                            backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#fef2f2',
+                            border: `1px solid ${isCurrentUser(user.id) ? '#e2e8f0' : '#fee2e2'}`,
+                            borderRadius: 1.5,
+                            px: 1,
+                            py: 0.45,
+                            minWidth: 'auto',
+                            textTransform: 'none',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              backgroundColor: isCurrentUser(user.id) ? '#f1f5f9' : '#fee2e2',
+                              color: isCurrentUser(user.id) ? '#94a3b8' : '#b91c1c',
+                              transform: isCurrentUser(user.id) ? 'none' : 'translateY(-1px)',
+                              boxShadow: isCurrentUser(user.id) ? 'none' : '0 2px 4px rgba(220, 38, 38, 0.15)',
+                            },
+                            '&.Mui-disabled': {
+                              backgroundColor: '#f1f5f9',
+                              borderColor: '#e2e8f0',
+                            },
+                          }}
+                        >
+                          Delete
+                        </Button>
                       </Box>
                     </TableCell>
                   </TableRow>
