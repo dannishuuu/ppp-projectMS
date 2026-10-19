@@ -358,15 +358,16 @@ export const OrganizationForm = () => {
   );
   const missingRequiredDocs = requiredDocTypes.filter((dt) => !uploadedTypeIds.includes(dt.id));
 
-  // Table rows: create mode = required types + manually added ones; edit mode = required + types having a document
+  // Table rows: required types (+ types having a document in edit mode) + manually added ones
   const tableDocTypes = useMemo(() => {
-    if (isEditMode) {
-      return docTypesList.filter((dt) => dt.is_required || uploadedTypeIds.includes(dt.id));
-    }
+    const base = isEditMode
+      ? docTypesList.filter((dt) => dt.is_required || uploadedTypeIds.includes(dt.id))
+      : requiredDocTypes;
     const extras = extraTypeIds
       .map((tid) => docTypesList.find((dt) => dt.id === tid))
-      .filter(Boolean);
-    return [...requiredDocTypes, ...extras];
+      .filter(Boolean)
+      .filter((dt) => !base.some((b) => b.id === dt.id));
+    return [...base, ...extras];
   }, [isEditMode, docTypesList, extraTypeIds, requiredDocTypes, uploadedTypeIds]);
 
   const availableExtraTypes = docTypesList.filter((dt) => !tableDocTypes.some((t) => t.id === dt.id));
@@ -1160,31 +1161,41 @@ export const OrganizationForm = () => {
                 </Typography>
               )}
 
-              {!isEditMode && availableExtraTypes.length > 0 && (
+              {availableExtraTypes.length > 0 && (
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                  <TextField
-                    select
+                  <Autocomplete
+                    disablePortal
                     size="small"
-                    label="Add Document Type"
-                    value=""
-                    onChange={(event) => {
-                      if (event.target.value) {
-                        setExtraTypeIds((prev) => [...prev, event.target.value]);
-                      }
+                    options={availableExtraTypes}
+                    getOptionLabel={(option) => `${option.name} (${option.code})`}
+                    renderOption={(props, option) => {
+                      const { key, ...rest } = props;
+                      return (
+                        <Box component="li" key={key} {...rest} sx={{ display: 'block', py: 0.5 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', color: '#0f172a' }}>
+                            {option.name}
+                          </Typography>
+                        </Box>
+                      );
                     }}
-                    sx={{
-                      minWidth: 240,
-                      '& .MuiOutlinedInput-root': inputSx,
-                      '& .MuiInputBase-input': { fontSize: '0.8rem', py: 0.75, cursor: 'pointer' },
+                    value={null}
+                    onChange={(event, newValue) => {
+                      if (newValue) setExtraTypeIds((prev) => [...prev, newValue.id]);
                     }}
-                  >
-                    <MenuItem value="">Add another document type…</MenuItem>
-                    {availableExtraTypes.map((dt) => (
-                      <MenuItem key={dt.id} value={dt.id}>
-                        {dt.name} ({dt.code})
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                    noOptionsText="No document types found"
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Add Document Type"
+                        placeholder="Search document types…"
+                        sx={{
+                          minWidth: 300,
+                          '& .MuiOutlinedInput-root': inputSx,
+                          '& .MuiAutocomplete-input': { fontSize: '0.8rem' },
+                        }}
+                      />
+                    )}
+                  />
                 </Box>
               )}
 

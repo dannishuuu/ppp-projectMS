@@ -34,14 +34,12 @@ import {
   Description as DescriptionIcon,
   Block as DeactivateIcon,
   CheckCircle as ActivateIcon,
-  Delete as DeleteDocIcon,
   HowToReg as VerifyIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { organizationService } from '../../services/organizationService';
 import { formatDate } from '../../utils/formatters';
-import { ConfirmationModal } from '../../components/Common/ConfirmationModal';
 
 // License expiry status helper: Expired / Expiring soon (<=30d) / Valid
 const getLicenseExpiryInfo = (expiry) => {
@@ -69,8 +67,6 @@ export const OrganizationDetails = () => {
   // ── Organization Documents ──
   const [documents, setDocuments] = useState([]);
   const [docsLoading, setDocsLoading] = useState(false);
-  const [deleteDocTarget, setDeleteDocTarget] = useState(null);
-  const [deleteDocLoading, setDeleteDocLoading] = useState(false);
   const [verifyingDocId, setVerifyingDocId] = useState(null);
 
   const fetchDocuments = useCallback(async () => {
@@ -91,21 +87,6 @@ export const OrganizationDetails = () => {
       fetchDocuments();
     }
   }, [loading, org, fetchDocuments]);
-
-  const handleDeleteDocConfirm = async () => {
-    if (!deleteDocTarget) return;
-    setDeleteDocLoading(true);
-    try {
-      await organizationService.deleteOrganizationDocument(id, deleteDocTarget.id);
-      enqueueSnackbar('Document deleted', { variant: 'success' });
-      setDeleteDocTarget(null);
-      fetchDocuments();
-    } catch (err) {
-      enqueueSnackbar(err.message || 'Failed to delete document', { variant: 'error' });
-    } finally {
-      setDeleteDocLoading(false);
-    }
-  };
 
   const handleVerifyDoc = async (doc) => {
     setVerifyingDocId(doc.id);
@@ -692,15 +673,6 @@ export const OrganizationDetails = () => {
                     </IconButton>
                   </Tooltip>
                 )}
-                <Tooltip title="Delete Document">
-                  <IconButton
-                    size="small"
-                    onClick={() => setDeleteDocTarget(doc)}
-                    sx={{ color: '#dc2626', backgroundColor: '#fef2f2', borderRadius: 1.5, p: 0.6, '&:hover': { backgroundColor: '#fee2e2' } }}
-                  >
-                    <DeleteDocIcon sx={{ fontSize: 15 }} />
-                  </IconButton>
-                </Tooltip>
               </Box>
             ))}
           </Stack>
@@ -790,18 +762,6 @@ export const OrganizationDetails = () => {
           </Grid>
         </Grid>
       </Paper>
-
-      {/* Delete Document Confirmation */}
-      <ConfirmationModal
-        open={Boolean(deleteDocTarget)}
-        title="Delete Document"
-        message={`Are you sure you want to delete "${deleteDocTarget?.title}"? This action cannot be undone.`}
-        onConfirm={handleDeleteDocConfirm}
-        onClose={() => setDeleteDocTarget(null)}
-        loading={deleteDocLoading}
-        confirmText="Delete"
-        confirmColor="error"
-      />
     </Box>
   );
 };
